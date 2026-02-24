@@ -1,0 +1,16 @@
+{
+  "name": "培训公司OA系统",
+  "appid": "__UNI__OAC_SAMPLE__",
+  "description": "培训公司OA系统 uni-app 样例",
+  "versionName": "1.0.0",
+  "versionCode": "100",
+  "uni-app": {
+    "compilerVersion": 3
+  },
+  "h5": {
+    "title": "培训公司OA系统",
+    "router": {
+      "mode": "hash"
+    }
+  }
+}

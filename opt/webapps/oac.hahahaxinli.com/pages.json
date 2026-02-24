@@ -1,0 +1,22 @@
+{
+  "pages": [
+    {
+      "path": "pages/login/login",
+      "style": {
+        "navigationBarTitleText": "OA登录"
+      }
+    },
+    {
+      "path": "pages/dashboard/dashboard",
+      "style": {
+        "navigationBarTitleText": "仪表盘"
+      }
+    }
+  ],
+  "globalStyle": {
+    "navigationBarTextStyle": "black",
+    "navigationBarTitleText": "培训公司OA",
+    "navigationBarBackgroundColor": "#FFFFFF",
+    "backgroundColor": "#F3F6FB"
+  }
+}

@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OA 登录</title>
+  <link rel="stylesheet" href="./assets/style.css" />
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+</head>
+<body>
+  <div id="app" class="page page-login">
+    <div class="card">
+      <h1>培训公司 OA 系统</h1>
+      <p class="subtitle">请登录后进入仪表盘</p>
+
+      <form @submit.prevent="onLogin" class="form">
+        <label>
+          用户名
+          <input v-model.trim="form.username" type="text" placeholder="请输入用户名" required />
+        </label>
+
+        <label>
+          密码
+          <input v-model="form.password" type="password" placeholder="请输入密码" required />
+        </label>
+
+        <button type="submit" :disabled="loading">{{ loading ? '登录中...' : '登录' }}</button>
+      </form>
+
+      <p class="hint">样例账号：admin / 123456</p>
+      <p v-if="error" class="error">{{ error }}</p>
+    </div>
+  </div>
+
+  <script>
+    const { createApp, reactive, ref } = Vue;
+
+    createApp({
+      setup() {
+        const form = reactive({
+          username: '',
+          password: ''
+        });
+        const loading = ref(false);
+        const error = ref('');
+
+        const onLogin = async () => {
+          error.value = '';
+          loading.value = true;
+
+          try {
+            const response = await fetch('https://oac.hahahaxinli.com/api/login.php', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify(form)
+            });
+
+            const result = await response.json();
+            if (!response.ok || result.code !== 0) {
+              error.value = result.message || '登录失败，请重试。';
+              return;
+            }
+
+            localStorage.setItem('oa_token', result.data.token);
+            localStorage.setItem('oa_username', result.data.username);
+            window.location.href = './dashboard.html';
+          } catch (e) {
+            error.value = '网络异常，请稍后再试。';
+          } finally {
+            loading.value = false;
+          }
+        };
+
+        return {
+          form,
+          loading,
+          error,
+          onLogin
+        };
+      }
+    }).mount('#app');
+  </script>
+</body>
+</html>
