@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OA 仪表盘</title>
+  <link rel="stylesheet" href="./assets/style.css" />
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+</head>
+<body>
+  <div id="app" class="page page-dashboard">
+    <div class="card">
+      <h1>仪表盘</h1>
+      <p class="subtitle">欢迎你，{{ username }}</p>
+
+      <div class="panel">
+        <h2>系统状态</h2>
+        <ul>
+          <li>前端地址：<code>https://oac.hahahaxinli.com</code></li>
+          <li>后端地址：<code>https://oac.hahahaxinli.com/api</code></li>
+          <li>当前登录令牌：<code>{{ token }}</code></li>
+        </ul>
+      </div>
+
+      <button @click="logout">退出登录</button>
+    </div>
+  </div>
+
+  <script>
+    const { createApp, ref, onMounted } = Vue;
+
+    createApp({
+      setup() {
+        const username = ref('');
+        const token = ref('');
+
+        onMounted(() => {
+          const savedToken = localStorage.getItem('oa_token');
+          const savedUser = localStorage.getItem('oa_username');
+
+          if (!savedToken || !savedUser) {
+            window.location.href = './login.html';
+            return;
+          }
+
+          token.value = savedToken;
+          username.value = savedUser;
+        });
+
+        const logout = () => {
+          localStorage.removeItem('oa_token');
+          localStorage.removeItem('oa_username');
+          window.location.href = './login.html';
+        };
+
+        return {
+          username,
+          token,
+          logout
+        };
+      }
+    }).mount('#app');
+  </script>
+</body>
+</html>
