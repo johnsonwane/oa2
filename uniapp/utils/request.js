@@ -1,4 +1,4 @@
-const API_BASE = 'https://oac.hahahaxinli.com/api'
+const API_BASE = '/api'
 
 export function post(path, data = {}) {
   return new Promise((resolve, reject) => {
