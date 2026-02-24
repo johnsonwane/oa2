@@ -1,9 +1,9 @@
 # OA2
 
-OA2 is a minimal repository scaffold for OpenAI Codex workflow validation.
+OA2 是一个用于 OpenAI Codex 工作流验证的最小化仓库脚手架。
 
-## Purpose
+## 目的
 
-- Verify agent execution in a clean repository.
-- Exercise commit and pull request automation.
-- Provide a simple baseline for future project setup.
+- 在一个干净的仓库中验证智能体执行能力。
+- 演练提交与拉取请求（PR）自动化流程。
+- 为后续项目初始化提供简单基线。
