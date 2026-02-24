@@ -32,7 +32,7 @@ const error = ref('')
 const onLogin = async () => {
   error.value = ''
   if (!form.username || !form.password) {
-    error.value = '用户名和密码不能为空'
+    error.value = '用户名和密码不能为空1'
     return
   }
 
