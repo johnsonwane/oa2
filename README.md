@@ -48,3 +48,25 @@
 - `h5/assets/style.css`
 
 在站点根目录部署后，可直接访问：`/h5/login.html`。
+
+## Dashboard 菜单管理功能（H5）
+
+已新增完整菜单管理样例（增删改查）：
+
+- 数据库脚本：`db/schema.sql`
+- 后端接口：`api/menu.php`
+- 数据库连接：`api/db.php`
+- 前端页面：`h5/dashboard.html`
+
+### 菜单接口说明
+
+- `GET /api/menu.php`：查询菜单列表
+- `POST /api/menu.php`：新增菜单
+- `PUT /api/menu.php`：更新菜单
+- `DELETE /api/menu.php?id=1`：删除菜单
+
+### 数据库初始化
+
+```bash
+mysql -uroot -proot < db/schema.sql
+```
