@@ -17,7 +17,22 @@ CREATE TABLE IF NOT EXISTS oa_menu (
 
 INSERT INTO oa_menu (menu_name, menu_key, path, icon, sort_no, status)
 VALUES
-('首页', 'dashboard_home', '/dashboard/home', 'home', 1, 1),
-('学员管理', 'student_manage', '/student/list', 'user', 2, 1),
-('课程管理', 'course_manage', '/course/list', 'book', 3, 1)
-ON DUPLICATE KEY UPDATE menu_name = VALUES(menu_name);
+('首页工作台', 'workbench', '/workbench', '🏠', 1, 1),
+('学员管理', 'student', '/student', '🎓', 2, 1),
+('教师管理', 'teacher', '/teacher', '👩‍🏫', 3, 1),
+('课程管理', 'course', '/course', '📘', 4, 1),
+('排课管理', 'schedule', '/schedule', '🗓️', 5, 1),
+('班级管理', 'classroom', '/classroom', '🏫', 6, 1),
+('考勤管理', 'attendance', '/attendance', '🕘', 7, 1),
+('考试与成绩', 'exam', '/exam', '📝', 8, 1),
+('教务审批', 'approval', '/approval', '✅', 9, 1),
+('财务收费', 'finance', '/finance', '💰', 10, 1),
+('市场招生', 'marketing', '/marketing', '📢', 11, 1),
+('人事行政', 'hr_admin', '/hr-admin', '👥', 12, 1),
+('系统设置', 'system', '/system', '⚙️', 13, 1)
+ON DUPLICATE KEY UPDATE
+  menu_name = VALUES(menu_name),
+  path = VALUES(path),
+  icon = VALUES(icon),
+  sort_no = VALUES(sort_no),
+  status = VALUES(status);

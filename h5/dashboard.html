@@ -3,39 +3,53 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>OA 仪表盘(H5)</title>
+  <title>培训公司 OA 仪表盘(H5)</title>
   <link rel="stylesheet" href="./assets/style.css" />
   <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
 </head>
 <body>
-  <div id="app" class="page page-top">
-    <div class="card card-wide">
-      <h1>仪表盘菜单管理</h1>
-      <p class="subtitle">欢迎你，{{ username }}</p>
+  <div id="app" class="oa-layout" v-cloak>
+    <aside class="oa-sidebar">
+      <div class="brand">培训公司 OA</div>
+      <div class="user-box">当前用户：{{ username }}</div>
+      <ul class="menu-tree">
+        <li v-for="item in defaultMenus" :key="item.key">
+          <span class="menu-icon">{{ item.icon }}</span>
+          <span>{{ item.name }}</span>
+        </li>
+      </ul>
+    </aside>
 
-      <form class="form form-grid" @submit.prevent="submitMenu">
-        <label>菜单名称<input v-model.trim="form.menu_name" required /></label>
-        <label>菜单标识<input v-model.trim="form.menu_key" required /></label>
-        <label>菜单路径<input v-model.trim="form.path" required /></label>
-        <label>图标<input v-model.trim="form.icon" placeholder="可选" /></label>
-        <label>排序<input v-model.number="form.sort_no" type="number" /></label>
-        <label>状态
-          <select v-model.number="form.status">
-            <option :value="1">启用</option>
-            <option :value="0">禁用</option>
-          </select>
-        </label>
-        <div class="actions">
-          <button type="submit">{{ form.id ? '保存修改' : '新增菜单' }}</button>
-          <button type="button" class="btn-secondary" @click="resetForm">重置</button>
-          <button type="button" class="btn-danger" @click="logout">退出登录</button>
+    <main class="oa-main">
+      <header class="oa-header">
+        <h1>菜单管理</h1>
+        <div class="header-actions">
+          <button class="btn-secondary" @click="seedDefaultMenus">初始化培训公司常用菜单</button>
+          <button class="btn-danger" @click="logout">退出登录</button>
         </div>
-      </form>
+      </header>
 
-      <p v-if="error" class="error">{{ error }}</p>
+      <section class="content-card">
+        <form class="form form-grid" @submit.prevent="submitMenu">
+          <label>菜单名称<input v-model.trim="form.menu_name" required /></label>
+          <label>菜单标识<input v-model.trim="form.menu_key" required /></label>
+          <label>菜单路径<input v-model.trim="form.path" required /></label>
+          <label>图标<input v-model.trim="form.icon" placeholder="如：📘" /></label>
+          <label>排序<input v-model.number="form.sort_no" type="number" /></label>
+          <label>状态
+            <select v-model.number="form.status">
+              <option :value="1">启用</option>
+              <option :value="0">禁用</option>
+            </select>
+          </label>
+          <div class="actions">
+            <button type="submit">{{ form.id ? '保存修改' : '新增菜单' }}</button>
+            <button type="button" class="btn-secondary" @click="resetForm">重置</button>
+          </div>
+        </form>
 
-      <div class="panel">
-        <h2>菜单列表</h2>
+        <p v-if="error" class="error">{{ error }}</p>
+
         <table class="table">
           <thead>
             <tr>
@@ -49,7 +63,7 @@
               <td>{{ row.menu_key }}</td>
               <td><code>{{ row.path }}</code></td>
               <td>{{ row.sort_no }}</td>
-              <td>{{ row.status === 1 ? '启用' : '禁用' }}</td>
+              <td>{{ Number(row.status) === 1 ? '启用' : '禁用' }}</td>
               <td>
                 <button class="btn-mini" @click="editRow(row)">编辑</button>
                 <button class="btn-mini btn-danger" @click="removeRow(row.id)">删除</button>
@@ -58,8 +72,8 @@
             <tr v-if="list.length === 0"><td colspan="7">暂无数据</td></tr>
           </tbody>
         </table>
-      </div>
-    </div>
+      </section>
+    </main>
   </div>
 
   <script>
@@ -68,28 +82,36 @@
     createApp({
       setup() {
         const username = ref('');
-        const token = ref('');
         const error = ref('');
         const list = ref([]);
         const form = reactive({ id: 0, menu_name: '', menu_key: '', path: '', icon: '', sort_no: 0, status: 1 });
 
+        const defaultMenus = ref([
+          { name: '首页工作台', key: 'workbench', icon: '🏠', path: '/workbench' },
+          { name: '学员管理', key: 'student', icon: '🎓', path: '/student' },
+          { name: '教师管理', key: 'teacher', icon: '👩‍🏫', path: '/teacher' },
+          { name: '课程管理', key: 'course', icon: '📘', path: '/course' },
+          { name: '排课管理', key: 'schedule', icon: '🗓️', path: '/schedule' },
+          { name: '班级管理', key: 'classroom', icon: '🏫', path: '/classroom' },
+          { name: '考勤管理', key: 'attendance', icon: '🕘', path: '/attendance' },
+          { name: '考试与成绩', key: 'exam', icon: '📝', path: '/exam' },
+          { name: '教务审批', key: 'approval', icon: '✅', path: '/approval' },
+          { name: '财务收费', key: 'finance', icon: '💰', path: '/finance' },
+          { name: '市场招生', key: 'marketing', icon: '📢', path: '/marketing' },
+          { name: '人事行政', key: 'hr_admin', icon: '👥', path: '/hr-admin' },
+          { name: '系统设置', key: 'system', icon: '⚙️', path: '/system' }
+        ]);
+
         const api = async (url, options = {}) => {
-          const response = await fetch(url, {
-            headers: { 'Content-Type': 'application/json' },
-            ...options
-          });
+          const response = await fetch(url, { headers: { 'Content-Type': 'application/json' }, ...options });
           const data = await response.json();
           if (!response.ok || data.code !== 0) throw new Error(data.message || '请求失败');
           return data;
         };
 
         const loadMenus = async () => {
-          try {
-            const res = await api('/api/menu.php');
-            list.value = res.data || [];
-          } catch (e) {
-            error.value = e.message;
-          }
+          const res = await api('/api/menu.php');
+          list.value = res.data || [];
         };
 
         const resetForm = () => {
@@ -132,6 +154,33 @@
           }
         };
 
+        const seedDefaultMenus = async () => {
+          error.value = '';
+          try {
+            for (let i = 0; i < defaultMenus.value.length; i++) {
+              const m = defaultMenus.value[i];
+              try {
+                await api('/api/menu.php', {
+                  method: 'POST',
+                  body: JSON.stringify({
+                    menu_name: m.name,
+                    menu_key: m.key,
+                    path: m.path,
+                    icon: m.icon,
+                    sort_no: i + 1,
+                    status: 1
+                  })
+                });
+              } catch (e) {
+                // 允许重复 key 的失败跳过，继续插入其他菜单
+              }
+            }
+            await loadMenus();
+          } catch (e) {
+            error.value = e.message;
+          }
+        };
+
         const logout = () => {
           localStorage.removeItem('oa_token');
           localStorage.removeItem('oa_username');
@@ -145,12 +194,15 @@
             location.href = './login.html';
             return;
           }
-          token.value = t;
           username.value = u;
-          await loadMenus();
+          try {
+            await loadMenus();
+          } catch (e) {
+            error.value = e.message;
+          }
         });
 
-        return { username, token, error, list, form, submitMenu, editRow, removeRow, resetForm, logout };
+        return { username, defaultMenus, error, list, form, submitMenu, editRow, removeRow, resetForm, logout, seedDefaultMenus };
       }
     }).mount('#app');
   </script>
