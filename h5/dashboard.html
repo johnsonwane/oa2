@@ -12,19 +12,20 @@
     <aside class="oa-sidebar">
       <div class="brand">培训公司 OA</div>
       <div class="user-box">当前用户：{{ username }}</div>
-      <ul class="menu-tree">
-        <li v-for="item in defaultMenus" :key="item.key">
-          <span class="menu-icon">{{ item.icon }}</span>
-          <span>{{ item.name }}</span>
-        </li>
-      </ul>
+
+      <div class="menu-section" v-for="group in menuTree" :key="group.name">
+        <div class="group-title">{{ group.name }}</div>
+        <ul class="menu-tree">
+          <li v-for="item in group.children" :key="item" :title="item">{{ item }}</li>
+        </ul>
+      </div>
     </aside>
 
     <main class="oa-main">
       <header class="oa-header">
-        <h1>菜单管理</h1>
+        <h1>菜单管理（按你给定的 OA 菜单清单）</h1>
         <div class="header-actions">
-          <button class="btn-secondary" @click="seedDefaultMenus">初始化培训公司常用菜单</button>
+          <button class="btn-secondary" @click="seedDefaultMenus">初始化菜单到数据库</button>
           <button class="btn-danger" @click="logout">退出登录</button>
         </div>
       </header>
@@ -34,7 +35,7 @@
           <label>菜单名称<input v-model.trim="form.menu_name" required /></label>
           <label>菜单标识<input v-model.trim="form.menu_key" required /></label>
           <label>菜单路径<input v-model.trim="form.path" required /></label>
-          <label>图标<input v-model.trim="form.icon" placeholder="如：📘" /></label>
+          <label>图标<input v-model.trim="form.icon" placeholder="可选" /></label>
           <label>排序<input v-model.number="form.sort_no" type="number" /></label>
           <label>状态
             <select v-model.number="form.status">
@@ -86,20 +87,19 @@
         const list = ref([]);
         const form = reactive({ id: 0, menu_name: '', menu_key: '', path: '', icon: '', sort_no: 0, status: 1 });
 
-        const defaultMenus = ref([
-          { name: '首页工作台', key: 'workbench', icon: '🏠', path: '/workbench' },
-          { name: '学员管理', key: 'student', icon: '🎓', path: '/student' },
-          { name: '教师管理', key: 'teacher', icon: '👩‍🏫', path: '/teacher' },
-          { name: '课程管理', key: 'course', icon: '📘', path: '/course' },
-          { name: '排课管理', key: 'schedule', icon: '🗓️', path: '/schedule' },
-          { name: '班级管理', key: 'classroom', icon: '🏫', path: '/classroom' },
-          { name: '考勤管理', key: 'attendance', icon: '🕘', path: '/attendance' },
-          { name: '考试与成绩', key: 'exam', icon: '📝', path: '/exam' },
-          { name: '教务审批', key: 'approval', icon: '✅', path: '/approval' },
-          { name: '财务收费', key: 'finance', icon: '💰', path: '/finance' },
-          { name: '市场招生', key: 'marketing', icon: '📢', path: '/marketing' },
-          { name: '人事行政', key: 'hr_admin', icon: '👥', path: '/hr-admin' },
-          { name: '系统设置', key: 'system', icon: '⚙️', path: '/system' }
+        const menuTree = ref([
+          { name: '无', children: ['登录页'] },
+          { name: '0级', children: ['首页', '我的'] },
+          { name: '我的', children: ['个人信息修改', '修改密码', '我的消息/通知', '我的待办汇总', '我的日程'] },
+          { name: '常用', children: ['我的待办', '待我审批', '今日/本周课程', '近期开班提醒', '销售线索/报名简讯', '个人业绩（讲师/销售/校区负责人）'] },
+          { name: '运营', children: ['运营记录-查看', '运营记录-新增修改', '运营资料库-查看', '运营资料库-修改', '运营账号管理', '运营引流数据查看', '剪辑记录', '发帖记录', '运营素材库', '公号文管理'] },
+          { name: '顾问', children: ['顾问发资料', '顾问发资料的记录', '顾问查看编辑客户', '顾问手动录入新客户', '顾问录入新订单', '学员录入', '学员修改', '学员查询-学员信息导出', '订单录入', '订单查询-订单信息导出', '订单修改', '顾问日报记录', '顾问工作统计', '班级管理-增改', '班级信息查询', '销课管理-增改', '销课查询'] },
+          { name: '交付', children: ['班主任管理课程商品', '线下课交付记录'] },
+          { name: '人力', children: ['HR管理花名册', '员工管理-添加', '员工管理-修改'] },
+          { name: '财务', children: ['上报收款单', '上报支出单', '报销记录', '销售业绩统计', '教练业绩统计', '发票管理', '收款方管理', '自定义统计', '线下课单项目统计'] },
+          { name: '行政', children: ['工作机号管理'] },
+          { name: '系管', children: ['系统管理', '工具管理'] },
+          { name: '超管', children: ['超管管理用户', '权限管理', '菜单管理', '导航栏管理', '部门管理', '公司管理', '合作方管理'] }
         ]);
 
         const api = async (url, options = {}) => {
@@ -154,25 +154,38 @@
           }
         };
 
+        const slug = (text) => text
+          .replace(/\s+/g, '')
+          .replace(/[\/（）()]/g, '-')
+          .replace(/-+/g, '-')
+          .replace(/[^\w\-\u4e00-\u9fa5]/g, '')
+          .toLowerCase();
+
         const seedDefaultMenus = async () => {
           error.value = '';
+          const unique = new Set();
+          const rows = [];
+          menuTree.value.forEach((group) => {
+            group.children.forEach((child) => {
+              const key = `${group.name}__${child}`;
+              if (unique.has(key)) return;
+              unique.add(key);
+              rows.push({
+                menu_name: `${group.name}/${child}`,
+                menu_key: slug(key),
+                path: `/${slug(group.name)}/${slug(child)}`,
+                icon: '',
+                status: 1
+              });
+            });
+          });
+
           try {
-            for (let i = 0; i < defaultMenus.value.length; i++) {
-              const m = defaultMenus.value[i];
+            for (let i = 0; i < rows.length; i++) {
               try {
-                await api('/api/menu.php', {
-                  method: 'POST',
-                  body: JSON.stringify({
-                    menu_name: m.name,
-                    menu_key: m.key,
-                    path: m.path,
-                    icon: m.icon,
-                    sort_no: i + 1,
-                    status: 1
-                  })
-                });
+                await api('/api/menu.php', { method: 'POST', body: JSON.stringify({ ...rows[i], sort_no: i + 1 }) });
               } catch (e) {
-                // 允许重复 key 的失败跳过，继续插入其他菜单
+                // 重复键等错误跳过，继续处理下一条
               }
             }
             await loadMenus();
@@ -202,7 +215,7 @@
           }
         });
 
-        return { username, defaultMenus, error, list, form, submitMenu, editRow, removeRow, resetForm, logout, seedDefaultMenus };
+        return { username, menuTree, error, list, form, submitMenu, editRow, removeRow, resetForm, logout, seedDefaultMenus };
       }
     }).mount('#app');
   </script>
