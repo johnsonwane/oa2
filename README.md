@@ -24,6 +24,9 @@
 - `GET/POST/PUT/DELETE /api/notifications.php` 通知 CRUD
 - `GET/POST/PUT/DELETE /api/users.php` 用户 CRUD
 - `GET /api/dashboard_summary.php` 统计汇总
+- `GET/POST/PUT/DELETE /api/rbac_groups.php` 用户组 CRUD
+- `GET/POST/PUT/DELETE /api/rbac_permissions.php` 权限 CRUD
+- `GET/POST/DELETE /api/rbac_assign.php` 用户组分配、权限组分配
 
 ## 数据库配置
 
@@ -41,3 +44,10 @@ mysql -uroot -p < db/schema.sql
 ```
 
 默认登录账号：`admin / 123456`
+
+
+## 系统管理（RBAC）
+
+- 一级菜单新增：`系统管理`。
+- 二级菜单包含：用户管理、菜单管理、用户组管理、权限管理、RBAC分配。
+- 可进行用户、用户组、权限、用户组-用户分配、用户组-权限分配的增删改查。

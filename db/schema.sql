@@ -13,6 +13,43 @@ CREATE TABLE IF NOT EXISTS oa_user (
   UNIQUE KEY uk_username (username)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+CREATE TABLE IF NOT EXISTS oa_user_group (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  group_name VARCHAR(50) NOT NULL,
+  group_code VARCHAR(50) NOT NULL,
+  remark VARCHAR(255) DEFAULT '',
+  status TINYINT NOT NULL DEFAULT 1,
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_group_code (group_code)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS oa_permission (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  perm_name VARCHAR(80) NOT NULL,
+  perm_code VARCHAR(80) NOT NULL,
+  module_name VARCHAR(50) DEFAULT '系统管理',
+  remark VARCHAR(255) DEFAULT '',
+  status TINYINT NOT NULL DEFAULT 1,
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_perm_code (perm_code)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS oa_user_group_rel (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  user_id INT UNSIGNED NOT NULL,
+  group_id INT UNSIGNED NOT NULL,
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_user_group (user_id, group_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS oa_group_permission_rel (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  group_id INT UNSIGNED NOT NULL,
+  perm_id INT UNSIGNED NOT NULL,
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_group_perm (group_id, perm_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 CREATE TABLE IF NOT EXISTS oa_menu (
   id INT UNSIGNED NOT NULL AUTO_INCREMENT,
   parent_name VARCHAR(50) DEFAULT '',
@@ -92,15 +129,48 @@ INSERT INTO oa_user (username, password_hash, real_name, role, status) VALUES
 ('finance01', '$2y$12$rVtPrImk7H.Q6rvIHF4Ql.z8/SgRl3OChjDcGMQG.aXn4Cn7RTxDO', '财务A', '财务', 1)
 ON DUPLICATE KEY UPDATE real_name=VALUES(real_name), role=VALUES(role), status=VALUES(status);
 
+INSERT INTO oa_user_group (group_name, group_code, remark, status) VALUES
+('超级管理员组', 'super_admin', '拥有全部权限', 1),
+('顾问组', 'consultant_group', '顾问业务权限', 1),
+('财务组', 'finance_group', '财务业务权限', 1)
+ON DUPLICATE KEY UPDATE group_name=VALUES(group_name), remark=VALUES(remark), status=VALUES(status);
+
+INSERT INTO oa_permission (perm_name, perm_code, module_name, remark, status) VALUES
+('用户管理-查看', 'user_view', '系统管理', '查看用户', 1),
+('用户管理-新增修改', 'user_edit', '系统管理', '新增与修改用户', 1),
+('用户组管理', 'group_manage', '系统管理', '用户组增删改查', 1),
+('权限管理', 'perm_manage', '系统管理', '权限增删改查', 1),
+('权限分配', 'rbac_assign', '系统管理', '组与权限、用户组分配', 1)
+ON DUPLICATE KEY UPDATE perm_name=VALUES(perm_name), module_name=VALUES(module_name), remark=VALUES(remark), status=VALUES(status);
+
+INSERT IGNORE INTO oa_user_group_rel (user_id, group_id)
+SELECT u.id, g.id FROM oa_user u, oa_user_group g WHERE u.username='admin' AND g.group_code='super_admin';
+INSERT IGNORE INTO oa_user_group_rel (user_id, group_id)
+SELECT u.id, g.id FROM oa_user u, oa_user_group g WHERE u.username='consultant01' AND g.group_code='consultant_group';
+INSERT IGNORE INTO oa_user_group_rel (user_id, group_id)
+SELECT u.id, g.id FROM oa_user u, oa_user_group g WHERE u.username='finance01' AND g.group_code='finance_group';
+
+INSERT IGNORE INTO oa_group_permission_rel (group_id, perm_id)
+SELECT g.id, p.id FROM oa_user_group g, oa_permission p WHERE g.group_code='super_admin';
+INSERT IGNORE INTO oa_group_permission_rel (group_id, perm_id)
+SELECT g.id, p.id FROM oa_user_group g, oa_permission p WHERE g.group_code='consultant_group' AND p.perm_code IN ('user_view');
+INSERT IGNORE INTO oa_group_permission_rel (group_id, perm_id)
+SELECT g.id, p.id FROM oa_user_group g, oa_permission p WHERE g.group_code='finance_group' AND p.perm_code IN ('user_view');
+
 INSERT INTO oa_menu (parent_name, menu_name, menu_key, path, icon, sort_no, status) VALUES
-('0级','首页','home','/home','🏠',1,1),
-('0级','我的','my','/my','👤',2,1),
-('运营','运营记录-查看','ops_log_view','/ops/log/view','📊',10,1),
-('顾问','学员录入','consultant_student_create','/consultant/student/create','🧾',20,1),
-('交付','线下课交付记录','delivery_offline_record','/delivery/offline-record','📌',30,1),
-('财务','上报收款单','finance_income_report','/finance/income-report','💰',40,1),
-('超管','用户管理','super_user_manage','/super/user','⚙️',50,1)
-ON DUPLICATE KEY UPDATE menu_name=VALUES(menu_name), path=VALUES(path), icon=VALUES(icon), sort_no=VALUES(sort_no), status=VALUES(status);
+('总览','数据总览','overview','/overview','🏠',1,1),
+('业务管理','学员管理','students','/students','🎓',11,1),
+('业务管理','课程管理','courses','/courses','📘',12,1),
+('业务管理','订单管理','orders','/orders','🧾',13,1),
+('业务管理','财务管理','finance','/finance','💰',14,1),
+('业务管理','待办管理','todos','/todos','✅',15,1),
+('业务管理','通知管理','notifications','/notifications','🔔',16,1),
+('系统管理','用户管理','users','/users','👥',21,1),
+('系统管理','菜单管理','menus','/menus','🧭',22,1),
+('系统管理','用户组管理','rbac_groups','/rbac/groups','🧩',23,1),
+('系统管理','权限管理','rbac_permissions','/rbac/permissions','🔐',24,1),
+('系统管理','RBAC分配','rbac_assign','/rbac/assign','🛡️',25,1)
+ON DUPLICATE KEY UPDATE menu_name=VALUES(menu_name), parent_name=VALUES(parent_name), path=VALUES(path), icon=VALUES(icon), sort_no=VALUES(sort_no), status=VALUES(status);
 
 INSERT INTO oa_student (name, phone, level, consultant) VALUES
 ('张三', '13800000001', 'A1', '顾问A'),
