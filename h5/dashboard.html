@@ -8,216 +8,216 @@
   <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
 </head>
 <body>
-  <div id="app" class="oa-layout" v-cloak>
-    <aside class="oa-sidebar">
-      <div class="brand">培训公司 OA</div>
-      <div class="user-box">当前用户：{{ username }}</div>
+<div id="app" class="oa-layout" v-cloak>
+  <aside class="oa-sidebar">
+    <div class="brand">培训公司 OA</div>
+    <div class="user-box">{{ user.real_name || user.username }}（{{ user.role || '访客' }}）</div>
+    <ul class="menu-tree simple">
+      <li :class="{active:activeTab==='overview'}" @click="activeTab='overview'">总览</li>
+      <li :class="{active:activeTab==='students'}" @click="activeTab='students'">学员管理</li>
+      <li :class="{active:activeTab==='courses'}" @click="activeTab='courses'">课程管理</li>
+      <li :class="{active:activeTab==='orders'}" @click="activeTab='orders'">订单管理</li>
+      <li :class="{active:activeTab==='finance'}" @click="activeTab='finance'">财务管理</li>
+      <li :class="{active:activeTab==='todos'}" @click="activeTab='todos'">待办管理</li>
+      <li :class="{active:activeTab==='notifications'}" @click="activeTab='notifications'">通知管理</li>
+      <li :class="{active:activeTab==='users'}" @click="activeTab='users'">用户管理</li>
+      <li :class="{active:activeTab==='menus'}" @click="activeTab='menus'">菜单管理</li>
+    </ul>
+  </aside>
 
-      <div class="menu-section" v-for="group in menuTree" :key="group.name">
-        <div class="group-title">{{ group.name }}</div>
-        <ul class="menu-tree">
-          <li v-for="item in group.children" :key="item" :title="item">{{ item }}</li>
-        </ul>
+  <main class="oa-main">
+    <header class="oa-header">
+      <h1>OA 系统管理台</h1>
+      <div class="header-actions">
+        <button class="btn-secondary" @click="reloadAll">刷新数据</button>
+        <button class="btn-danger" @click="logout">退出登录</button>
       </div>
-    </aside>
+    </header>
 
-    <main class="oa-main">
-      <header class="oa-header">
-        <h1>菜单管理（按你给定的 OA 菜单清单）</h1>
-        <div class="header-actions">
-          <button class="btn-secondary" @click="seedDefaultMenus">初始化菜单到数据库</button>
-          <button class="btn-danger" @click="logout">退出登录</button>
-        </div>
-      </header>
+    <section class="content-card" v-if="activeTab==='overview'">
+      <h2>数据总览</h2>
+      <div class="cards">
+        <div class="stat"><span>学员数</span><strong>{{ summary.students }}</strong></div>
+        <div class="stat"><span>课程数</span><strong>{{ summary.courses }}</strong></div>
+        <div class="stat"><span>订单数</span><strong>{{ summary.orders }}</strong></div>
+        <div class="stat"><span>待办未完成</span><strong>{{ summary.todos_open }}</strong></div>
+        <div class="stat"><span>未读通知</span><strong>{{ summary.notifications_unread }}</strong></div>
+      </div>
+      <p class="hint">登录账号：admin / 123456</p>
+    </section>
 
-      <section class="content-card">
-        <form class="form form-grid" @submit.prevent="submitMenu">
-          <label>菜单名称<input v-model.trim="form.menu_name" required /></label>
-          <label>菜单标识<input v-model.trim="form.menu_key" required /></label>
-          <label>菜单路径<input v-model.trim="form.path" required /></label>
-          <label>图标<input v-model.trim="form.icon" placeholder="可选" /></label>
-          <label>排序<input v-model.number="form.sort_no" type="number" /></label>
-          <label>状态
-            <select v-model.number="form.status">
-              <option :value="1">启用</option>
-              <option :value="0">禁用</option>
-            </select>
-          </label>
-          <div class="actions">
-            <button type="submit">{{ form.id ? '保存修改' : '新增菜单' }}</button>
-            <button type="button" class="btn-secondary" @click="resetForm">重置</button>
-          </div>
-        </form>
+    <section class="content-card" v-if="activeTab==='students'">
+      <h2>学员管理</h2>
+      <form class="inline-form" @submit.prevent="createStudent">
+        <input v-model.trim="studentForm.name" placeholder="姓名" required>
+        <input v-model.trim="studentForm.phone" placeholder="手机号" required>
+        <input v-model.trim="studentForm.level" placeholder="级别">
+        <input v-model.trim="studentForm.consultant" placeholder="顾问">
+        <button>新增学员</button>
+      </form>
+      <table class="table"><thead><tr><th>ID</th><th>姓名</th><th>手机号</th><th>级别</th><th>顾问</th></tr></thead><tbody><tr v-for="s in students" :key="s.id"><td>{{s.id}}</td><td>{{s.name}}</td><td>{{s.phone}}</td><td>{{s.level}}</td><td>{{s.consultant}}</td></tr></tbody></table>
+    </section>
 
-        <p v-if="error" class="error">{{ error }}</p>
+    <section class="content-card" v-if="activeTab==='courses'">
+      <h2>课程管理</h2>
+      <form class="inline-form" @submit.prevent="createCourse">
+        <input v-model.trim="courseForm.course_name" placeholder="课程名" required>
+        <input v-model.trim="courseForm.coach_name" placeholder="讲师" required>
+        <input v-model.number="courseForm.period_weeks" type="number" placeholder="周期周数">
+        <input v-model.number="courseForm.price" type="number" step="0.01" placeholder="价格">
+        <button>新增课程</button>
+      </form>
+      <table class="table"><thead><tr><th>ID</th><th>课程</th><th>讲师</th><th>周期</th><th>价格</th></tr></thead><tbody><tr v-for="c in courses" :key="c.id"><td>{{c.id}}</td><td>{{c.course_name}}</td><td>{{c.coach_name}}</td><td>{{c.period_weeks}}周</td><td>¥{{c.price}}</td></tr></tbody></table>
+    </section>
 
-        <table class="table">
-          <thead>
-            <tr>
-              <th>ID</th><th>名称</th><th>标识</th><th>路径</th><th>排序</th><th>状态</th><th>操作</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="row in list" :key="row.id">
-              <td>{{ row.id }}</td>
-              <td>{{ row.menu_name }}</td>
-              <td>{{ row.menu_key }}</td>
-              <td><code>{{ row.path }}</code></td>
-              <td>{{ row.sort_no }}</td>
-              <td>{{ Number(row.status) === 1 ? '启用' : '禁用' }}</td>
-              <td>
-                <button class="btn-mini" @click="editRow(row)">编辑</button>
-                <button class="btn-mini btn-danger" @click="removeRow(row.id)">删除</button>
-              </td>
-            </tr>
-            <tr v-if="list.length === 0"><td colspan="7">暂无数据</td></tr>
-          </tbody>
-        </table>
-      </section>
-    </main>
-  </div>
+    <section class="content-card" v-if="activeTab==='orders'">
+      <h2>订单管理</h2>
+      <form class="inline-form" @submit.prevent="createOrder">
+        <select v-model.number="orderForm.student_id" required><option value="">选择学员</option><option v-for="s in students" :value="Number(s.id)">{{s.name}}</option></select>
+        <select v-model.number="orderForm.course_id" required><option value="">选择课程</option><option v-for="c in courses" :value="Number(c.id)">{{c.course_name}}</option></select>
+        <input v-model.number="orderForm.amount" type="number" step="0.01" placeholder="金额">
+        <select v-model.number="orderForm.pay_status"><option :value="0">待支付</option><option :value="1">已支付</option></select>
+        <button>新增订单</button>
+      </form>
+      <table class="table"><thead><tr><th>ID</th><th>学员</th><th>课程</th><th>金额</th><th>状态</th></tr></thead><tbody><tr v-for="o in orders" :key="o.id"><td>{{o.id}}</td><td>{{o.student_name}}</td><td>{{o.course_name}}</td><td>¥{{o.amount}}</td><td>{{Number(o.pay_status)===1?'已支付':'待支付'}}</td></tr></tbody></table>
+    </section>
 
-  <script>
-    const { createApp, ref, reactive, onMounted } = Vue;
+    <section class="content-card" v-if="activeTab==='finance'">
+      <h2>财务管理</h2>
+      <div class="cards">
+        <div class="stat"><span>收入</span><strong>¥{{ finance.summary.income || 0 }}</strong></div>
+        <div class="stat"><span>支出</span><strong>¥{{ finance.summary.expense || 0 }}</strong></div>
+        <div class="stat"><span>结余</span><strong>¥{{ finance.summary.balance || 0 }}</strong></div>
+      </div>
+      <form class="inline-form" @submit.prevent="createFinance">
+        <select v-model="financeForm.record_type"><option value="income">收入</option><option value="expense">支出</option></select>
+        <input v-model.trim="financeForm.item_name" placeholder="项目名" required>
+        <input v-model.number="financeForm.amount" type="number" step="0.01" placeholder="金额" required>
+        <input v-model="financeForm.record_date" type="date" required>
+        <button>新增记录</button>
+      </form>
+      <table class="table"><thead><tr><th>类型</th><th>项目</th><th>金额</th><th>日期</th></tr></thead><tbody><tr v-for="f in finance.list" :key="f.id"><td>{{f.record_type}}</td><td>{{f.item_name}}</td><td>¥{{f.amount}}</td><td>{{f.record_date}}</td></tr></tbody></table>
+    </section>
 
-    createApp({
-      setup() {
-        const username = ref('');
-        const error = ref('');
-        const list = ref([]);
-        const form = reactive({ id: 0, menu_name: '', menu_key: '', path: '', icon: '', sort_no: 0, status: 1 });
+    <section class="content-card" v-if="activeTab==='todos'">
+      <h2>待办管理</h2>
+      <form class="inline-form" @submit.prevent="createTodo">
+        <input v-model.trim="todoForm.title" placeholder="待办事项" required>
+        <select v-model="todoForm.priority"><option>高</option><option>中</option><option>低</option></select>
+        <input v-model="todoForm.due_date" type="date">
+        <button>新增待办</button>
+      </form>
+      <table class="table"><thead><tr><th>事项</th><th>优先级</th><th>状态</th><th>截止日</th></tr></thead><tbody><tr v-for="t in todos" :key="t.id"><td>{{t.title}}</td><td>{{t.priority}}</td><td>{{t.status}}</td><td>{{t.due_date}}</td></tr></tbody></table>
+    </section>
 
-        const menuTree = ref([
-          { name: '无', children: ['登录页'] },
-          { name: '0级', children: ['首页', '我的'] },
-          { name: '我的', children: ['个人信息修改', '修改密码', '我的消息/通知', '我的待办汇总', '我的日程'] },
-          { name: '常用', children: ['我的待办', '待我审批', '今日/本周课程', '近期开班提醒', '销售线索/报名简讯', '个人业绩（讲师/销售/校区负责人）'] },
-          { name: '运营', children: ['运营记录-查看', '运营记录-新增修改', '运营资料库-查看', '运营资料库-修改', '运营账号管理', '运营引流数据查看', '剪辑记录', '发帖记录', '运营素材库', '公号文管理'] },
-          { name: '顾问', children: ['顾问发资料', '顾问发资料的记录', '顾问查看编辑客户', '顾问手动录入新客户', '顾问录入新订单', '学员录入', '学员修改', '学员查询-学员信息导出', '订单录入', '订单查询-订单信息导出', '订单修改', '顾问日报记录', '顾问工作统计', '班级管理-增改', '班级信息查询', '销课管理-增改', '销课查询'] },
-          { name: '交付', children: ['班主任管理课程商品', '线下课交付记录'] },
-          { name: '人力', children: ['HR管理花名册', '员工管理-添加', '员工管理-修改'] },
-          { name: '财务', children: ['上报收款单', '上报支出单', '报销记录', '销售业绩统计', '教练业绩统计', '发票管理', '收款方管理', '自定义统计', '线下课单项目统计'] },
-          { name: '行政', children: ['工作机号管理'] },
-          { name: '系管', children: ['系统管理', '工具管理'] },
-          { name: '超管', children: ['超管管理用户', '权限管理', '菜单管理', '导航栏管理', '部门管理', '公司管理', '合作方管理'] }
-        ]);
+    <section class="content-card" v-if="activeTab==='notifications'">
+      <h2>通知管理</h2>
+      <form class="inline-form" @submit.prevent="createNotification">
+        <input v-model.trim="notificationForm.title" placeholder="标题" required>
+        <input v-model.trim="notificationForm.content" placeholder="内容" required>
+        <button>发送通知</button>
+      </form>
+      <table class="table"><thead><tr><th>标题</th><th>内容</th><th>状态</th></tr></thead><tbody><tr v-for="n in notifications" :key="n.id"><td>{{n.title}}</td><td>{{n.content}}</td><td>{{Number(n.is_read)===1?'已读':'未读'}}</td></tr></tbody></table>
+    </section>
 
-        const api = async (url, options = {}) => {
-          const response = await fetch(url, { headers: { 'Content-Type': 'application/json' }, ...options });
-          const data = await response.json();
-          if (!response.ok || data.code !== 0) throw new Error(data.message || '请求失败');
-          return data;
-        };
+    <section class="content-card" v-if="activeTab==='users'">
+      <h2>用户管理</h2>
+      <form class="inline-form" @submit.prevent="createUser">
+        <input v-model.trim="userForm.username" placeholder="用户名" required>
+        <input v-model.trim="userForm.real_name" placeholder="姓名" required>
+        <input v-model.trim="userForm.role" placeholder="角色" required>
+        <input v-model="userForm.password" type="password" placeholder="初始密码" required>
+        <button>新增用户</button>
+      </form>
+      <table class="table"><thead><tr><th>ID</th><th>用户名</th><th>姓名</th><th>角色</th><th>状态</th></tr></thead><tbody><tr v-for="u in users" :key="u.id"><td>{{u.id}}</td><td>{{u.username}}</td><td>{{u.real_name}}</td><td>{{u.role}}</td><td>{{Number(u.status)===1?'启用':'禁用'}}</td></tr></tbody></table>
+    </section>
 
-        const loadMenus = async () => {
-          const res = await api('/api/menu.php');
-          list.value = res.data || [];
-        };
+    <section class="content-card" v-if="activeTab==='menus'">
+      <h2>菜单管理</h2>
+      <form class="inline-form" @submit.prevent="createMenu">
+        <input v-model.trim="menuForm.parent_name" placeholder="一级菜单">
+        <input v-model.trim="menuForm.menu_name" placeholder="二级菜单名" required>
+        <input v-model.trim="menuForm.menu_key" placeholder="菜单key" required>
+        <input v-model.trim="menuForm.path" placeholder="路径" required>
+        <button>新增菜单</button>
+      </form>
+      <table class="table"><thead><tr><th>一级</th><th>名称</th><th>KEY</th><th>PATH</th></tr></thead><tbody><tr v-for="m in menus" :key="m.id"><td>{{m.parent_name}}</td><td>{{m.menu_name}}</td><td>{{m.menu_key}}</td><td>{{m.path}}</td></tr></tbody></table>
+    </section>
 
-        const resetForm = () => {
-          form.id = 0; form.menu_name = ''; form.menu_key = ''; form.path = ''; form.icon = ''; form.sort_no = 0; form.status = 1;
-        };
+    <p v-if="error" class="error global-error">{{ error }}</p>
+  </main>
+</div>
+<script>
+const { createApp, ref, reactive, onMounted } = Vue;
+createApp({
+  setup() {
+    const activeTab = ref('overview');
+    const error = ref('');
+    const user = ref({ username: '', real_name: '', role: '' });
 
-        const submitMenu = async () => {
-          error.value = '';
-          try {
-            if (form.id) {
-              await api('/api/menu.php', { method: 'PUT', body: JSON.stringify(form) });
-            } else {
-              await api('/api/menu.php', { method: 'POST', body: JSON.stringify(form) });
-            }
-            resetForm();
-            await loadMenus();
-          } catch (e) {
-            error.value = e.message;
-          }
-        };
+    const summary = ref({ students: 0, courses: 0, orders: 0, todos_open: 0, notifications_unread: 0 });
+    const students = ref([]), courses = ref([]), orders = ref([]), todos = ref([]), notifications = ref([]), users = ref([]), menus = ref([]);
+    const finance = ref({ list: [], summary: { income: 0, expense: 0, balance: 0 } });
 
-        const editRow = (row) => {
-          form.id = Number(row.id);
-          form.menu_name = row.menu_name;
-          form.menu_key = row.menu_key;
-          form.path = row.path;
-          form.icon = row.icon || '';
-          form.sort_no = Number(row.sort_no || 0);
-          form.status = Number(row.status || 0);
-        };
+    const studentForm = reactive({ name: '', phone: '', level: '', consultant: '' });
+    const courseForm = reactive({ course_name: '', coach_name: '', period_weeks: 0, price: 0 });
+    const orderForm = reactive({ student_id: '', course_id: '', amount: 0, pay_status: 0 });
+    const financeForm = reactive({ record_type: 'income', item_name: '', amount: 0, record_date: '' });
+    const todoForm = reactive({ title: '', priority: '中', due_date: '' });
+    const notificationForm = reactive({ title: '', content: '' });
+    const userForm = reactive({ username: '', real_name: '', role: '', password: '' });
+    const menuForm = reactive({ parent_name: '', menu_name: '', menu_key: '', path: '', icon: '', sort_no: 999, status: 1 });
 
-        const removeRow = async (id) => {
-          if (!confirm('确认删除该菜单吗？')) return;
-          error.value = '';
-          try {
-            await api(`/api/menu.php?id=${id}`, { method: 'DELETE' });
-            await loadMenus();
-          } catch (e) {
-            error.value = e.message;
-          }
-        };
+    const api = async (url, options = {}) => {
+      const response = await fetch(url, { headers: { 'Content-Type': 'application/json' }, ...options });
+      const data = await response.json();
+      if (!response.ok || data.code !== 0) throw new Error(data.message || '请求失败');
+      return data.data;
+    };
 
-        const slug = (text) => text
-          .replace(/\s+/g, '')
-          .replace(/[\/（）()]/g, '-')
-          .replace(/-+/g, '-')
-          .replace(/[^\w\-\u4e00-\u9fa5]/g, '')
-          .toLowerCase();
+    const loadSummary = async () => { summary.value = await api('/api/dashboard_summary.php'); };
+    const loadStudents = async () => { students.value = await api('/api/students.php'); };
+    const loadCourses = async () => { courses.value = await api('/api/courses.php'); };
+    const loadOrders = async () => { orders.value = await api('/api/orders.php'); };
+    const loadFinance = async () => { finance.value = await api('/api/finance.php'); };
+    const loadTodos = async () => { todos.value = await api('/api/todos.php'); };
+    const loadNotifications = async () => { notifications.value = await api('/api/notifications.php'); };
+    const loadUsers = async () => { users.value = await api('/api/users.php'); };
+    const loadMenus = async () => { menus.value = await api('/api/menu.php'); };
 
-        const seedDefaultMenus = async () => {
-          error.value = '';
-          const unique = new Set();
-          const rows = [];
-          menuTree.value.forEach((group) => {
-            group.children.forEach((child) => {
-              const key = `${group.name}__${child}`;
-              if (unique.has(key)) return;
-              unique.add(key);
-              rows.push({
-                menu_name: `${group.name}/${child}`,
-                menu_key: slug(key),
-                path: `/${slug(group.name)}/${slug(child)}`,
-                icon: '',
-                status: 1
-              });
-            });
-          });
+    const reloadAll = async () => {
+      error.value = '';
+      try {
+        await Promise.all([loadSummary(), loadStudents(), loadCourses(), loadOrders(), loadFinance(), loadTodos(), loadNotifications(), loadUsers(), loadMenus()]);
+      } catch (e) { error.value = e.message; }
+    };
 
-          try {
-            for (let i = 0; i < rows.length; i++) {
-              try {
-                await api('/api/menu.php', { method: 'POST', body: JSON.stringify({ ...rows[i], sort_no: i + 1 }) });
-              } catch (e) {
-                // 重复键等错误跳过，继续处理下一条
-              }
-            }
-            await loadMenus();
-          } catch (e) {
-            error.value = e.message;
-          }
-        };
+    const createHelper = async (url, form, loader) => { error.value=''; try { await api(url,{method:'POST',body:JSON.stringify(form)}); await loader(); await loadSummary(); } catch(e){ error.value=e.message; } };
 
-        const logout = () => {
-          localStorage.removeItem('oa_token');
-          localStorage.removeItem('oa_username');
-          location.href = './login.html';
-        };
+    const createStudent = () => createHelper('/api/students.php', studentForm, loadStudents);
+    const createCourse = () => createHelper('/api/courses.php', courseForm, loadCourses);
+    const createOrder = () => createHelper('/api/orders.php', orderForm, loadOrders);
+    const createFinance = () => createHelper('/api/finance.php', financeForm, loadFinance);
+    const createTodo = () => createHelper('/api/todos.php', todoForm, loadTodos);
+    const createNotification = () => createHelper('/api/notifications.php', notificationForm, loadNotifications);
+    const createUser = () => createHelper('/api/users.php', userForm, loadUsers);
+    const createMenu = () => createHelper('/api/menu.php', menuForm, loadMenus);
 
-        onMounted(async () => {
-          const t = localStorage.getItem('oa_token');
-          const u = localStorage.getItem('oa_username');
-          if (!t || !u) {
-            location.href = './login.html';
-            return;
-          }
-          username.value = u;
-          try {
-            await loadMenus();
-          } catch (e) {
-            error.value = e.message;
-          }
-        });
+    const logout = () => { localStorage.removeItem('oa_token'); localStorage.removeItem('oa_user'); location.href='./login.html'; };
 
-        return { username, menuTree, error, list, form, submitMenu, editRow, removeRow, resetForm, logout, seedDefaultMenus };
-      }
-    }).mount('#app');
-  </script>
+    onMounted(async () => {
+      const t = localStorage.getItem('oa_token');
+      const u = localStorage.getItem('oa_user');
+      if (!t || !u) { location.href = './login.html'; return; }
+      user.value = JSON.parse(u || '{}');
+      await reloadAll();
+    });
+
+    return { activeTab,error,user,summary,students,courses,orders,finance,todos,notifications,users,menus,
+      studentForm,courseForm,orderForm,financeForm,todoForm,notificationForm,userForm,menuForm,
+      createStudent,createCourse,createOrder,createFinance,createTodo,createNotification,createUser,createMenu,reloadAll,logout };
+  }
+}).mount('#app');
+</script>
 </body>
 </html>

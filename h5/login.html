@@ -1,6 +1,11 @@
-<!doctype html><html lang="zh-CN"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>OA 登录(H5)</title><link rel="stylesheet" href="./assets/style.css"/><script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script></head><body>
-<div id="app" class="page"><div class="card"><h1>培训公司 OA 系统</h1><p class="subtitle">H5 直跑版本</p>
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>OA 登录(H5)</title><link rel="stylesheet" href="./assets/style.css"/><script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script></head><body>
+<div id="app" class="oa-login"><div class="card"><h1>培训公司 OA 系统</h1><p class="subtitle">请输入账号密码登录</p>
 <form @submit.prevent="onLogin" class="form"><label>用户名<input v-model.trim="form.username" required/></label><label>密码<input v-model="form.password" type="password" required/></label><button :disabled="loading">{{loading?'登录中...':'登录'}}</button></form>
-<p class="hint">样例账号：admin / 123456</p><p v-if="error" class="error">{{error}}</p></div></div>
-<script>const {createApp,reactive,ref}=Vue;createApp({setup(){const form=reactive({username:'',password:''});const loading=ref(false),error=ref('');const onLogin=async()=>{error.value='';loading.value=true;try{const r=await fetch('/api/login.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(form)});const j=await r.json();if(!r.ok||j.code!==0){error.value=j.message||'登录失败';return;}localStorage.setItem('oa_token',j.data.token);localStorage.setItem('oa_username',j.data.username);location.href='./dashboard.html';}catch(e){error.value='网络异常';}finally{loading.value=false}};return{form,loading,error,onLogin}}}).mount('#app')</script>
-</body></html>
+<p class="hint">测试账号：admin / 123456</p><p v-if="error" class="error">{{error}}</p></div></div>
+<script>
+const {createApp,reactive,ref}=Vue;
+createApp({setup(){const form=reactive({username:'',password:''});const loading=ref(false),error=ref('');
+const onLogin=async()=>{error.value='';loading.value=true;try{const r=await fetch('/api/login.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(form)});const j=await r.json();if(!r.ok||j.code!==0){error.value=j.message||'登录失败';return;}localStorage.setItem('oa_token',j.data.token);localStorage.setItem('oa_user',JSON.stringify(j.data.user||{}));localStorage.setItem('oa_username',j.data.user?.username||form.username);location.href='./dashboard.html';}catch(e){error.value='网络异常';}finally{loading.value=false}};
+return{form,loading,error,onLogin}}).mount('#app');
+</script></body></html>

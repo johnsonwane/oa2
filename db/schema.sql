@@ -1,90 +1,133 @@
 CREATE DATABASE IF NOT EXISTS oa2 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE oa2;
 
+CREATE TABLE IF NOT EXISTS oa_user (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  username VARCHAR(50) NOT NULL,
+  password_hash VARCHAR(255) NOT NULL,
+  real_name VARCHAR(50) NOT NULL,
+  role VARCHAR(30) NOT NULL,
+  status TINYINT NOT NULL DEFAULT 1,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_username (username)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 CREATE TABLE IF NOT EXISTS oa_menu (
   id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  parent_name VARCHAR(50) DEFAULT '',
   menu_name VARCHAR(100) NOT NULL,
   menu_key VARCHAR(100) NOT NULL,
   path VARCHAR(255) NOT NULL,
   icon VARCHAR(100) DEFAULT '',
   sort_no INT NOT NULL DEFAULT 0,
-  status TINYINT NOT NULL DEFAULT 1 COMMENT '1启用 0禁用',
+  status TINYINT NOT NULL DEFAULT 1,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   UNIQUE KEY uk_menu_key (menu_key)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-INSERT INTO oa_menu (menu_name, menu_key, path, icon, sort_no, status)
-VALUES
-('运营/运营记录-查看', 'm001', '/001', '', 1, 1),
-('运营/运营记录-新增修改', 'm002', '/002', '', 2, 1),
-('运营/运营资料库-查看', 'm003', '/003', '', 3, 1),
-('运营/运营资料库-修改', 'm004', '/004', '', 4, 1),
-('顾问/顾问发资料', 'm005', '/005', '', 5, 1),
-('顾问/顾问发资料的记录', 'm006', '/006', '', 6, 1),
-('顾问/顾问查看编辑客户', 'm007', '/007', '', 7, 1),
-('顾问/顾问手动录入新客户', 'm008', '/008', '', 8, 1),
-('顾问/顾问录入新订单', 'm009', '/009', '', 9, 1),
-('交付/班主任管理课程商品', 'm010', '/010', '', 10, 1),
-('人力/HR管理花名册', 'm011', '/011', '', 11, 1),
-('超管/超管管理用户', 'm012', '/012', '', 12, 1),
-('无/登录页', 'm013', '/013', '', 13, 1),
-('0级/首页', 'm014', '/014', '', 14, 1),
-('0级/我的', 'm015', '/015', '', 15, 1),
-('我的/个人信息修改', 'm016', '/016', '', 16, 1),
-('我的/修改密码', 'm017', '/017', '', 17, 1),
-('我的/我的消息/通知', 'm018', '/018', '', 18, 1),
-('我的/我的待办汇总', 'm019', '/019', '', 19, 1),
-('我的/我的日程', 'm020', '/020', '', 20, 1),
-('常用/我的待办', 'm021', '/021', '', 21, 1),
-('常用/待我审批', 'm022', '/022', '', 22, 1),
-('常用/今日/本周课程', 'm023', '/023', '', 23, 1),
-('常用/近期开班提醒', 'm024', '/024', '', 24, 1),
-('常用/销售线索/报名简讯', 'm025', '/025', '', 25, 1),
-('常用/个人业绩（讲师/销售/校区负责人）', 'm026', '/026', '', 26, 1),
-('超管/权限管理', 'm027', '/027', '', 27, 1),
-('超管/菜单管理', 'm028', '/028', '', 28, 1),
-('超管/导航栏管理', 'm029', '/029', '', 29, 1),
-('系管/系统管理', 'm030', '/030', '', 30, 1),
-('人力/员工管理-添加', 'm031', '/031', '', 31, 1),
-('人力/员工管理-修改', 'm032', '/032', '', 32, 1),
-('超管/部门管理', 'm033', '/033', '', 33, 1),
-('超管/公司管理', 'm034', '/034', '', 34, 1),
-('超管/合作方管理', 'm035', '/035', '', 35, 1),
-('系管/工具管理', 'm036', '/036', '', 36, 1),
-('财务/上报收款单', 'm037', '/037', '', 37, 1),
-('财务/上报支出单', 'm038', '/038', '', 38, 1),
-('财务/报销记录', 'm039', '/039', '', 39, 1),
-('财务/销售业绩统计', 'm040', '/040', '', 40, 1),
-('财务/教练业绩统计', 'm041', '/041', '', 41, 1),
-('财务/发票管理', 'm042', '/042', '', 42, 1),
-('财务/收款方管理', 'm043', '/043', '', 43, 1),
-('财务/自定义统计', 'm044', '/044', '', 44, 1),
-('运营/运营账号管理', 'm045', '/045', '', 45, 1),
-('运营/运营引流数据查看', 'm046', '/046', '', 46, 1),
-('运营/剪辑记录', 'm047', '/047', '', 47, 1),
-('运营/发帖记录', 'm048', '/048', '', 48, 1),
-('运营/运营素材库', 'm049', '/049', '', 49, 1),
-('运营/公号文管理', 'm050', '/050', '', 50, 1),
-('行政/工作机号管理', 'm051', '/051', '', 51, 1),
-('顾问/学员录入', 'm052', '/052', '', 52, 1),
-('顾问/学员修改', 'm053', '/053', '', 53, 1),
-('顾问/学员查询-学员信息导出', 'm054', '/054', '', 54, 1),
-('顾问/订单录入', 'm055', '/055', '', 55, 1),
-('顾问/订单查询-订单信息导出', 'm056', '/056', '', 56, 1),
-('顾问/订单修改', 'm057', '/057', '', 57, 1),
-('顾问/顾问日报记录', 'm058', '/058', '', 58, 1),
-('顾问/顾问工作统计', 'm059', '/059', '', 59, 1),
-('顾问/班级管理-增改', 'm060', '/060', '', 60, 1),
-('顾问/班级信息查询', 'm061', '/061', '', 61, 1),
-('顾问/销课管理-增改', 'm062', '/062', '', 62, 1),
-('顾问/销课查询', 'm063', '/063', '', 63, 1),
-('交付/线下课交付记录', 'm064', '/064', '', 64, 1),
-('财务/线下课单项目统计', 'm065', '/065', '', 65, 1)
-ON DUPLICATE KEY UPDATE
-  menu_name = VALUES(menu_name),
-  path = VALUES(path),
-  icon = VALUES(icon),
-  sort_no = VALUES(sort_no),
-  status = VALUES(status);
+CREATE TABLE IF NOT EXISTS oa_student (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  name VARCHAR(50) NOT NULL,
+  phone VARCHAR(20) NOT NULL,
+  level VARCHAR(30) DEFAULT '',
+  consultant VARCHAR(50) DEFAULT '',
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS oa_course (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  course_name VARCHAR(100) NOT NULL,
+  coach_name VARCHAR(50) NOT NULL,
+  period_weeks INT NOT NULL DEFAULT 0,
+  price DECIMAL(10,2) NOT NULL DEFAULT 0,
+  status TINYINT NOT NULL DEFAULT 1,
+  PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS oa_order (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  student_id INT UNSIGNED NOT NULL,
+  course_id INT UNSIGNED NOT NULL,
+  amount DECIMAL(10,2) NOT NULL DEFAULT 0,
+  pay_status TINYINT NOT NULL DEFAULT 0,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS oa_finance_record (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  record_type ENUM('income','expense') NOT NULL,
+  item_name VARCHAR(100) NOT NULL,
+  amount DECIMAL(10,2) NOT NULL,
+  record_date DATE NOT NULL,
+  remark VARCHAR(255) DEFAULT '',
+  PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS oa_todo (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  title VARCHAR(150) NOT NULL,
+  priority VARCHAR(10) DEFAULT '中',
+  status VARCHAR(20) DEFAULT 'todo',
+  due_date DATE DEFAULT NULL,
+  PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS oa_notification (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  title VARCHAR(120) NOT NULL,
+  content VARCHAR(255) NOT NULL,
+  is_read TINYINT NOT NULL DEFAULT 0,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+INSERT INTO oa_user (username, password_hash, real_name, role, status) VALUES
+('admin', '$2y$12$rVtPrImk7H.Q6rvIHF4Ql.z8/SgRl3OChjDcGMQG.aXn4Cn7RTxDO', '系统管理员', '超管', 1),
+('consultant01', '$2y$12$rVtPrImk7H.Q6rvIHF4Ql.z8/SgRl3OChjDcGMQG.aXn4Cn7RTxDO', '顾问A', '顾问', 1),
+('finance01', '$2y$12$rVtPrImk7H.Q6rvIHF4Ql.z8/SgRl3OChjDcGMQG.aXn4Cn7RTxDO', '财务A', '财务', 1)
+ON DUPLICATE KEY UPDATE real_name=VALUES(real_name), role=VALUES(role), status=VALUES(status);
+
+INSERT INTO oa_menu (parent_name, menu_name, menu_key, path, icon, sort_no, status) VALUES
+('0级','首页','home','/home','🏠',1,1),
+('0级','我的','my','/my','👤',2,1),
+('运营','运营记录-查看','ops_log_view','/ops/log/view','📊',10,1),
+('顾问','学员录入','consultant_student_create','/consultant/student/create','🧾',20,1),
+('交付','线下课交付记录','delivery_offline_record','/delivery/offline-record','📌',30,1),
+('财务','上报收款单','finance_income_report','/finance/income-report','💰',40,1),
+('超管','用户管理','super_user_manage','/super/user','⚙️',50,1)
+ON DUPLICATE KEY UPDATE menu_name=VALUES(menu_name), path=VALUES(path), icon=VALUES(icon), sort_no=VALUES(sort_no), status=VALUES(status);
+
+INSERT INTO oa_student (name, phone, level, consultant) VALUES
+('张三', '13800000001', 'A1', '顾问A'),
+('李四', '13800000002', 'B2', '顾问A'),
+('王五', '13800000003', 'A2', '顾问B');
+
+INSERT INTO oa_course (course_name, coach_name, period_weeks, price, status) VALUES
+('Python 全栈训练营', '讲师赵', 12, 12800, 1),
+('新媒体运营实战班', '讲师钱', 8, 9800, 1),
+('AI 应用办公提效课', '讲师孙', 4, 3999, 1);
+
+INSERT INTO oa_order (student_id, course_id, amount, pay_status) VALUES
+(1, 1, 12800, 1),
+(2, 2, 9800, 1),
+(3, 3, 3999, 0);
+
+INSERT INTO oa_finance_record (record_type, item_name, amount, record_date, remark) VALUES
+('income', '学费到账-张三', 12800, '2026-02-01', '支付宝'),
+('income', '学费到账-李四', 9800, '2026-02-02', '对公转账'),
+('expense', '讲师课酬-赵老师', 5000, '2026-02-05', '2月课酬');
+
+INSERT INTO oa_todo (title, priority, status, due_date) VALUES
+('审批张三退费申请', '高', 'todo', '2026-02-28'),
+('确认下周排课计划', '中', 'doing', '2026-02-27'),
+('发布本月招生海报', '低', 'todo', '2026-03-01');
+
+INSERT INTO oa_notification (title, content, is_read) VALUES
+('系统公告', '本周六晚上进行系统维护', 0),
+('审批提醒', '你有 2 条待审批单据', 0),
+('课程提醒', 'Python 班级明日开课', 1);

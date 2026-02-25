@@ -1,58 +1,38 @@
 <?php
-header('Content-Type: application/json; charset=utf-8');
-header('Access-Control-Allow-Origin: https://oac.hahahaxinli.com');
-header('Access-Control-Allow-Methods: POST, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type');
-
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    http_response_code(204);
-    exit;
-}
+require_once __DIR__ . '/common.php';
+require_once __DIR__ . '/db.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    http_response_code(405);
-    echo json_encode([
-        'code' => 405,
-        'message' => '仅支持 POST 请求'
-    ], JSON_UNESCAPED_UNICODE);
-    exit;
+    json_response(405, '仅支持 POST 请求', null, 405);
 }
 
-$raw = file_get_contents('php://input');
-$data = json_decode($raw, true);
+try {
+    $data = request_body();
+    require_fields($data, ['username', 'password']);
 
-$username = isset($data['username']) ? trim($data['username']) : '';
-$password = isset($data['password']) ? (string)$data['password'] : '';
+    $username = trim((string)$data['username']);
+    $password = (string)$data['password'];
 
-if ($username === '' || $password === '') {
-    http_response_code(400);
-    echo json_encode([
-        'code' => 400,
-        'message' => '用户名和密码不能为空'
-    ], JSON_UNESCAPED_UNICODE);
-    exit;
-}
+    $pdo = get_db_connection();
+    $stmt = $pdo->prepare('SELECT id, username, password_hash, real_name, role FROM oa_user WHERE username = ? AND status = 1 LIMIT 1');
+    $stmt->execute([$username]);
+    $user = $stmt->fetch();
 
-// 样例账号（生产环境请改为数据库校验）
-$validUser = 'admin';
-$validPass = '123456';
+    if (!$user || !password_verify($password, $user['password_hash'])) {
+        json_response(401, '用户名或密码错误', null, 401);
+    }
 
-if ($username !== $validUser || $password !== $validPass) {
-    http_response_code(401);
-    echo json_encode([
-        'code' => 401,
-        'message' => '用户名或密码错误'
-    ], JSON_UNESCAPED_UNICODE);
-    exit;
-}
+    $token = hash('sha256', $user['id'] . '|' . $user['username'] . '|' . microtime(true) . '|' . bin2hex(random_bytes(8)));
 
-$token = hash('sha256', $username . '|' . time() . '|' . bin2hex(random_bytes(8)));
-
-echo json_encode([
-    'code' => 0,
-    'message' => '登录成功',
-    'data' => [
+    json_response(0, '登录成功', [
         'token' => $token,
-        'username' => $username
-    ]
-], JSON_UNESCAPED_UNICODE);
+        'user' => [
+            'id' => (int)$user['id'],
+            'username' => $user['username'],
+            'real_name' => $user['real_name'],
+            'role' => $user['role'],
+        ],
+    ]);
+} catch (Throwable $e) {
+    json_response(500, '服务异常：' . $e->getMessage(), null, 500);
+}
