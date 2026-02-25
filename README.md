@@ -55,7 +55,7 @@
 
 - 数据库脚本：`db/schema.sql`
 - 后端接口：`api/menu.php`
-- 数据库连接：`api/db.php`
+- 数据库连接：`api/db.php`（读取 `api/config.php`）
 - 前端页面：`h5/dashboard.html`
 
 ### 菜单接口说明
@@ -70,3 +70,8 @@
 ```bash
 mysql -uroot -proot < db/schema.sql
 ```
+
+
+### 数据库配置文件
+
+数据库配置位于 `api/config.php`，并支持通过环境变量覆盖：`DB_HOST`、`DB_PORT`、`DB_NAME`、`DB_USER`、`DB_PASS`。
