@@ -42,8 +42,28 @@
 
     <section class="content-card" v-if="activeTab==='students'">
       <h2>学员管理</h2>
-      <form class="inline-form" @submit.prevent="createStudent"><input v-model.trim="studentForm.name" placeholder="姓名" required><input v-model.trim="studentForm.phone" placeholder="手机号" required><input v-model.trim="studentForm.level" placeholder="级别"><input v-model.trim="studentForm.consultant" placeholder="顾问"><button>新增学员</button></form>
-      <table class="table"><thead><tr><th>ID</th><th>姓名</th><th>手机号</th><th>级别</th><th>顾问</th></tr></thead><tbody><tr v-for="s in students" :key="s.id"><td>{{s.id}}</td><td>{{s.name}}</td><td>{{s.phone}}</td><td>{{s.level}}</td><td>{{s.consultant}}</td></tr></tbody></table>
+      <form class="inline-form" @submit.prevent="saveStudent">
+        <input v-model.trim="studentForm.name" placeholder="姓名" required>
+        <select v-model="studentForm.gender"><option value="">性别</option><option value="男">男</option><option value="女">女</option></select>
+        <input v-model="studentForm.birthday" type="date" placeholder="生日">
+        <input v-model.trim="studentForm.phone" placeholder="手机号" required>
+        <input v-model.trim="studentForm.wechat" placeholder="微信">
+        <input v-model.trim="studentForm.id_no" placeholder="身份证号">
+        <input v-model.trim="studentForm.level" placeholder="学员等级">
+        <input v-model.trim="studentForm.intention_level" placeholder="意向等级">
+        <input v-model.trim="studentForm.follow_status" placeholder="跟进状态">
+        <input v-model.trim="studentForm.source" placeholder="来源渠道">
+        <input v-model.trim="studentForm.campus" placeholder="校区">
+        <input v-model.trim="studentForm.class_name" placeholder="班级">
+        <input v-model.trim="studentForm.consultant" placeholder="顾问">
+        <input v-model.trim="studentForm.guardian_name" placeholder="监护人">
+        <input v-model.trim="studentForm.guardian_phone" placeholder="监护人电话">
+        <input v-model.trim="studentForm.address" placeholder="地址">
+        <input v-model.trim="studentForm.remark" placeholder="备注">
+        <button>{{ studentForm.id ? '保存学员' : '新增学员' }}</button>
+        <button type="button" class="btn-secondary" @click="resetStudentForm">重置</button>
+      </form>
+      <table class="table"><thead><tr><th>ID</th><th>姓名</th><th>性别</th><th>手机号</th><th>校区/班级</th><th>顾问</th><th>操作</th></tr></thead><tbody><tr v-for="s in students" :key="s.id"><td>{{s.id}}</td><td>{{s.name}}</td><td>{{s.gender}}</td><td>{{s.phone}}</td><td>{{s.campus}} / {{s.class_name}}</td><td>{{s.consultant}}</td><td><button class="btn-mini" @click="editStudent(s)">编辑</button></td></tr></tbody></table>
     </section>
 
     <section class="content-card" v-if="activeTab==='courses'">
@@ -79,8 +99,23 @@
 
     <section class="content-card" v-if="activeTab==='users'">
       <h2>用户管理（RBAC）</h2>
-      <form class="inline-form" @submit.prevent="createUser"><input v-model.trim="userForm.username" placeholder="用户名" required><input v-model.trim="userForm.real_name" placeholder="姓名" required><input v-model.trim="userForm.role" placeholder="角色" required><input v-model="userForm.password" type="password" placeholder="初始密码" required><button>新增用户</button></form>
-      <table class="table"><thead><tr><th>ID</th><th>用户名</th><th>姓名</th><th>角色</th><th>状态</th></tr></thead><tbody><tr v-for="u in users" :key="u.id"><td>{{u.id}}</td><td>{{u.username}}</td><td>{{u.real_name}}</td><td>{{u.role}}</td><td>{{Number(u.status)===1?'启用':'禁用'}}</td></tr></tbody></table>
+      <form class="inline-form" @submit.prevent="saveUser">
+        <input v-model.trim="userForm.username" placeholder="用户名" :disabled="!!userForm.id" required>
+        <input v-model.trim="userForm.real_name" placeholder="姓名" required>
+        <input v-model.trim="userForm.role" placeholder="角色" required>
+        <select v-model="userForm.gender"><option value="">性别</option><option value="男">男</option><option value="女">女</option></select>
+        <input v-model.trim="userForm.mobile" placeholder="手机号">
+        <input v-model.trim="userForm.email" placeholder="邮箱">
+        <input v-model.trim="userForm.id_no" placeholder="身份证号">
+        <input v-model.trim="userForm.department" placeholder="部门">
+        <input v-model.trim="userForm.position" placeholder="岗位">
+        <input v-model="userForm.hire_date" type="date" placeholder="入职日期">
+        <input v-model.trim="userForm.remark" placeholder="备注">
+        <input v-if="!userForm.id" v-model="userForm.password" type="password" placeholder="初始密码" required>
+        <button>{{ userForm.id ? '保存用户' : '新增用户' }}</button>
+        <button type="button" class="btn-secondary" @click="resetUserForm">重置</button>
+      </form>
+      <table class="table"><thead><tr><th>ID</th><th>用户名</th><th>姓名</th><th>角色</th><th>部门</th><th>手机</th><th>状态</th><th>操作</th></tr></thead><tbody><tr v-for="u in users" :key="u.id"><td>{{u.id}}</td><td>{{u.username}}</td><td>{{u.real_name}}</td><td>{{u.role}}</td><td>{{u.department}}</td><td>{{u.mobile}}</td><td>{{Number(u.status)===1?'启用':'禁用'}}</td><td><button class="btn-mini" @click="editUser(u)">编辑</button></td></tr></tbody></table>
     </section>
 
     <section class="content-card" v-if="activeTab==='menus'">
@@ -133,13 +168,13 @@ createApp({
     const assignData=ref({user_groups:[],group_perms:[]});
     const groupedMenus=ref([]);
 
-    const studentForm=reactive({name:'',phone:'',level:'',consultant:''});
+    const studentForm=reactive({id:0,name:'',gender:'',birthday:'',phone:'',wechat:'',id_no:'',level:'',intention_level:'',follow_status:'',source:'',campus:'',class_name:'',consultant:'',guardian_name:'',guardian_phone:'',address:'',remark:''});
     const courseForm=reactive({course_name:'',coach_name:'',period_weeks:0,price:0});
     const orderForm=reactive({student_id:'',course_id:'',amount:0,pay_status:0});
     const financeForm=reactive({record_type:'income',item_name:'',amount:0,record_date:''});
     const todoForm=reactive({title:'',priority:'中',due_date:''});
     const notificationForm=reactive({title:'',content:''});
-    const userForm=reactive({username:'',real_name:'',role:'',password:''});
+    const userForm=reactive({id:0,username:'',real_name:'',role:'',gender:'',mobile:'',email:'',id_no:'',department:'',position:'',hire_date:'',remark:'',password:''});
     const menuForm=reactive({parent_name:'系统管理',menu_name:'',menu_key:'',path:'',icon:'',sort_no:99,status:1});
     const groupForm=reactive({group_name:'',group_code:'',remark:'',status:1});
     const permForm=reactive({perm_name:'',perm_code:'',module_name:'系统管理',remark:'',status:1});
@@ -162,13 +197,19 @@ createApp({
 
     const createHelper=async(url,form,loader)=>{error.value=''; try{await api(url,{method:'POST',body:JSON.stringify(form)}); await loader();}catch(e){error.value=e.message;}};
 
-    const createStudent=()=>createHelper('/api/students.php',studentForm,loadStudents);
+    const saveStudent=async()=>{error.value='';try{if(studentForm.id){await api('/api/students.php',{method:'PUT',body:JSON.stringify(studentForm)});}else{await api('/api/students.php',{method:'POST',body:JSON.stringify(studentForm)});}resetStudentForm();await loadStudents();}catch(e){error.value=e.message;}};
+    
+    const resetStudentForm=()=>Object.assign(studentForm,{id:0,name:'',gender:'',birthday:'',phone:'',wechat:'',id_no:'',level:'',intention_level:'',follow_status:'',source:'',campus:'',class_name:'',consultant:'',guardian_name:'',guardian_phone:'',address:'',remark:''});
+    const editStudent=(row)=>Object.assign(studentForm,{id:Number(row.id),name:row.name||'',gender:row.gender||'',birthday:row.birthday||'',phone:row.phone||'',wechat:row.wechat||'',id_no:row.id_no||'',level:row.level||'',intention_level:row.intention_level||'',follow_status:row.follow_status||'',source:row.source||'',campus:row.campus||'',class_name:row.class_name||'',consultant:row.consultant||'',guardian_name:row.guardian_name||'',guardian_phone:row.guardian_phone||'',address:row.address||'',remark:row.remark||''});
+    const resetUserForm=()=>Object.assign(userForm,{id:0,username:'',real_name:'',role:'',gender:'',mobile:'',email:'',id_no:'',department:'',position:'',hire_date:'',remark:'',password:''});
+    const editUser=(row)=>Object.assign(userForm,{id:Number(row.id),username:row.username||'',real_name:row.real_name||'',role:row.role||'',gender:row.gender||'',mobile:row.mobile||'',email:row.email||'',id_no:row.id_no||'',department:row.department||'',position:row.position||'',hire_date:row.hire_date||'',remark:row.remark||'',password:''});
+
     const createCourse=()=>createHelper('/api/courses.php',courseForm,loadCourses);
     const createOrder=()=>createHelper('/api/orders.php',orderForm,loadOrders);
     const createFinance=()=>createHelper('/api/finance.php',financeForm,loadFinance);
     const createTodo=()=>createHelper('/api/todos.php',todoForm,loadTodos);
     const createNotification=()=>createHelper('/api/notifications.php',notificationForm,loadNotifications);
-    const createUser=()=>createHelper('/api/users.php',userForm,loadUsers);
+    const saveUser=async()=>{error.value='';try{if(userForm.id){await api('/api/users.php',{method:'PUT',body:JSON.stringify(userForm)});}else{await api('/api/users.php',{method:'POST',body:JSON.stringify(userForm)});}resetUserForm();await loadUsers();}catch(e){error.value=e.message;}};
     const createMenu=()=>createHelper('/api/menu.php',menuForm,loadMenus);
     const createGroup=()=>createHelper('/api/rbac_groups.php',groupForm,loadGroups);
     const createPerm=()=>createHelper('/api/rbac_permissions.php',permForm,loadPerms);
@@ -184,7 +225,7 @@ createApp({
 
     return {activeTab,error,user,summary,students,courses,orders,finance,todos,notifications,users,menus,groups,perms,assignData,groupedMenus,
       studentForm,courseForm,orderForm,financeForm,todoForm,notificationForm,userForm,menuForm,groupForm,permForm,assignForm,assignForm2,
-      createStudent,createCourse,createOrder,createFinance,createTodo,createNotification,createUser,createMenu,createGroup,createPerm,assignUserGroup,assignGroupPerm,delAssign,reloadAll,logout};
+      saveStudent,editStudent,resetStudentForm,createCourse,createOrder,createFinance,createTodo,createNotification,saveUser,editUser,resetUserForm,createMenu,createGroup,createPerm,assignUserGroup,assignGroupPerm,delAssign,reloadAll,logout};
   }
 }).mount('#app');
 </script>

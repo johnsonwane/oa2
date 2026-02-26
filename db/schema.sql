@@ -7,6 +7,15 @@ CREATE TABLE IF NOT EXISTS oa_user (
   password_hash VARCHAR(255) NOT NULL,
   real_name VARCHAR(50) NOT NULL,
   role VARCHAR(30) NOT NULL,
+  gender VARCHAR(10) DEFAULT '',
+  mobile VARCHAR(20) DEFAULT '',
+  email VARCHAR(100) DEFAULT '',
+  id_no VARCHAR(30) DEFAULT '',
+  department VARCHAR(50) DEFAULT '',
+  position VARCHAR(50) DEFAULT '',
+  hire_date DATE DEFAULT NULL,
+  last_login_at DATETIME DEFAULT NULL,
+  remark VARCHAR(255) DEFAULT '',
   status TINYINT NOT NULL DEFAULT 1,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
@@ -68,9 +77,22 @@ CREATE TABLE IF NOT EXISTS oa_menu (
 CREATE TABLE IF NOT EXISTS oa_student (
   id INT UNSIGNED NOT NULL AUTO_INCREMENT,
   name VARCHAR(50) NOT NULL,
+  gender VARCHAR(10) DEFAULT '',
+  birthday DATE DEFAULT NULL,
   phone VARCHAR(20) NOT NULL,
+  wechat VARCHAR(50) DEFAULT '',
+  id_no VARCHAR(30) DEFAULT '',
   level VARCHAR(30) DEFAULT '',
+  intention_level VARCHAR(30) DEFAULT '',
+  follow_status VARCHAR(30) DEFAULT '',
+  source VARCHAR(50) DEFAULT '',
+  campus VARCHAR(50) DEFAULT '',
+  class_name VARCHAR(100) DEFAULT '',
   consultant VARCHAR(50) DEFAULT '',
+  guardian_name VARCHAR(50) DEFAULT '',
+  guardian_phone VARCHAR(20) DEFAULT '',
+  address VARCHAR(255) DEFAULT '',
+  remark VARCHAR(255) DEFAULT '',
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -123,11 +145,11 @@ CREATE TABLE IF NOT EXISTS oa_notification (
   PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-INSERT INTO oa_user (username, password_hash, real_name, role, status) VALUES
-('admin', '$2y$12$rVtPrImk7H.Q6rvIHF4Ql.z8/SgRl3OChjDcGMQG.aXn4Cn7RTxDO', '系统管理员', '超管', 1),
-('consultant01', '$2y$12$rVtPrImk7H.Q6rvIHF4Ql.z8/SgRl3OChjDcGMQG.aXn4Cn7RTxDO', '顾问A', '顾问', 1),
-('finance01', '$2y$12$rVtPrImk7H.Q6rvIHF4Ql.z8/SgRl3OChjDcGMQG.aXn4Cn7RTxDO', '财务A', '财务', 1)
-ON DUPLICATE KEY UPDATE real_name=VALUES(real_name), role=VALUES(role), status=VALUES(status);
+INSERT INTO oa_user (username, password_hash, real_name, role, gender, mobile, email, id_no, department, position, hire_date, remark, status) VALUES
+('admin', '$2y$12$rVtPrImk7H.Q6rvIHF4Ql.z8/SgRl3OChjDcGMQG.aXn4Cn7RTxDO', '系统管理员', '超管', '男', '13800000000', 'admin@oa2.local', '310101198801010011', '系统管理部', '平台管理员', '2024-01-01', '系统默认管理员', 1),
+('consultant01', '$2y$12$rVtPrImk7H.Q6rvIHF4Ql.z8/SgRl3OChjDcGMQG.aXn4Cn7RTxDO', '顾问A', '顾问', '女', '13800000010', 'consultant01@oa2.local', '310101199001010022', '招生咨询部', '课程顾问', '2024-03-01', '负责A校区咨询', 1),
+('finance01', '$2y$12$rVtPrImk7H.Q6rvIHF4Ql.z8/SgRl3OChjDcGMQG.aXn4Cn7RTxDO', '财务A', '财务', '女', '13800000020', 'finance01@oa2.local', '310101199202020033', '财务部', '会计', '2024-02-01', '财务结算负责人', 1)
+ON DUPLICATE KEY UPDATE real_name=VALUES(real_name), role=VALUES(role), mobile=VALUES(mobile), email=VALUES(email), department=VALUES(department), position=VALUES(position), status=VALUES(status);
 
 INSERT INTO oa_user_group (group_name, group_code, remark, status) VALUES
 ('超级管理员组', 'super_admin', '拥有全部权限', 1),
@@ -172,10 +194,10 @@ INSERT INTO oa_menu (parent_name, menu_name, menu_key, path, icon, sort_no, stat
 ('系统管理','RBAC分配','rbac_assign','/rbac/assign','🛡️',25,1)
 ON DUPLICATE KEY UPDATE menu_name=VALUES(menu_name), parent_name=VALUES(parent_name), path=VALUES(path), icon=VALUES(icon), sort_no=VALUES(sort_no), status=VALUES(status);
 
-INSERT INTO oa_student (name, phone, level, consultant) VALUES
-('张三', '13800000001', 'A1', '顾问A'),
-('李四', '13800000002', 'B2', '顾问A'),
-('王五', '13800000003', 'A2', '顾问B');
+INSERT INTO oa_student (name, gender, birthday, phone, wechat, id_no, level, intention_level, follow_status, source, campus, class_name, consultant, guardian_name, guardian_phone, address, remark) VALUES
+('张三', '男', '2003-03-12', '13800000001', 'zhangsan001', '310101200303120011', 'A1', '高意向', '已报名', '抖音', '上海徐汇校区', 'Python全栈01班', '顾问A', '张父', '13900000001', '上海市徐汇区XX路1号', '基础好，目标就业'),
+('李四', '女', '2001-08-08', '13800000002', 'lisi002', '310101200108080022', 'B2', '中意向', '跟进中', '小红书', '上海浦东校区', '新媒体运营02班', '顾问A', '李母', '13900000002', '上海市浦东新区XX路2号', '对运营课程感兴趣'),
+('王五', '男', '1999-12-20', '13800000003', 'wangwu003', '310101199912200033', 'A2', '高意向', '已报名', '转介绍', '上海徐汇校区', 'AI办公03班', '顾问B', '王父', '13900000003', '上海市闵行区XX路3号', '希望转行AI办公');
 
 INSERT INTO oa_course (course_name, coach_name, period_weeks, price, status) VALUES
 ('Python 全栈训练营', '讲师赵', 12, 12800, 1),
