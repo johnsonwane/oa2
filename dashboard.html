@@ -43,27 +43,27 @@
     <section class="content-card" v-if="activeTab==='students'">
       <h2>学员管理</h2>
       <form class="inline-form" @submit.prevent="saveStudent">
-        <input v-model.trim="studentForm.name" placeholder="姓名" required>
-        <select v-model="studentForm.gender"><option value="">性别</option><option value="男">男</option><option value="女">女</option></select>
-        <input v-model="studentForm.birthday" type="date" placeholder="生日">
-        <input v-model.trim="studentForm.phone" placeholder="手机号" required>
-        <input v-model.trim="studentForm.wechat" placeholder="微信">
-        <input v-model.trim="studentForm.id_no" placeholder="身份证号">
-        <input v-model.trim="studentForm.level" placeholder="学员等级">
-        <input v-model.trim="studentForm.intention_level" placeholder="意向等级">
-        <input v-model.trim="studentForm.follow_status" placeholder="跟进状态">
-        <input v-model.trim="studentForm.source" placeholder="来源渠道">
-        <input v-model.trim="studentForm.campus" placeholder="校区">
-        <input v-model.trim="studentForm.class_name" placeholder="班级">
-        <input v-model.trim="studentForm.consultant" placeholder="顾问">
-        <input v-model.trim="studentForm.guardian_name" placeholder="监护人">
-        <input v-model.trim="studentForm.guardian_phone" placeholder="监护人电话">
-        <input v-model.trim="studentForm.address" placeholder="地址">
-        <input v-model.trim="studentForm.remark" placeholder="备注">
+        <label>姓名（必填）<input v-model.trim="studentForm.name" placeholder="例如：张三" required></label>
+        <label>性别（男/女）<select v-model="studentForm.gender"><option value="">请选择</option><option value="男">男</option><option value="女">女</option></select></label>
+        <label>出生日期（YYYY-MM-DD）<input v-model="studentForm.birthday" type="date"></label>
+        <label>手机号（必填）<input v-model.trim="studentForm.phone" placeholder="用于联系" required></label>
+        <label>微信号（可选）<input v-model.trim="studentForm.wechat" placeholder="学员微信"></label>
+        <label>身份证号（可选）<input v-model.trim="studentForm.id_no" placeholder="实名信息"></label>
+        <label>学员等级（A1/B2）<input v-model.trim="studentForm.level" placeholder="学习等级"></label>
+        <label>意向等级（高/中/低）<input v-model.trim="studentForm.intention_level" placeholder="转化意向"></label>
+        <label>跟进状态（跟进中/已报名）<input v-model.trim="studentForm.follow_status" placeholder="当前状态"></label>
+        <label>来源渠道（抖音/转介绍）<input v-model.trim="studentForm.source" placeholder="获客来源"></label>
+        <label>报课名称（数组，逗号分隔）<input v-model.trim="studentForm.enrolled_courses_text" placeholder="Python全栈训练营,就业辅导课"></label>
+        <label>顾问（招生负责人）<input v-model.trim="studentForm.consultant" placeholder="顾问姓名"></label>
+        <label>交付教练（带班教练）<input v-model.trim="studentForm.delivery_coach" placeholder="教练姓名"></label>
+        <label>监护人姓名（未成年）<input v-model.trim="studentForm.guardian_name" placeholder="可留空"></label>
+        <label>监护人电话（可选）<input v-model.trim="studentForm.guardian_phone" placeholder="紧急联系"></label>
+        <label>联系地址（可选）<input v-model.trim="studentForm.address" placeholder="详细地址"></label>
+        <label>备注（学习目标）<input v-model.trim="studentForm.remark" placeholder="个性化记录"></label>
         <button>{{ studentForm.id ? '保存学员' : '新增学员' }}</button>
         <button type="button" class="btn-secondary" @click="resetStudentForm">重置</button>
       </form>
-      <table class="table"><thead><tr><th>ID</th><th>姓名</th><th>性别</th><th>手机号</th><th>校区/班级</th><th>顾问</th><th>操作</th></tr></thead><tbody><tr v-for="s in students" :key="s.id"><td>{{s.id}}</td><td>{{s.name}}</td><td>{{s.gender}}</td><td>{{s.phone}}</td><td>{{s.campus}} / {{s.class_name}}</td><td>{{s.consultant}}</td><td><button class="btn-mini" @click="editStudent(s)">编辑</button></td></tr></tbody></table>
+      <table class="table"><thead><tr><th>ID</th><th>姓名</th><th>性别</th><th>手机号</th><th>报课名称</th><th>顾问/教练</th><th>操作</th></tr></thead><tbody><tr v-for="s in students" :key="s.id"><td>{{s.id}}</td><td>{{s.name}}</td><td>{{s.gender}}</td><td>{{s.phone}}</td><td>{{ formatCourses(s.enrolled_courses) }}</td><td>{{s.consultant}} / {{s.delivery_coach}}</td><td><button class="btn-mini" @click="editStudent(s)">编辑</button></td></tr></tbody></table>
     </section>
 
     <section class="content-card" v-if="activeTab==='courses'">
@@ -168,7 +168,7 @@ createApp({
     const assignData=ref({user_groups:[],group_perms:[]});
     const groupedMenus=ref([]);
 
-    const studentForm=reactive({id:0,name:'',gender:'',birthday:'',phone:'',wechat:'',id_no:'',level:'',intention_level:'',follow_status:'',source:'',campus:'',class_name:'',consultant:'',guardian_name:'',guardian_phone:'',address:'',remark:''});
+    const studentForm=reactive({id:0,name:'',gender:'',birthday:'',phone:'',wechat:'',id_no:'',level:'',intention_level:'',follow_status:'',source:'',enrolled_courses_text:'',consultant:'',delivery_coach:'',guardian_name:'',guardian_phone:'',address:'',remark:''});
     const courseForm=reactive({course_name:'',coach_name:'',period_weeks:0,price:0});
     const orderForm=reactive({student_id:'',course_id:'',amount:0,pay_status:0});
     const financeForm=reactive({record_type:'income',item_name:'',amount:0,record_date:''});
@@ -197,10 +197,11 @@ createApp({
 
     const createHelper=async(url,form,loader)=>{error.value=''; try{await api(url,{method:'POST',body:JSON.stringify(form)}); await loader();}catch(e){error.value=e.message;}};
 
-    const saveStudent=async()=>{error.value='';try{if(studentForm.id){await api('/api/students.php',{method:'PUT',body:JSON.stringify(studentForm)});}else{await api('/api/students.php',{method:'POST',body:JSON.stringify(studentForm)});}resetStudentForm();await loadStudents();}catch(e){error.value=e.message;}};
+    const formatCourses=(val)=>{try{const arr=Array.isArray(val)?val:JSON.parse(val||'[]');return Array.isArray(arr)?arr.join(','):'';}catch(e){return String(val||'');}};
+    const saveStudent=async()=>{error.value='';try{const payload={...studentForm,enrolled_courses:(studentForm.enrolled_courses_text||'').split(',').map(x=>x.trim()).filter(Boolean)};if(studentForm.id){await api('/api/students.php',{method:'PUT',body:JSON.stringify(payload)});}else{await api('/api/students.php',{method:'POST',body:JSON.stringify(payload)});}resetStudentForm();await loadStudents();}catch(e){error.value=e.message;}};
     
-    const resetStudentForm=()=>Object.assign(studentForm,{id:0,name:'',gender:'',birthday:'',phone:'',wechat:'',id_no:'',level:'',intention_level:'',follow_status:'',source:'',campus:'',class_name:'',consultant:'',guardian_name:'',guardian_phone:'',address:'',remark:''});
-    const editStudent=(row)=>Object.assign(studentForm,{id:Number(row.id),name:row.name||'',gender:row.gender||'',birthday:row.birthday||'',phone:row.phone||'',wechat:row.wechat||'',id_no:row.id_no||'',level:row.level||'',intention_level:row.intention_level||'',follow_status:row.follow_status||'',source:row.source||'',campus:row.campus||'',class_name:row.class_name||'',consultant:row.consultant||'',guardian_name:row.guardian_name||'',guardian_phone:row.guardian_phone||'',address:row.address||'',remark:row.remark||''});
+    const resetStudentForm=()=>Object.assign(studentForm,{id:0,name:'',gender:'',birthday:'',phone:'',wechat:'',id_no:'',level:'',intention_level:'',follow_status:'',source:'',enrolled_courses_text:'',consultant:'',delivery_coach:'',guardian_name:'',guardian_phone:'',address:'',remark:''});
+    const editStudent=(row)=>Object.assign(studentForm,{id:Number(row.id),name:row.name||'',gender:row.gender||'',birthday:row.birthday||'',phone:row.phone||'',wechat:row.wechat||'',id_no:row.id_no||'',level:row.level||'',intention_level:row.intention_level||'',follow_status:row.follow_status||'',source:row.source||'',enrolled_courses_text:formatCourses(row.enrolled_courses),consultant:row.consultant||'',delivery_coach:row.delivery_coach||'',guardian_name:row.guardian_name||'',guardian_phone:row.guardian_phone||'',address:row.address||'',remark:row.remark||''});
     const resetUserForm=()=>Object.assign(userForm,{id:0,username:'',real_name:'',role:'',gender:'',mobile:'',email:'',id_no:'',department:'',position:'',hire_date:'',remark:'',password:''});
     const editUser=(row)=>Object.assign(userForm,{id:Number(row.id),username:row.username||'',real_name:row.real_name||'',role:row.role||'',gender:row.gender||'',mobile:row.mobile||'',email:row.email||'',id_no:row.id_no||'',department:row.department||'',position:row.position||'',hire_date:row.hire_date||'',remark:row.remark||'',password:''});
 

@@ -7,14 +7,14 @@ try {
     $m = $_SERVER['REQUEST_METHOD'];
 
     if ($m === 'GET') {
-        $stmt = $pdo->query('SELECT id, name, gender, birthday, phone, wechat, id_no, level, intention_level, follow_status, source, campus, class_name, consultant, guardian_name, guardian_phone, address, remark, created_at FROM oa_student ORDER BY id DESC');
+        $stmt = $pdo->query('SELECT id, name, gender, birthday, phone, wechat, id_no, level, intention_level, follow_status, source, enrolled_courses, consultant, delivery_coach, guardian_name, guardian_phone, address, remark, created_at FROM oa_student ORDER BY id DESC');
         json_response(0, 'ok', $stmt->fetchAll());
     }
 
     if ($m === 'POST') {
         $d = request_body();
         require_fields($d, ['name', 'phone']);
-        $stmt = $pdo->prepare('INSERT INTO oa_student(name, gender, birthday, phone, wechat, id_no, level, intention_level, follow_status, source, campus, class_name, consultant, guardian_name, guardian_phone, address, remark) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
+        $stmt = $pdo->prepare('INSERT INTO oa_student(name, gender, birthday, phone, wechat, id_no, level, intention_level, follow_status, source, enrolled_courses, consultant, delivery_coach, guardian_name, guardian_phone, address, remark) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
         $stmt->execute([
             trim($d['name']),
             trim((string)($d['gender'] ?? '')),
@@ -26,9 +26,9 @@ try {
             trim((string)($d['intention_level'] ?? '')),
             trim((string)($d['follow_status'] ?? '')),
             trim((string)($d['source'] ?? '')),
-            trim((string)($d['campus'] ?? '')),
-            trim((string)($d['class_name'] ?? '')),
+            json_encode($d['enrolled_courses'] ?? [], JSON_UNESCAPED_UNICODE),
             trim((string)($d['consultant'] ?? '')),
+            trim((string)($d['delivery_coach'] ?? '')),
             trim((string)($d['guardian_name'] ?? '')),
             trim((string)($d['guardian_phone'] ?? '')),
             trim((string)($d['address'] ?? '')),
@@ -42,7 +42,7 @@ try {
         $id = (int)($d['id'] ?? 0);
         if ($id <= 0) json_response(400, 'id非法', null, 400);
         require_fields($d, ['name', 'phone']);
-        $stmt = $pdo->prepare('UPDATE oa_student SET name=?, gender=?, birthday=?, phone=?, wechat=?, id_no=?, level=?, intention_level=?, follow_status=?, source=?, campus=?, class_name=?, consultant=?, guardian_name=?, guardian_phone=?, address=?, remark=? WHERE id=?');
+        $stmt = $pdo->prepare('UPDATE oa_student SET name=?, gender=?, birthday=?, phone=?, wechat=?, id_no=?, level=?, intention_level=?, follow_status=?, source=?, enrolled_courses=?, consultant=?, delivery_coach=?, guardian_name=?, guardian_phone=?, address=?, remark=? WHERE id=?');
         $stmt->execute([
             trim($d['name']),
             trim((string)($d['gender'] ?? '')),
@@ -54,9 +54,9 @@ try {
             trim((string)($d['intention_level'] ?? '')),
             trim((string)($d['follow_status'] ?? '')),
             trim((string)($d['source'] ?? '')),
-            trim((string)($d['campus'] ?? '')),
-            trim((string)($d['class_name'] ?? '')),
+            json_encode($d['enrolled_courses'] ?? [], JSON_UNESCAPED_UNICODE),
             trim((string)($d['consultant'] ?? '')),
+            trim((string)($d['delivery_coach'] ?? '')),
             trim((string)($d['guardian_name'] ?? '')),
             trim((string)($d['guardian_phone'] ?? '')),
             trim((string)($d['address'] ?? '')),
