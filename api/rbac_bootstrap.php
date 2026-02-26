@@ -1,0 +1,53 @@
+<?php
+
+function ensure_rbac_tables(PDO $pdo): void
+{
+    $pdo->exec("CREATE TABLE IF NOT EXISTS oa_user_group (
+      id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+      group_name VARCHAR(50) NOT NULL,
+      group_code VARCHAR(50) NOT NULL,
+      remark VARCHAR(255) DEFAULT '',
+      status TINYINT NOT NULL DEFAULT 1,
+      PRIMARY KEY (id),
+      UNIQUE KEY uk_group_code (group_code)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+    $pdo->exec("CREATE TABLE IF NOT EXISTS oa_permission (
+      id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+      perm_name VARCHAR(80) NOT NULL,
+      perm_code VARCHAR(80) NOT NULL,
+      module_name VARCHAR(50) DEFAULT '系统管理',
+      remark VARCHAR(255) DEFAULT '',
+      status TINYINT NOT NULL DEFAULT 1,
+      PRIMARY KEY (id),
+      UNIQUE KEY uk_perm_code (perm_code)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+    $pdo->exec("CREATE TABLE IF NOT EXISTS oa_user_group_rel (
+      id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+      user_id INT UNSIGNED NOT NULL,
+      group_id INT UNSIGNED NOT NULL,
+      PRIMARY KEY (id),
+      UNIQUE KEY uk_user_group (user_id, group_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+    $pdo->exec("CREATE TABLE IF NOT EXISTS oa_group_permission_rel (
+      id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+      group_id INT UNSIGNED NOT NULL,
+      perm_id INT UNSIGNED NOT NULL,
+      PRIMARY KEY (id),
+      UNIQUE KEY uk_group_perm (group_id, perm_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+    $pdo->exec("INSERT INTO oa_user_group (group_name, group_code, remark, status) VALUES
+      ('超级管理员组', 'super_admin', '拥有全部权限', 1)
+      ON DUPLICATE KEY UPDATE group_name=VALUES(group_name), remark=VALUES(remark), status=VALUES(status)");
+
+    $pdo->exec("INSERT INTO oa_permission (perm_name, perm_code, module_name, remark, status) VALUES
+      ('用户管理-查看', 'user_view', '系统管理', '查看用户', 1),
+      ('用户管理-新增修改', 'user_edit', '系统管理', '新增与修改用户', 1),
+      ('用户组管理', 'group_manage', '系统管理', '用户组增删改查', 1),
+      ('权限管理', 'perm_manage', '系统管理', '权限增删改查', 1),
+      ('权限分配', 'rbac_assign', '系统管理', '组与权限、用户组分配', 1)
+      ON DUPLICATE KEY UPDATE perm_name=VALUES(perm_name), module_name=VALUES(module_name), remark=VALUES(remark), status=VALUES(status)");
+}
