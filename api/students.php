@@ -9,19 +9,69 @@ try {
     $m = $_SERVER['REQUEST_METHOD'];
 
     if ($m === 'GET') {
-        $stmt = $pdo->query('SELECT id, name, gender, birthday, phone, wechat, id_no, level, intention_level, follow_status, source, enrolled_courses, consultant, delivery_coach, guardian_name, guardian_phone, address, remark, created_at FROM oa_student ORDER BY id DESC');
+        $where = [];
+        $params = [];
+        $keyword = trim((string)($_GET['keyword'] ?? ''));
+        $status = trim((string)($_GET['follow_status'] ?? ''));
+
+        if ($keyword !== '') {
+            $where[] = '(name LIKE :kw OR phone LIKE :kw OR consultant LIKE :kw OR delivery_coach LIKE :kw)';
+            $params[':kw'] = "%{$keyword}%";
+        }
+        if ($status !== '') {
+            $where[] = 'follow_status = :follow_status';
+            $params[':follow_status'] = $status;
+        }
+
+        $whereSql = $where ? (' WHERE ' . implode(' AND ', $where)) : '';
+
+        if (paged_mode($_GET)) {
+            $p = parse_pagination($_GET);
+            $countStmt = $pdo->prepare('SELECT COUNT(*) FROM oa_student' . $whereSql);
+            $countStmt->execute($params);
+            $total = (int)$countStmt->fetchColumn();
+
+            $sql = 'SELECT id, name, gender, birthday, phone, wechat, id_no, level, intention_level, follow_status, source, enrolled_courses, consultant, delivery_coach, guardian_name, guardian_phone, address, remark, created_at FROM oa_student'
+                . $whereSql . ' ORDER BY id DESC LIMIT :limit OFFSET :offset';
+            $stmt = $pdo->prepare($sql);
+            foreach ($params as $k => $v) {
+                $stmt->bindValue($k, $v);
+            }
+            $stmt->bindValue(':limit', $p['page_size'], PDO::PARAM_INT);
+            $stmt->bindValue(':offset', $p['offset'], PDO::PARAM_INT);
+            $stmt->execute();
+            json_response(0, 'ok', [
+                'items' => $stmt->fetchAll(),
+                'pagination' => [
+                    'page' => $p['page'],
+                    'page_size' => $p['page_size'],
+                    'total' => $total,
+                ],
+            ]);
+        }
+
+        $stmt = $pdo->prepare('SELECT id, name, gender, birthday, phone, wechat, id_no, level, intention_level, follow_status, source, enrolled_courses, consultant, delivery_coach, guardian_name, guardian_phone, address, remark, created_at FROM oa_student' . $whereSql . ' ORDER BY id DESC');
+        $stmt->execute($params);
         json_response(0, 'ok', $stmt->fetchAll());
     }
 
     if ($m === 'POST') {
         $d = request_body();
         require_fields($d, ['name', 'phone']);
+
+        $phone = trim($d['phone']);
+        $existsStmt = $pdo->prepare('SELECT id FROM oa_student WHERE phone = ? LIMIT 1');
+        $existsStmt->execute([$phone]);
+        if ($existsStmt->fetchColumn()) {
+            json_response(409, '手机号已存在', null, 409);
+        }
+
         $stmt = $pdo->prepare('INSERT INTO oa_student(name, gender, birthday, phone, wechat, id_no, level, intention_level, follow_status, source, enrolled_courses, consultant, delivery_coach, guardian_name, guardian_phone, address, remark) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
         $stmt->execute([
             trim($d['name']),
             trim((string)($d['gender'] ?? '')),
-            trim((string)($d['birthday'] ?? '')),
-            trim($d['phone']),
+            normalize_date_or_empty($d['birthday'] ?? ''),
+            $phone,
             trim((string)($d['wechat'] ?? '')),
             trim((string)($d['id_no'] ?? '')),
             trim((string)($d['level'] ?? '')),
@@ -44,12 +94,20 @@ try {
         $id = (int)($d['id'] ?? 0);
         if ($id <= 0) json_response(400, 'id非法', null, 400);
         require_fields($d, ['name', 'phone']);
+
+        $phone = trim($d['phone']);
+        $existsStmt = $pdo->prepare('SELECT id FROM oa_student WHERE phone = ? AND id <> ? LIMIT 1');
+        $existsStmt->execute([$phone, $id]);
+        if ($existsStmt->fetchColumn()) {
+            json_response(409, '手机号已存在', null, 409);
+        }
+
         $stmt = $pdo->prepare('UPDATE oa_student SET name=?, gender=?, birthday=?, phone=?, wechat=?, id_no=?, level=?, intention_level=?, follow_status=?, source=?, enrolled_courses=?, consultant=?, delivery_coach=?, guardian_name=?, guardian_phone=?, address=?, remark=? WHERE id=?');
         $stmt->execute([
             trim($d['name']),
             trim((string)($d['gender'] ?? '')),
-            trim((string)($d['birthday'] ?? '')),
-            trim($d['phone']),
+            normalize_date_or_empty($d['birthday'] ?? ''),
+            $phone,
             trim((string)($d['wechat'] ?? '')),
             trim((string)($d['id_no'] ?? '')),
             trim((string)($d['level'] ?? '')),

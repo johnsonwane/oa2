@@ -215,7 +215,7 @@ createApp({
 
     const resetFinanceForm=()=>Object.assign(financeForm,{id:0,record_type:'income',item_name:'',amount:0,record_date:''});
     const editFinance=(row)=>Object.assign(financeForm,{id:Number(row.id),record_type:row.record_type||'income',item_name:row.item_name||'',amount:Number(row.amount||0),record_date:row.record_date||''});
-    const saveFinance=async()=>{error.value='';try{if(financeForm.id){await api(`/api/finance.php?id=${financeForm.id}`,{method:'DELETE'}); await api('/api/finance.php',{method:'POST',body:JSON.stringify(financeForm)});}else{await api('/api/finance.php',{method:'POST',body:JSON.stringify(financeForm)});}resetFinanceForm();await loadFinance();}catch(e){error.value=e.message;}};
+    const saveFinance=async()=>{error.value='';try{if(financeForm.id){await api('/api/finance.php',{method:'PUT',body:JSON.stringify(financeForm)});}else{await api('/api/finance.php',{method:'POST',body:JSON.stringify(financeForm)});}resetFinanceForm();await loadFinance();}catch(e){error.value=e.message;}};
 
     const resetTodoForm=()=>Object.assign(todoForm,{id:0,title:'',priority:'中',status:'todo',due_date:''});
     const editTodo=(row)=>Object.assign(todoForm,{id:Number(row.id),title:row.title||'',priority:row.priority||'中',status:row.status||'todo',due_date:row.due_date||''});

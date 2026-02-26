@@ -36,3 +36,36 @@ function require_fields(array $data, array $fields): void
         }
     }
 }
+
+function parse_pagination(array $query, int $defaultPage = 1, int $defaultPageSize = 20, int $maxPageSize = 100): array
+{
+    $page = max(1, (int)($query['page'] ?? $defaultPage));
+    $pageSize = (int)($query['page_size'] ?? $defaultPageSize);
+    if ($pageSize <= 0) {
+        $pageSize = $defaultPageSize;
+    }
+    $pageSize = min($pageSize, $maxPageSize);
+    return [
+        'page' => $page,
+        'page_size' => $pageSize,
+        'offset' => ($page - 1) * $pageSize,
+    ];
+}
+
+function paged_mode(array $query): bool
+{
+    return isset($query['paged']) && (string)$query['paged'] === '1';
+}
+
+function normalize_date_or_empty($value): string
+{
+    $v = trim((string)$value);
+    if ($v === '') {
+        return '';
+    }
+    $dt = DateTime::createFromFormat('Y-m-d', $v);
+    if (!$dt || $dt->format('Y-m-d') !== $v) {
+        json_response(400, '日期格式必须为 YYYY-MM-DD', null, 400);
+    }
+    return $v;
+}

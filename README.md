@@ -19,7 +19,7 @@
 - `GET/POST/PUT/DELETE /api/students.php` 学员 CRUD
 - `GET/POST/PUT/DELETE /api/courses.php` 课程 CRUD
 - `GET/POST/PUT/DELETE /api/orders.php` 订单 CRUD
-- `GET/POST/DELETE /api/finance.php` 财务记录与统计
+- `GET/POST/PUT/DELETE /api/finance.php` 财务记录与统计（支持编辑）
 - `GET/POST/PUT/DELETE /api/todos.php` 待办 CRUD
 - `GET/POST/PUT/DELETE /api/notifications.php` 通知 CRUD
 - `GET/POST/PUT/DELETE /api/users.php` 用户 CRUD
@@ -63,3 +63,12 @@ mysql -uroot -p < db/schema.sql
 
 
 - 兼容旧库：`api/profile_bootstrap.php` 会在学员/用户接口首次访问时自动补齐新增字段，避免因历史表结构导致“无法编辑”。
+
+
+## 面向复杂场景的增强
+
+- `students.php` 支持按 `keyword`、`follow_status` 过滤；支持分页模式：`?paged=1&page=1&page_size=20`。
+- `orders.php` 支持按 `keyword`、`pay_status` 过滤与分页，并在创建/更新时校验学员与课程是否存在。
+- `orders.php` 在未传 `amount` 时会自动回填课程价格，减少人工录入错误。
+- `finance.php` 新增 `PUT` 更新能力，并支持按 `record_type`、`from_date`、`to_date` 的筛选与分页。
+- `students.php` 对手机号增加重复校验（创建与编辑均生效），降低重复线索/重复学员风险。
