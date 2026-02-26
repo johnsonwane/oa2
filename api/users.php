@@ -1,9 +1,11 @@
 <?php
 require_once __DIR__ . '/common.php';
 require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/profile_bootstrap.php';
 
 try {
     $pdo = get_db_connection();
+    ensure_student_user_profile_columns($pdo);
     $m = $_SERVER['REQUEST_METHOD'];
 
     if ($m === 'GET') {
