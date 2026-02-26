@@ -68,33 +68,33 @@
 
     <section class="content-card" v-if="activeTab==='courses'">
       <h2>课程管理</h2>
-      <form class="inline-form" @submit.prevent="createCourse"><input v-model.trim="courseForm.course_name" placeholder="课程名" required><input v-model.trim="courseForm.coach_name" placeholder="讲师" required><input v-model.number="courseForm.period_weeks" type="number" placeholder="周期周数"><input v-model.number="courseForm.price" type="number" step="0.01" placeholder="价格"><button>新增课程</button></form>
-      <table class="table"><thead><tr><th>ID</th><th>课程</th><th>讲师</th><th>周期</th><th>价格</th></tr></thead><tbody><tr v-for="c in courses" :key="c.id"><td>{{c.id}}</td><td>{{c.course_name}}</td><td>{{c.coach_name}}</td><td>{{c.period_weeks}}周</td><td>¥{{c.price}}</td></tr></tbody></table>
+      <form class="inline-form" @submit.prevent="saveCourse"><input v-model.trim="courseForm.course_name" placeholder="课程名" required><input v-model.trim="courseForm.coach_name" placeholder="讲师" required><input v-model.number="courseForm.period_weeks" type="number" placeholder="周期周数"><input v-model.number="courseForm.price" type="number" step="0.01" placeholder="价格"><button>{{courseForm.id?'保存课程':'新增课程'}}</button><button type="button" class="btn-secondary" @click="resetCourseForm">重置</button></form>
+      <table class="table"><thead><tr><th>ID</th><th>课程</th><th>讲师</th><th>周期</th><th>价格</th><th>操作</th></tr></thead><tbody><tr v-for="c in courses" :key="c.id"><td>{{c.id}}</td><td>{{c.course_name}}</td><td>{{c.coach_name}}</td><td>{{c.period_weeks}}周</td><td>¥{{c.price}}</td><td><button class="btn-mini" @click="editCourse(c)">编辑</button></td></tr></tbody></table>
     </section>
 
     <section class="content-card" v-if="activeTab==='orders'">
       <h2>订单管理</h2>
-      <form class="inline-form" @submit.prevent="createOrder"><select v-model.number="orderForm.student_id" required><option value="">选择学员</option><option v-for="s in students" :value="Number(s.id)">{{s.name}}</option></select><select v-model.number="orderForm.course_id" required><option value="">选择课程</option><option v-for="c in courses" :value="Number(c.id)">{{c.course_name}}</option></select><input v-model.number="orderForm.amount" type="number" step="0.01" placeholder="金额"><select v-model.number="orderForm.pay_status"><option :value="0">待支付</option><option :value="1">已支付</option></select><button>新增订单</button></form>
-      <table class="table"><thead><tr><th>ID</th><th>学员</th><th>课程</th><th>金额</th><th>状态</th></tr></thead><tbody><tr v-for="o in orders" :key="o.id"><td>{{o.id}}</td><td>{{o.student_name}}</td><td>{{o.course_name}}</td><td>¥{{o.amount}}</td><td>{{Number(o.pay_status)===1?'已支付':'待支付'}}</td></tr></tbody></table>
+      <form class="inline-form" @submit.prevent="saveOrder"><select v-model.number="orderForm.student_id" required><option value="">选择学员</option><option v-for="s in students" :value="Number(s.id)">{{s.name}}</option></select><select v-model.number="orderForm.course_id" required><option value="">选择课程</option><option v-for="c in courses" :value="Number(c.id)">{{c.course_name}}</option></select><input v-model.number="orderForm.amount" type="number" step="0.01" placeholder="金额"><select v-model.number="orderForm.pay_status"><option :value="0">待支付</option><option :value="1">已支付</option></select><button>{{orderForm.id?'保存订单':'新增订单'}}</button><button type="button" class="btn-secondary" @click="resetOrderForm">重置</button></form>
+      <table class="table"><thead><tr><th>ID</th><th>学员</th><th>课程</th><th>金额</th><th>状态</th><th>操作</th></tr></thead><tbody><tr v-for="o in orders" :key="o.id"><td>{{o.id}}</td><td>{{o.student_name}}</td><td>{{o.course_name}}</td><td>¥{{o.amount}}</td><td>{{Number(o.pay_status)===1?'已支付':'待支付'}}</td><td><button class="btn-mini" @click="editOrder(o)">编辑</button></td></tr></tbody></table>
     </section>
 
     <section class="content-card" v-if="activeTab==='finance'">
       <h2>财务管理</h2>
       <div class="cards"><div class="stat"><span>收入</span><strong>¥{{ finance.summary.income || 0 }}</strong></div><div class="stat"><span>支出</span><strong>¥{{ finance.summary.expense || 0 }}</strong></div><div class="stat"><span>结余</span><strong>¥{{ finance.summary.balance || 0 }}</strong></div></div>
-      <form class="inline-form" @submit.prevent="createFinance"><select v-model="financeForm.record_type"><option value="income">收入</option><option value="expense">支出</option></select><input v-model.trim="financeForm.item_name" placeholder="项目名" required><input v-model.number="financeForm.amount" type="number" step="0.01" placeholder="金额" required><input v-model="financeForm.record_date" type="date" required><button>新增记录</button></form>
-      <table class="table"><thead><tr><th>类型</th><th>项目</th><th>金额</th><th>日期</th></tr></thead><tbody><tr v-for="f in finance.list" :key="f.id"><td>{{f.record_type}}</td><td>{{f.item_name}}</td><td>¥{{f.amount}}</td><td>{{f.record_date}}</td></tr></tbody></table>
+      <form class="inline-form" @submit.prevent="saveFinance"><select v-model="financeForm.record_type"><option value="income">收入</option><option value="expense">支出</option></select><input v-model.trim="financeForm.item_name" placeholder="项目名" required><input v-model.number="financeForm.amount" type="number" step="0.01" placeholder="金额" required><input v-model="financeForm.record_date" type="date" required><button>{{financeForm.id?'保存记录':'新增记录'}}</button><button type="button" class="btn-secondary" @click="resetFinanceForm">重置</button></form>
+      <table class="table"><thead><tr><th>类型</th><th>项目</th><th>金额</th><th>日期</th><th>操作</th></tr></thead><tbody><tr v-for="f in finance.list" :key="f.id"><td>{{f.record_type}}</td><td>{{f.item_name}}</td><td>¥{{f.amount}}</td><td>{{f.record_date}}</td><td><button class="btn-mini" @click="editFinance(f)">编辑</button></td></tr></tbody></table>
     </section>
 
     <section class="content-card" v-if="activeTab==='todos'">
       <h2>待办管理</h2>
-      <form class="inline-form" @submit.prevent="createTodo"><input v-model.trim="todoForm.title" placeholder="待办事项" required><select v-model="todoForm.priority"><option>高</option><option>中</option><option>低</option></select><input v-model="todoForm.due_date" type="date"><button>新增待办</button></form>
-      <table class="table"><thead><tr><th>事项</th><th>优先级</th><th>状态</th><th>截止日</th></tr></thead><tbody><tr v-for="t in todos" :key="t.id"><td>{{t.title}}</td><td>{{t.priority}}</td><td>{{t.status}}</td><td>{{t.due_date}}</td></tr></tbody></table>
+      <form class="inline-form" @submit.prevent="saveTodo"><input v-model.trim="todoForm.title" placeholder="待办事项" required><select v-model="todoForm.priority"><option>高</option><option>中</option><option>低</option></select><select v-model="todoForm.status"><option value="todo">todo</option><option value="doing">doing</option><option value="done">done</option></select><input v-model="todoForm.due_date" type="date"><button>{{todoForm.id?'保存待办':'新增待办'}}</button><button type="button" class="btn-secondary" @click="resetTodoForm">重置</button></form>
+      <table class="table"><thead><tr><th>事项</th><th>优先级</th><th>状态</th><th>截止日</th><th>操作</th></tr></thead><tbody><tr v-for="t in todos" :key="t.id"><td>{{t.title}}</td><td>{{t.priority}}</td><td>{{t.status}}</td><td>{{t.due_date}}</td><td><button class="btn-mini" @click="editTodo(t)">编辑</button></td></tr></tbody></table>
     </section>
 
     <section class="content-card" v-if="activeTab==='notifications'">
       <h2>通知管理</h2>
-      <form class="inline-form" @submit.prevent="createNotification"><input v-model.trim="notificationForm.title" placeholder="标题" required><input v-model.trim="notificationForm.content" placeholder="内容" required><button>发送通知</button></form>
-      <table class="table"><thead><tr><th>标题</th><th>内容</th><th>状态</th></tr></thead><tbody><tr v-for="n in notifications" :key="n.id"><td>{{n.title}}</td><td>{{n.content}}</td><td>{{Number(n.is_read)===1?'已读':'未读'}}</td></tr></tbody></table>
+      <form class="inline-form" @submit.prevent="saveNotification"><input v-model.trim="notificationForm.title" placeholder="标题" required><input v-model.trim="notificationForm.content" placeholder="内容" required><select v-model.number="notificationForm.is_read"><option :value="0">未读</option><option :value="1">已读</option></select><button>{{notificationForm.id?'保存通知':'发送通知'}}</button><button type="button" class="btn-secondary" @click="resetNotificationForm">重置</button></form>
+      <table class="table"><thead><tr><th>标题</th><th>内容</th><th>状态</th><th>操作</th></tr></thead><tbody><tr v-for="n in notifications" :key="n.id"><td>{{n.title}}</td><td>{{n.content}}</td><td>{{Number(n.is_read)===1?'已读':'未读'}}</td><td><button class="btn-mini" @click="editNotification(n)">编辑</button></td></tr></tbody></table>
     </section>
 
     <section class="content-card" v-if="activeTab==='users'">
@@ -120,20 +120,20 @@
 
     <section class="content-card" v-if="activeTab==='menus'">
       <h2>菜单管理（与左侧菜单对应）</h2>
-      <form class="inline-form" @submit.prevent="createMenu"><input v-model.trim="menuForm.parent_name" placeholder="一级菜单" required><input v-model.trim="menuForm.menu_name" placeholder="二级菜单名" required><input v-model.trim="menuForm.menu_key" placeholder="菜单key" required><input v-model.trim="menuForm.path" placeholder="路径" required><button>新增菜单</button></form>
-      <table class="table"><thead><tr><th>一级</th><th>二级</th><th>KEY</th><th>PATH</th></tr></thead><tbody><tr v-for="m in menus" :key="m.id"><td>{{m.parent_name}}</td><td>{{m.menu_name}}</td><td>{{m.menu_key}}</td><td>{{m.path}}</td></tr></tbody></table>
+      <form class="inline-form" @submit.prevent="saveMenu"><input v-model.trim="menuForm.parent_name" placeholder="一级菜单" required><input v-model.trim="menuForm.menu_name" placeholder="二级菜单名" required><input v-model.trim="menuForm.menu_key" placeholder="菜单key" required><input v-model.trim="menuForm.path" placeholder="路径" required><button>{{menuForm.id?'保存菜单':'新增菜单'}}</button><button type="button" class="btn-secondary" @click="resetMenuForm">重置</button></form>
+      <table class="table"><thead><tr><th>一级</th><th>二级</th><th>KEY</th><th>PATH</th><th>操作</th></tr></thead><tbody><tr v-for="m in menus" :key="m.id"><td>{{m.parent_name}}</td><td>{{m.menu_name}}</td><td>{{m.menu_key}}</td><td>{{m.path}}</td><td><button class="btn-mini" @click="editMenu(m)">编辑</button></td></tr></tbody></table>
     </section>
 
     <section class="content-card" v-if="activeTab==='rbac_groups'">
       <h2>系统管理 / 用户组管理</h2>
-      <form class="inline-form" @submit.prevent="createGroup"><input v-model.trim="groupForm.group_name" placeholder="用户组名" required><input v-model.trim="groupForm.group_code" placeholder="组编码" required><input v-model.trim="groupForm.remark" placeholder="备注"><button>新增用户组</button></form>
-      <table class="table"><thead><tr><th>ID</th><th>组名</th><th>编码</th><th>备注</th></tr></thead><tbody><tr v-for="g in groups" :key="g.id"><td>{{g.id}}</td><td>{{g.group_name}}</td><td>{{g.group_code}}</td><td>{{g.remark}}</td></tr></tbody></table>
+      <form class="inline-form" @submit.prevent="saveGroup"><input v-model.trim="groupForm.group_name" placeholder="用户组名" required><input v-model.trim="groupForm.group_code" placeholder="组编码" required><input v-model.trim="groupForm.remark" placeholder="备注"><button>{{groupForm.id?'保存用户组':'新增用户组'}}</button><button type="button" class="btn-secondary" @click="resetGroupForm">重置</button></form>
+      <table class="table"><thead><tr><th>ID</th><th>组名</th><th>编码</th><th>备注</th><th>操作</th></tr></thead><tbody><tr v-for="g in groups" :key="g.id"><td>{{g.id}}</td><td>{{g.group_name}}</td><td>{{g.group_code}}</td><td>{{g.remark}}</td><td><button class="btn-mini" @click="editGroup(g)">编辑</button></td></tr></tbody></table>
     </section>
 
     <section class="content-card" v-if="activeTab==='rbac_permissions'">
       <h2>系统管理 / 权限管理</h2>
-      <form class="inline-form" @submit.prevent="createPerm"><input v-model.trim="permForm.perm_name" placeholder="权限名称" required><input v-model.trim="permForm.perm_code" placeholder="权限编码" required><input v-model.trim="permForm.module_name" placeholder="模块名"><button>新增权限</button></form>
-      <table class="table"><thead><tr><th>ID</th><th>权限名</th><th>编码</th><th>模块</th></tr></thead><tbody><tr v-for="p in perms" :key="p.id"><td>{{p.id}}</td><td>{{p.perm_name}}</td><td>{{p.perm_code}}</td><td>{{p.module_name}}</td></tr></tbody></table>
+      <form class="inline-form" @submit.prevent="savePerm"><input v-model.trim="permForm.perm_name" placeholder="权限名称" required><input v-model.trim="permForm.perm_code" placeholder="权限编码" required><input v-model.trim="permForm.module_name" placeholder="模块名"><button>{{permForm.id?'保存权限':'新增权限'}}</button><button type="button" class="btn-secondary" @click="resetPermForm">重置</button></form>
+      <table class="table"><thead><tr><th>ID</th><th>权限名</th><th>编码</th><th>模块</th><th>操作</th></tr></thead><tbody><tr v-for="p in perms" :key="p.id"><td>{{p.id}}</td><td>{{p.perm_name}}</td><td>{{p.perm_code}}</td><td>{{p.module_name}}</td><td><button class="btn-mini" @click="editPerm(p)">编辑</button></td></tr></tbody></table>
     </section>
 
     <section class="content-card" v-if="activeTab==='rbac_assign'">
@@ -169,15 +169,15 @@ createApp({
     const groupedMenus=ref([]);
 
     const studentForm=reactive({id:0,name:'',gender:'',birthday:'',phone:'',wechat:'',id_no:'',level:'',intention_level:'',follow_status:'',source:'',enrolled_courses_text:'',consultant:'',delivery_coach:'',guardian_name:'',guardian_phone:'',address:'',remark:''});
-    const courseForm=reactive({course_name:'',coach_name:'',period_weeks:0,price:0});
-    const orderForm=reactive({student_id:'',course_id:'',amount:0,pay_status:0});
-    const financeForm=reactive({record_type:'income',item_name:'',amount:0,record_date:''});
-    const todoForm=reactive({title:'',priority:'中',due_date:''});
-    const notificationForm=reactive({title:'',content:''});
+    const courseForm=reactive({id:0,course_name:'',coach_name:'',period_weeks:0,price:0,status:1});
+    const orderForm=reactive({id:0,student_id:'',course_id:'',amount:0,pay_status:0});
+    const financeForm=reactive({id:0,record_type:'income',item_name:'',amount:0,record_date:''});
+    const todoForm=reactive({id:0,title:'',priority:'中',status:'todo',due_date:''});
+    const notificationForm=reactive({id:0,title:'',content:'',is_read:0});
     const userForm=reactive({id:0,username:'',real_name:'',role:'',gender:'',mobile:'',email:'',id_no:'',department:'',position:'',hire_date:'',remark:'',password:''});
-    const menuForm=reactive({parent_name:'系统管理',menu_name:'',menu_key:'',path:'',icon:'',sort_no:99,status:1});
-    const groupForm=reactive({group_name:'',group_code:'',remark:'',status:1});
-    const permForm=reactive({perm_name:'',perm_code:'',module_name:'系统管理',remark:'',status:1});
+    const menuForm=reactive({id:0,parent_name:'系统管理',menu_name:'',menu_key:'',path:'',icon:'',sort_no:99,status:1});
+    const groupForm=reactive({id:0,group_name:'',group_code:'',remark:'',status:1});
+    const permForm=reactive({id:0,perm_name:'',perm_code:'',module_name:'系统管理',remark:'',status:1});
     const assignForm=reactive({user_id:'',group_id:''});
     const assignForm2=reactive({group_id:'',perm_id:''});
 
@@ -205,15 +205,39 @@ createApp({
     const resetUserForm=()=>Object.assign(userForm,{id:0,username:'',real_name:'',role:'',gender:'',mobile:'',email:'',id_no:'',department:'',position:'',hire_date:'',remark:'',password:''});
     const editUser=(row)=>Object.assign(userForm,{id:Number(row.id),username:row.username||'',real_name:row.real_name||'',role:row.role||'',gender:row.gender||'',mobile:row.mobile||'',email:row.email||'',id_no:row.id_no||'',department:row.department||'',position:row.position||'',hire_date:row.hire_date||'',remark:row.remark||'',password:''});
 
-    const createCourse=()=>createHelper('/api/courses.php',courseForm,loadCourses);
-    const createOrder=()=>createHelper('/api/orders.php',orderForm,loadOrders);
-    const createFinance=()=>createHelper('/api/finance.php',financeForm,loadFinance);
-    const createTodo=()=>createHelper('/api/todos.php',todoForm,loadTodos);
-    const createNotification=()=>createHelper('/api/notifications.php',notificationForm,loadNotifications);
+    const resetCourseForm=()=>Object.assign(courseForm,{id:0,course_name:'',coach_name:'',period_weeks:0,price:0,status:1});
+    const editCourse=(row)=>Object.assign(courseForm,{id:Number(row.id),course_name:row.course_name||'',coach_name:row.coach_name||'',period_weeks:Number(row.period_weeks||0),price:Number(row.price||0),status:Number(row.status||1)});
+    const saveCourse=async()=>{error.value='';try{if(courseForm.id){await api('/api/courses.php',{method:'PUT',body:JSON.stringify(courseForm)});}else{await api('/api/courses.php',{method:'POST',body:JSON.stringify(courseForm)});}resetCourseForm();await loadCourses();}catch(e){error.value=e.message;}};
+
+    const resetOrderForm=()=>Object.assign(orderForm,{id:0,student_id:'',course_id:'',amount:0,pay_status:0});
+    const editOrder=(row)=>Object.assign(orderForm,{id:Number(row.id),student_id:Number(row.student_id||0),course_id:Number(row.course_id||0),amount:Number(row.amount||0),pay_status:Number(row.pay_status||0)});
+    const saveOrder=async()=>{error.value='';try{if(orderForm.id){await api('/api/orders.php',{method:'PUT',body:JSON.stringify(orderForm)});}else{await api('/api/orders.php',{method:'POST',body:JSON.stringify(orderForm)});}resetOrderForm();await loadOrders();}catch(e){error.value=e.message;}};
+
+    const resetFinanceForm=()=>Object.assign(financeForm,{id:0,record_type:'income',item_name:'',amount:0,record_date:''});
+    const editFinance=(row)=>Object.assign(financeForm,{id:Number(row.id),record_type:row.record_type||'income',item_name:row.item_name||'',amount:Number(row.amount||0),record_date:row.record_date||''});
+    const saveFinance=async()=>{error.value='';try{if(financeForm.id){await api(`/api/finance.php?id=${financeForm.id}`,{method:'DELETE'}); await api('/api/finance.php',{method:'POST',body:JSON.stringify(financeForm)});}else{await api('/api/finance.php',{method:'POST',body:JSON.stringify(financeForm)});}resetFinanceForm();await loadFinance();}catch(e){error.value=e.message;}};
+
+    const resetTodoForm=()=>Object.assign(todoForm,{id:0,title:'',priority:'中',status:'todo',due_date:''});
+    const editTodo=(row)=>Object.assign(todoForm,{id:Number(row.id),title:row.title||'',priority:row.priority||'中',status:row.status||'todo',due_date:row.due_date||''});
+    const saveTodo=async()=>{error.value='';try{if(todoForm.id){await api('/api/todos.php',{method:'PUT',body:JSON.stringify(todoForm)});}else{await api('/api/todos.php',{method:'POST',body:JSON.stringify(todoForm)});}resetTodoForm();await loadTodos();}catch(e){error.value=e.message;}};
+
+    const resetNotificationForm=()=>Object.assign(notificationForm,{id:0,title:'',content:'',is_read:0});
+    const editNotification=(row)=>Object.assign(notificationForm,{id:Number(row.id),title:row.title||'',content:row.content||'',is_read:Number(row.is_read||0)});
+    const saveNotification=async()=>{error.value='';try{if(notificationForm.id){await api('/api/notifications.php',{method:'PUT',body:JSON.stringify(notificationForm)});}else{await api('/api/notifications.php',{method:'POST',body:JSON.stringify(notificationForm)});}resetNotificationForm();await loadNotifications();}catch(e){error.value=e.message;}};
+
     const saveUser=async()=>{error.value='';try{if(userForm.id){await api('/api/users.php',{method:'PUT',body:JSON.stringify(userForm)});}else{await api('/api/users.php',{method:'POST',body:JSON.stringify(userForm)});}resetUserForm();await loadUsers();}catch(e){error.value=e.message;}};
-    const createMenu=()=>createHelper('/api/menu.php',menuForm,loadMenus);
-    const createGroup=()=>createHelper('/api/rbac_groups.php',groupForm,loadGroups);
-    const createPerm=()=>createHelper('/api/rbac_permissions.php',permForm,loadPerms);
+
+    const resetMenuForm=()=>Object.assign(menuForm,{id:0,parent_name:'系统管理',menu_name:'',menu_key:'',path:'',icon:'',sort_no:99,status:1});
+    const editMenu=(row)=>Object.assign(menuForm,{id:Number(row.id),parent_name:row.parent_name||'',menu_name:row.menu_name||'',menu_key:row.menu_key||'',path:row.path||'',icon:row.icon||'',sort_no:Number(row.sort_no||99),status:Number(row.status||1)});
+    const saveMenu=async()=>{error.value='';try{if(menuForm.id){await api('/api/menu.php',{method:'PUT',body:JSON.stringify(menuForm)});}else{await api('/api/menu.php',{method:'POST',body:JSON.stringify(menuForm)});}resetMenuForm();await loadMenus();}catch(e){error.value=e.message;}};
+
+    const resetGroupForm=()=>Object.assign(groupForm,{id:0,group_name:'',group_code:'',remark:'',status:1});
+    const editGroup=(row)=>Object.assign(groupForm,{id:Number(row.id),group_name:row.group_name||'',group_code:row.group_code||'',remark:row.remark||'',status:Number(row.status||1)});
+    const saveGroup=async()=>{error.value='';try{if(groupForm.id){await api('/api/rbac_groups.php',{method:'PUT',body:JSON.stringify(groupForm)});}else{await api('/api/rbac_groups.php',{method:'POST',body:JSON.stringify(groupForm)});}resetGroupForm();await loadGroups();}catch(e){error.value=e.message;}};
+
+    const resetPermForm=()=>Object.assign(permForm,{id:0,perm_name:'',perm_code:'',module_name:'系统管理',remark:'',status:1});
+    const editPerm=(row)=>Object.assign(permForm,{id:Number(row.id),perm_name:row.perm_name||'',perm_code:row.perm_code||'',module_name:row.module_name||'系统管理',remark:row.remark||'',status:Number(row.status||1)});
+    const savePerm=async()=>{error.value='';try{if(permForm.id){await api('/api/rbac_permissions.php',{method:'PUT',body:JSON.stringify(permForm)});}else{await api('/api/rbac_permissions.php',{method:'POST',body:JSON.stringify(permForm)});}resetPermForm();await loadPerms();}catch(e){error.value=e.message;}};
 
     const assignUserGroup=()=>createHelper('/api/rbac_assign.php',{type:'user_group',...assignForm},loadAssign);
     const assignGroupPerm=()=>createHelper('/api/rbac_assign.php',{type:'group_perm',...assignForm2},loadAssign);
@@ -226,7 +250,7 @@ createApp({
 
     return {activeTab,error,user,summary,students,courses,orders,finance,todos,notifications,users,menus,groups,perms,assignData,groupedMenus,
       studentForm,courseForm,orderForm,financeForm,todoForm,notificationForm,userForm,menuForm,groupForm,permForm,assignForm,assignForm2,
-      saveStudent,editStudent,resetStudentForm,createCourse,createOrder,createFinance,createTodo,createNotification,saveUser,editUser,resetUserForm,createMenu,createGroup,createPerm,assignUserGroup,assignGroupPerm,delAssign,reloadAll,logout};
+      formatCourses,saveStudent,editStudent,resetStudentForm,saveCourse,editCourse,resetCourseForm,saveOrder,editOrder,resetOrderForm,saveFinance,editFinance,resetFinanceForm,saveTodo,editTodo,resetTodoForm,saveNotification,editNotification,resetNotificationForm,saveUser,editUser,resetUserForm,saveMenu,editMenu,resetMenuForm,saveGroup,editGroup,resetGroupForm,savePerm,editPerm,resetPermForm,assignUserGroup,assignGroupPerm,delAssign,reloadAll,logout};
   }
 }).mount('#app');
 </script>
