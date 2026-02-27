@@ -39,7 +39,7 @@
 
 `api/config.php`：
 
-- 默认数据库名：`oa2`
+- 默认数据库地址：`127.0.0.1:3306`，数据库名：`oa2`
 - 支持环境变量覆盖：`DB_HOST`、`DB_PORT`、`DB_NAME`、`DB_USER`、`DB_PASS`
 
 ## 初始化与测试数据
@@ -51,6 +51,8 @@ mysql -uroot -p < db/schema.sql
 ```
 
 默认登录账号：`admin / 123456`
+
+> 若页面提示 `请求失败（HTTP 500 Internal Server Error）`，请优先检查 `api/config.php` 或环境变量中的数据库连接（`DB_HOST/DB_PORT/DB_NAME/DB_USER/DB_PASS`）是否与本机 MySQL 一致。
 
 
 ## 系统管理（RBAC）
