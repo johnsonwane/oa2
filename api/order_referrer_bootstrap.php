@@ -1,5 +1,16 @@
 <?php
 
+if (!function_exists('ensure_table_columns')) {
+    function ensure_table_columns(PDO $pdo, string $table, array $columns): void
+    {
+        foreach ($columns as $name => $ddl) {
+            if (!column_exists($pdo, $table, $name)) {
+                $pdo->exec("ALTER TABLE {$table} ADD COLUMN {$ddl}");
+            }
+        }
+    }
+}
+
 function column_exists(PDO $pdo, string $table, string $column): bool
 {
     $stmt = $pdo->prepare('SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?');
