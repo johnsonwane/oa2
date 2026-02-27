@@ -24,6 +24,7 @@
 - `GET/POST/PUT/DELETE /api/notifications.php` 通知 CRUD
 - `GET/POST/PUT/DELETE /api/users.php` 用户 CRUD
 - `GET/POST/PUT/DELETE /api/referrers.php` 推荐者 CRUD
+- `GET /api/user_menus.php?user_id=xx` 按用户返回可见菜单（RBAC菜单过滤）
 - `GET /api/dashboard_summary.php` 统计汇总
 - `GET/POST/PUT/DELETE /api/rbac_groups.php` 用户组 CRUD
 - `GET/POST/PUT/DELETE /api/rbac_permissions.php` 权限 CRUD
@@ -76,3 +77,5 @@ mysql -uroot -p < db/schema.sql
 
 - 订单支持付款阶段（定金/中期款/尾款/全款）、销售分成与推荐者分成。
 - 新增推荐者管理：可维护推荐者姓名、手机、渠道、默认分成比例，并在订单中选择推荐者自动计算分成。
+
+- 已支持按用户组/权限返回登录后可见菜单，不同用户登录展示不同左侧菜单。

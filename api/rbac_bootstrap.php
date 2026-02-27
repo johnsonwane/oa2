@@ -48,6 +48,16 @@ function ensure_rbac_tables(PDO $pdo): void
       ('用户管理-新增修改', 'user_edit', '系统管理', '新增与修改用户', 1),
       ('用户组管理', 'group_manage', '系统管理', '用户组增删改查', 1),
       ('权限管理', 'perm_manage', '系统管理', '权限增删改查', 1),
-      ('权限分配', 'rbac_assign', '系统管理', '组与权限、用户组分配', 1)
+      ('权限分配', 'rbac_assign', '系统管理', '组与权限、用户组分配', 1),
+      ('菜单总览', 'menu_overview', '菜单可见性', '可见数据总览', 1),
+      ('菜单学员', 'menu_students', '菜单可见性', '可见学员管理', 1),
+      ('菜单课程', 'menu_courses', '菜单可见性', '可见课程管理', 1),
+      ('菜单订单', 'menu_orders', '菜单可见性', '可见订单管理', 1),
+      ('菜单财务', 'menu_finance', '菜单可见性', '可见财务管理', 1),
+      ('菜单待办', 'menu_todos', '菜单可见性', '可见待办管理', 1),
+      ('菜单通知', 'menu_notifications', '菜单可见性', '可见通知管理', 1),
+      ('菜单推荐者', 'menu_referrers', '菜单可见性', '可见推荐者管理', 1),
+      ('菜单用户管理', 'menu_users', '菜单可见性', '可见用户管理', 1),
+      ('菜单菜单管理', 'menu_manage', '菜单可见性', '可见菜单管理', 1)
       ON DUPLICATE KEY UPDATE perm_name=VALUES(perm_name), module_name=VALUES(module_name), remark=VALUES(remark), status=VALUES(status)");
 }

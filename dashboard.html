@@ -209,7 +209,7 @@ createApp({
     const loadTodos=async()=>todos.value=await api('/api/todos.php');
     const loadNotifications=async()=>notifications.value=await api('/api/notifications.php');
     const loadUsers=async()=>users.value=await api('/api/users.php');
-    const loadMenus=async()=>{menus.value=await api('/api/menu.php'); const m={}; menus.value.forEach(x=>{const p=x.parent_name||'其他';(m[p]=m[p]||[]).push(x)}); groupedMenus.value=Object.keys(m).map(k=>({parent:k,children:m[k]}));};
+    const loadMenus=async()=>{const uid=Number(user.value?.id||0);menus.value=uid?await api(`/api/user_menus.php?user_id=${uid}`):await api('/api/menu.php'); const m={}; menus.value.forEach(x=>{const p=x.parent_name||'其他';(m[p]=m[p]||[]).push(x)}); groupedMenus.value=Object.keys(m).map(k=>({parent:k,children:m[k]})); if(menus.value.length && !menus.value.some(x=>x.menu_key===activeTab.value)){activeTab.value=menus.value[0].menu_key;}};
     const loadGroups=async()=>groups.value=await api('/api/rbac_groups.php');
     const loadPerms=async()=>perms.value=await api('/api/rbac_permissions.php');
     const loadAssign=async()=>assignData.value=await api('/api/rbac_assign.php');
