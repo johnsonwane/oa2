@@ -8,20 +8,22 @@
   <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
 </head>
 <body>
-<div id="app" class="oa-layout" v-cloak>
-  <aside class="oa-sidebar">
+<div id="app" class="oa-layout" :class="{'mobile': isMobile, 'sidebar-open': sidebarOpen}" v-cloak>
+  <aside class="oa-sidebar" :class="{'open': sidebarOpen}">
     <div class="brand">培训公司 OA</div>
     <div class="user-box">{{ user.real_name || user.username }}（{{ user.role || '访客' }}）</div>
     <template v-for="group in groupedMenus" :key="group.parent">
       <div class="group-title">{{ group.parent }}</div>
       <ul class="menu-tree simple">
-        <li v-for="m in group.children" :key="m.id" :class="{active:activeTab===m.menu_key}" @click="activeTab=m.menu_key">{{ m.menu_name }}</li>
+        <li v-for="m in group.children" :key="m.id" :class="{active:activeTab===m.menu_key}" @click="selectMenu(m.menu_key)">{{ m.menu_name }}</li>
       </ul>
     </template>
   </aside>
+  <div v-if="isMobile && sidebarOpen" class="sidebar-overlay" @click="sidebarOpen=false"></div>
 
   <main class="oa-main">
     <header class="oa-header">
+      <button v-if="isMobile" class="menu-toggle" @click="toggleSidebar" aria-label="切换菜单">☰</button>
       <h1>OA 系统管理台</h1>
       <div class="header-actions">
         <button class="btn-secondary" @click="reloadAll">刷新数据</button>
@@ -217,7 +219,7 @@
   </main>
 </div>
 <script>
-const { createApp, ref, reactive, onMounted } = Vue;
+const { createApp, ref, reactive, onMounted, onBeforeUnmount } = Vue;
 createApp({
   setup() {
     const activeTab = ref('overview');
@@ -247,6 +249,8 @@ createApp({
     const permForm=reactive({id:0,perm_name:'',perm_code:'',module_name:'系统管理',remark:'',status:1});
     const assignForm=reactive({user_id:'',group_id:''});
     const assignForm2=reactive({group_id:'',perm_id:''});
+    const sidebarOpen=ref(false);
+    const isMobile=ref(window.innerWidth<980);
 
     const api=async(url,opt={})=>{let r;try{r=await fetch(url,{headers:{'Content-Type':'application/json'},...opt});}catch(e){throw new Error(`请求失败：网络异常（${url}）`);}const text=await r.text();let j={};try{j=text?JSON.parse(text):{};}catch(_){j={};}if(!r.ok||j.code!==0){const detail=(j&&j.message)||(text||'').slice(0,160);throw new Error(detail||`请求失败（HTTP ${r.status} ${r.statusText}）`);}if(!text)return null;return Object.prototype.hasOwnProperty.call(j,'data')?j.data:j;};
     const loadSummary=async()=>{const q=new URLSearchParams(); if(user.value?.id) q.set('user_id',String(user.value.id)); summary.value=await api(`/api/dashboard_summary.php?${q.toString()}`);};
@@ -334,11 +338,15 @@ createApp({
     const delAssign=async(type,id)=>{try{await api(`/api/rbac_assign.php?type=${type}&id=${id}`,{method:'DELETE'}); await loadAssign();}catch(e){error.value=e.message;}};
 
     const reloadAll=async()=>{error.value=''; try{await Promise.all([loadSummary(),loadStudents(),loadCourses(),loadOrders(),loadReferrers(),loadReceipts(),loadDeliveryLogs(),loadDepartmentStats(),loadFinance(),loadTodos(),loadNotifications(),loadUsers(),loadDepartments(),loadMetaOptions(),loadMenus(),loadGroups(),loadPerms(),loadAssign()]);}catch(e){error.value=e.message;}};
+    const toggleSidebar=()=>{sidebarOpen.value=!sidebarOpen.value;};
+    const selectMenu=(menuKey)=>{activeTab.value=menuKey; if(isMobile.value) sidebarOpen.value=false;};
     const logout=()=>{localStorage.removeItem('oa_token');localStorage.removeItem('oa_user');location.href='./login.html';};
 
-    onMounted(async()=>{const t=localStorage.getItem('oa_token');const u=localStorage.getItem('oa_user');if(!t||!u){location.href='./login.html';return;}user.value=JSON.parse(u||'{}');await reloadAll();});
+    const onResize=()=>{isMobile.value=window.innerWidth<980; if(!isMobile.value){sidebarOpen.value=false;}};
+    onMounted(async()=>{window.addEventListener('resize',onResize);const t=localStorage.getItem('oa_token');const u=localStorage.getItem('oa_user');if(!t||!u){location.href='./login.html';return;}user.value=JSON.parse(u||'{}');await reloadAll();});
+    onBeforeUnmount(()=>window.removeEventListener('resize',onResize));
 
-    return {activeTab,error,user,summary,students,courses,orders,referrers,receipts,deliveryLogs,departmentStats,finance,todos,notifications,users,departments,menus,groups,perms,assignData,groupedMenus,departmentOptions,positionOptions,roleOptions,receiptChannelOptions,studentKeyword,studentCategory,orderKeyword,referrerKeyword,userKeyword,
+    return {activeTab,error,user,summary,students,courses,orders,referrers,receipts,deliveryLogs,departmentStats,finance,todos,notifications,users,departments,menus,groups,perms,assignData,groupedMenus,departmentOptions,positionOptions,roleOptions,receiptChannelOptions,studentKeyword,studentCategory,orderKeyword,referrerKeyword,userKeyword,sidebarOpen,isMobile,toggleSidebar,selectMenu,
       studentForm,courseForm,orderForm,financeForm,referrerForm,receiptForm,deliveryLogForm,todoForm,notificationForm,userForm,departmentForm,menuForm,groupForm,permForm,assignForm,assignForm2,
       formatCourses,paymentStageLabel,saveStudent,editStudent,resetStudentForm,saveCourse,editCourse,resetCourseForm,saveOrder,editOrder,resetOrderForm,saveFinance,editFinance,resetFinanceForm,resetReferrerForm,editReferrer,saveReferrer,resetReceiptForm,editReceipt,saveReceipt,resetDeliveryLogForm,editDeliveryLog,saveDeliveryLog,saveTodo,editTodo,resetTodoForm,saveNotification,editNotification,resetNotificationForm,saveDepartment,editDepartment,resetDepartmentForm,saveUser,editUser,resetUserForm,saveMenu,editMenu,resetMenuForm,saveGroup,editGroup,resetGroupForm,savePerm,editPerm,resetPermForm,assignUserGroup,assignGroupPerm,delAssign,reloadAll,logout};
   }
