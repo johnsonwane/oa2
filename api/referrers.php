@@ -10,14 +10,42 @@ try {
 
     if ($m === 'GET') {
         $keyword = trim((string)($_GET['keyword'] ?? ''));
+        $status = isset($_GET['status']) ? trim((string)$_GET['status']) : '';
+
         $sql = 'SELECT id,name,phone,channel,commission_rate,remark,status,created_at FROM oa_referrer';
+        $where = [];
         $params = [];
         if ($keyword !== '') {
-            $sql .= ' WHERE name LIKE :kw OR phone LIKE :kw OR channel LIKE :kw';
+            $where[] = '(name LIKE :kw OR phone LIKE :kw OR channel LIKE :kw)';
             $params[':kw'] = "%{$keyword}%";
         }
-        $sql .= ' ORDER BY id DESC';
-        $stmt = $pdo->prepare($sql);
+        if ($status !== '') {
+            $where[] = 'status = :status';
+            $params[':status'] = (int)$status;
+        }
+
+        $whereSql = $where ? (' WHERE ' . implode(' AND ', $where)) : '';
+
+        if (paged_mode($_GET)) {
+            $p = parse_pagination($_GET);
+            $countStmt = $pdo->prepare('SELECT COUNT(*) FROM oa_referrer' . $whereSql);
+            $countStmt->execute($params);
+            $total = (int)$countStmt->fetchColumn();
+
+            $stmt = $pdo->prepare($sql . $whereSql . ' ORDER BY id DESC LIMIT :limit OFFSET :offset');
+            foreach ($params as $k => $v) {
+                $stmt->bindValue($k, $v);
+            }
+            $stmt->bindValue(':limit', $p['page_size'], PDO::PARAM_INT);
+            $stmt->bindValue(':offset', $p['offset'], PDO::PARAM_INT);
+            $stmt->execute();
+            json_response(0, 'ok', [
+                'items' => $stmt->fetchAll(),
+                'pagination' => ['page' => $p['page'], 'page_size' => $p['page_size'], 'total' => $total],
+            ]);
+        }
+
+        $stmt = $pdo->prepare($sql . $whereSql . ' ORDER BY id DESC');
         $stmt->execute($params);
         json_response(0, 'ok', $stmt->fetchAll());
     }

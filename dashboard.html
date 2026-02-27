@@ -42,6 +42,7 @@
 
     <section class="content-card" v-if="activeTab==='students'">
       <h2>学员管理</h2>
+      <form class="inline-form" @submit.prevent="loadStudents"><input v-model.trim="studentKeyword" placeholder="搜索姓名/手机/顾问"><button type="submit" class="btn-secondary">查询</button></form>
       <form class="inline-form" @submit.prevent="saveStudent">
         <label>姓名（必填）<input v-model.trim="studentForm.name" placeholder="例如：张三" required></label>
         <label>性别（男/女）<select v-model="studentForm.gender"><option value="">请选择</option><option value="男">男</option><option value="女">女</option></select></label>
@@ -74,6 +75,7 @@
 
     <section class="content-card" v-if="activeTab==='orders'">
       <h2>订单管理</h2>
+      <form class="inline-form" @submit.prevent="loadOrders"><input v-model.trim="orderKeyword" placeholder="搜索学员/课程/推荐者"><button type="submit" class="btn-secondary">查询</button></form>
       <form class="inline-form" @submit.prevent="saveOrder">
         <select v-model.number="orderForm.student_id" required><option value="">选择学员</option><option v-for="s in students" :value="Number(s.id)">{{s.name}}</option></select>
         <select v-model.number="orderForm.course_id" required><option value="">选择课程</option><option v-for="c in courses" :value="Number(c.id)">{{c.course_name}}</option></select>
@@ -91,6 +93,7 @@
 
     <section class="content-card" v-if="activeTab==='referrers'">
       <h2>推荐者管理</h2>
+      <form class="inline-form" @submit.prevent="loadReferrers"><input v-model.trim="referrerKeyword" placeholder="搜索姓名/手机号/渠道"><button type="submit" class="btn-secondary">查询</button></form>
       <form class="inline-form" @submit.prevent="saveReferrer"><input v-model.trim="referrerForm.name" placeholder="推荐者姓名" required><input v-model.trim="referrerForm.phone" placeholder="手机号" required><input v-model.trim="referrerForm.channel" placeholder="渠道"><input v-model.number="referrerForm.commission_rate" type="number" step="0.01" min="0" max="100" placeholder="分成比例%"><input v-model.trim="referrerForm.remark" placeholder="备注"><select v-model.number="referrerForm.status"><option :value="1">启用</option><option :value="0">禁用</option></select><button>{{referrerForm.id?'保存推荐者':'新增推荐者'}}</button><button type="button" class="btn-secondary" @click="resetReferrerForm">重置</button></form>
       <table class="table"><thead><tr><th>ID</th><th>姓名</th><th>手机</th><th>渠道</th><th>分成比例</th><th>状态</th><th>操作</th></tr></thead><tbody><tr v-for="r in referrers" :key="r.id"><td>{{r.id}}</td><td>{{r.name}}</td><td>{{r.phone}}</td><td>{{r.channel}}</td><td>{{r.commission_rate}}%</td><td>{{Number(r.status)===1?'启用':'禁用'}}</td><td><button class="btn-mini" @click="editReferrer(r)">编辑</button></td></tr></tbody></table>
     </section>
@@ -116,6 +119,7 @@
 
     <section class="content-card" v-if="activeTab==='users'">
       <h2>用户管理（RBAC）</h2>
+      <form class="inline-form" @submit.prevent="loadUsers"><input v-model.trim="userKeyword" placeholder="搜索用户名/姓名/手机"><button type="submit" class="btn-secondary">查询</button></form>
       <form class="inline-form" @submit.prevent="saveUser">
         <input v-model.trim="userForm.username" placeholder="用户名" :disabled="!!userForm.id" required>
         <input v-model.trim="userForm.real_name" placeholder="姓名" required>
@@ -184,6 +188,7 @@ createApp({
     const finance=ref({list:[],summary:{income:0,expense:0,balance:0}});
     const assignData=ref({user_groups:[],group_perms:[]});
     const groupedMenus=ref([]);
+    const studentKeyword=ref(''),orderKeyword=ref(''),referrerKeyword=ref(''),userKeyword=ref('');
 
     const studentForm=reactive({id:0,name:'',gender:'',birthday:'',phone:'',wechat:'',id_no:'',level:'',intention_level:'',follow_status:'',source:'',enrolled_courses_text:'',consultant:'',delivery_coach:'',guardian_name:'',guardian_phone:'',address:'',remark:''});
     const courseForm=reactive({id:0,course_name:'',coach_name:'',period_weeks:0,price:0,status:1});
@@ -201,14 +206,14 @@ createApp({
 
     const api=async(url,opt={})=>{const r=await fetch(url,{headers:{'Content-Type':'application/json'},...opt});const j=await r.json();if(!r.ok||j.code!==0) throw new Error(j.message||'请求失败');return j.data;};
     const loadSummary=async()=>summary.value=await api('/api/dashboard_summary.php');
-    const loadStudents=async()=>students.value=await api('/api/students.php');
+    const loadStudents=async()=>{const q=studentKeyword.value?`?keyword=${encodeURIComponent(studentKeyword.value)}`:'';students.value=await api(`/api/students.php${q}`);};
     const loadCourses=async()=>courses.value=await api('/api/courses.php');
-    const loadOrders=async()=>orders.value=await api('/api/orders.php');
-    const loadReferrers=async()=>referrers.value=await api('/api/referrers.php');
+    const loadOrders=async()=>{const q=orderKeyword.value?`?keyword=${encodeURIComponent(orderKeyword.value)}`:'';orders.value=await api(`/api/orders.php${q}`);};
+    const loadReferrers=async()=>{const q=referrerKeyword.value?`?keyword=${encodeURIComponent(referrerKeyword.value)}`:'';referrers.value=await api(`/api/referrers.php${q}`);};
     const loadFinance=async()=>finance.value=await api('/api/finance.php');
     const loadTodos=async()=>todos.value=await api('/api/todos.php');
     const loadNotifications=async()=>notifications.value=await api('/api/notifications.php');
-    const loadUsers=async()=>users.value=await api('/api/users.php');
+    const loadUsers=async()=>{const q=userKeyword.value?`?keyword=${encodeURIComponent(userKeyword.value)}`:'';users.value=await api(`/api/users.php${q}`);};
     const loadMenus=async()=>{const uid=Number(user.value?.id||0);menus.value=uid?await api(`/api/user_menus.php?user_id=${uid}`):await api('/api/menu.php'); const m={}; menus.value.forEach(x=>{const p=x.parent_name||'其他';(m[p]=m[p]||[]).push(x)}); groupedMenus.value=Object.keys(m).map(k=>({parent:k,children:m[k]})); if(menus.value.length && !menus.value.some(x=>x.menu_key===activeTab.value)){activeTab.value=menus.value[0].menu_key;}};
     const loadGroups=async()=>groups.value=await api('/api/rbac_groups.php');
     const loadPerms=async()=>perms.value=await api('/api/rbac_permissions.php');
@@ -272,7 +277,7 @@ createApp({
 
     onMounted(async()=>{const t=localStorage.getItem('oa_token');const u=localStorage.getItem('oa_user');if(!t||!u){location.href='./login.html';return;}user.value=JSON.parse(u||'{}');await reloadAll();});
 
-    return {activeTab,error,user,summary,students,courses,orders,referrers,finance,todos,notifications,users,menus,groups,perms,assignData,groupedMenus,
+    return {activeTab,error,user,summary,students,courses,orders,referrers,finance,todos,notifications,users,menus,groups,perms,assignData,groupedMenus,studentKeyword,orderKeyword,referrerKeyword,userKeyword,
       studentForm,courseForm,orderForm,financeForm,referrerForm,todoForm,notificationForm,userForm,menuForm,groupForm,permForm,assignForm,assignForm2,
       formatCourses,paymentStageLabel,saveStudent,editStudent,resetStudentForm,saveCourse,editCourse,resetCourseForm,saveOrder,editOrder,resetOrderForm,saveFinance,editFinance,resetFinanceForm,resetReferrerForm,editReferrer,saveReferrer,saveTodo,editTodo,resetTodoForm,saveNotification,editNotification,resetNotificationForm,saveUser,editUser,resetUserForm,saveMenu,editMenu,resetMenuForm,saveGroup,editGroup,resetGroupForm,savePerm,editPerm,resetPermForm,assignUserGroup,assignGroupPerm,delAssign,reloadAll,logout};
   }

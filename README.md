@@ -74,6 +74,7 @@ mysql -uroot -p < db/schema.sql
 - `orders.php` 在未传 `amount` 时会自动回填课程价格，减少人工录入错误。
 - `finance.php` 新增 `PUT` 更新能力，并支持按 `record_type`、`from_date`、`to_date` 的筛选与分页。
 - `students.php` 对手机号增加重复校验（创建与编辑均生效），降低重复线索/重复学员风险。
+- `users.php` 与 `referrers.php` 支持 `keyword` 检索，并支持 `paged=1` 分页返回，适合数据量较大场景。
 
 - 订单支持付款阶段（定金/中期款/尾款/全款）、销售分成与推荐者分成。
 - 新增推荐者管理：可维护推荐者姓名、手机、渠道、默认分成比例，并在订单中选择推荐者自动计算分成。
