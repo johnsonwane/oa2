@@ -5,6 +5,8 @@ CREATE TABLE IF NOT EXISTS oa_user (
   id INT UNSIGNED NOT NULL AUTO_INCREMENT,
   username VARCHAR(50) NOT NULL,
   password_hash VARCHAR(255) NOT NULL,
+  employee_no VARCHAR(50) DEFAULT '',
+  company_name VARCHAR(100) DEFAULT '',
   real_name VARCHAR(50) NOT NULL,
   role VARCHAR(30) NOT NULL,
   gender VARCHAR(10) DEFAULT '',
@@ -13,6 +15,31 @@ CREATE TABLE IF NOT EXISTS oa_user (
   id_no VARCHAR(30) DEFAULT '',
   department VARCHAR(50) DEFAULT '',
   position VARCHAR(50) DEFAULT '',
+  social_city VARCHAR(50) DEFAULT '',
+  hukou_place VARCHAR(100) DEFAULT '',
+  hukou_type VARCHAR(20) DEFAULT '',
+  birth_date DATE DEFAULT NULL,
+  age INT DEFAULT NULL,
+  native_place VARCHAR(100) DEFAULT '',
+  ethnicity VARCHAR(30) DEFAULT '',
+  marital_status VARCHAR(20) DEFAULT '',
+  home_address VARCHAR(255) DEFAULT '',
+  emergency_contact VARCHAR(100) DEFAULT '',
+  education VARCHAR(50) DEFAULT '',
+  graduation_school VARCHAR(100) DEFAULT '',
+  major VARCHAR(100) DEFAULT '',
+  contract_years VARCHAR(20) DEFAULT '',
+  working_days INT DEFAULT 0,
+  contract_end_date DATE DEFAULT NULL,
+  is_probation TINYINT NOT NULL DEFAULT 1,
+  probation_salary DECIMAL(10,2) DEFAULT 0,
+  regular_date DATE DEFAULT NULL,
+  regular_salary DECIMAL(10,2) DEFAULT 0,
+  bank_name VARCHAR(100) DEFAULT '',
+  bank_card_no VARCHAR(50) DEFAULT '',
+  salary_adjust_records TEXT,
+  employment_status VARCHAR(20) DEFAULT '在职',
+  leave_date DATE DEFAULT NULL,
   hire_date DATE DEFAULT NULL,
   last_login_at DATETIME DEFAULT NULL,
   remark VARCHAR(255) DEFAULT '',
@@ -20,6 +47,18 @@ CREATE TABLE IF NOT EXISTS oa_user (
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   UNIQUE KEY uk_username (username)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS oa_department (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  dept_name VARCHAR(50) NOT NULL,
+  dept_code VARCHAR(50) NOT NULL,
+  parent_name VARCHAR(50) DEFAULT '',
+  status TINYINT NOT NULL DEFAULT 1,
+  sort_no INT NOT NULL DEFAULT 99,
+  remark VARCHAR(255) DEFAULT '',
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_dept_code (dept_code)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS oa_user_group (
@@ -119,9 +158,13 @@ CREATE TABLE IF NOT EXISTS oa_course (
 CREATE TABLE IF NOT EXISTS oa_referrer (
   id INT UNSIGNED NOT NULL AUTO_INCREMENT,
   name VARCHAR(50) NOT NULL,
+  wechat_name VARCHAR(80) DEFAULT '',
   phone VARCHAR(20) NOT NULL,
   channel VARCHAR(50) DEFAULT '',
+  commission_type VARCHAR(20) NOT NULL DEFAULT 'rate',
   commission_rate DECIMAL(5,2) NOT NULL DEFAULT 0,
+  fixed_amount DECIMAL(10,2) NOT NULL DEFAULT 0,
+  payout_detail VARCHAR(255) DEFAULT '',
   remark VARCHAR(255) DEFAULT '',
   status TINYINT NOT NULL DEFAULT 1,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -144,6 +187,14 @@ CREATE TABLE IF NOT EXISTS oa_order (
   seller_commission_amount DECIMAL(10,2) NOT NULL DEFAULT 0,
   referrer_id INT UNSIGNED DEFAULT NULL,
   referrer_commission_amount DECIMAL(10,2) NOT NULL DEFAULT 0,
+  student_wechat_name VARCHAR(80) DEFAULT '',
+  student_mobile VARCHAR(20) DEFAULT '',
+  student_address VARCHAR(255) DEFAULT '',
+  payment_time DATETIME DEFAULT NULL,
+  receipt_time DATETIME DEFAULT NULL,
+  refund_time DATETIME DEFAULT NULL,
+  refund_amount DECIMAL(10,2) NOT NULL DEFAULT 0,
+  remark VARCHAR(255) DEFAULT '',
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -164,8 +215,12 @@ CREATE TABLE IF NOT EXISTS oa_receipt (
   order_id INT UNSIGNED NOT NULL,
   receipt_no VARCHAR(60) NOT NULL,
   amount DECIMAL(10,2) NOT NULL,
+  channel VARCHAR(50) DEFAULT '',
+  receiver_user_id INT UNSIGNED DEFAULT NULL,
   pay_method VARCHAR(30) DEFAULT '',
   pay_time DATETIME DEFAULT NULL,
+  refund_time DATETIME DEFAULT NULL,
+  refund_amount DECIMAL(10,2) NOT NULL DEFAULT 0,
   verified_status TINYINT NOT NULL DEFAULT 0,
   remark VARCHAR(255) DEFAULT '',
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -200,6 +255,16 @@ CREATE TABLE IF NOT EXISTS oa_notification (
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+INSERT INTO oa_department (dept_name, dept_code, parent_name, status, sort_no, remark) VALUES
+('老板','boss_dept','',1,1,'老板办公室'),
+('管理部','management_dept','',1,10,'综合管理'),
+('顾问部','consulting_dept','',1,20,'课程销售与咨询'),
+('交付部','delivery_dept','',1,30,'班主任/教练交付'),
+('财务部','finance_dept','',1,40,'收款与核算'),
+('运营部','ops_dept','',1,50,'增长运营'),
+('外协','outsource_dept','',1,60,'外部协作')
+ON DUPLICATE KEY UPDATE dept_name=VALUES(dept_name), parent_name=VALUES(parent_name), status=VALUES(status), sort_no=VALUES(sort_no), remark=VALUES(remark);
 
 INSERT INTO oa_user (username, password_hash, real_name, role, gender, mobile, email, id_no, department, position, hire_date, remark, status) VALUES
 ('admin', '$2y$12$rVtPrImk7H.Q6rvIHF4Ql.z8/SgRl3OChjDcGMQG.aXn4Cn7RTxDO', '系统管理员', '超管', '男', '13800000000', 'admin@oa2.local', '310101198801010011', '系统管理部', '平台管理员', '2024-01-01', '系统默认管理员', 1),
@@ -237,6 +302,7 @@ INSERT INTO oa_permission (perm_name, perm_code, module_name, remark, status) VA
 ('菜单推荐者', 'menu_referrers', '菜单可见性', '可见推荐者管理', 1),
 ('菜单用户管理', 'menu_users', '菜单可见性', '可见用户管理', 1),
 ('菜单菜单管理', 'menu_manage', '菜单可见性', '可见菜单管理', 1),
+('菜单部门管理', 'menu_departments', '菜单可见性', '可见部门管理', 1),
 ('菜单收款单', 'menu_receipts', '菜单可见性', '可见收款单管理', 1),
 ('菜单交付记录', 'menu_delivery_logs', '菜单可见性', '可见交付记录', 1),
 ('菜单部门统计', 'menu_department_stats', '菜单可见性', '可见部门统计', 1)
@@ -286,6 +352,7 @@ INSERT INTO oa_menu (parent_name, menu_name, menu_key, path, icon, sort_no, stat
 ('系统管理','角色管理','rbac_groups','/rbac/groups','🧩',23,1),
 ('系统管理','权限管理','rbac_permissions','/rbac/permissions','🔐',24,1),
 ('系统管理','RBAC分配','rbac_assign','/rbac/assign','🛡️',25,1),
+('系统管理','部门管理','departments','/departments','🏢',26,1),
 ('经营分析','部门统计','department_stats','/department_stats','📊',30,1)
 ON DUPLICATE KEY UPDATE menu_name=VALUES(menu_name), parent_name=VALUES(parent_name), path=VALUES(path), icon=VALUES(icon), sort_no=VALUES(sort_no), status=VALUES(status);
 

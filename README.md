@@ -22,7 +22,9 @@
 - `GET/POST/PUT/DELETE /api/finance.php` 财务记录与统计（支持编辑）
 - `GET/POST/PUT/DELETE /api/todos.php` 待办 CRUD
 - `GET/POST/PUT/DELETE /api/notifications.php` 通知 CRUD
-- `GET/POST/PUT/DELETE /api/users.php` 用户 CRUD
+- `GET/POST/PUT/DELETE /api/users.php` 员工 CRUD
+- `GET/POST/PUT/DELETE /api/departments.php` 部门 CRUD
+- `GET /api/meta_options.php` 下拉选项（角色/部门/职位/收款渠道）
 - `GET/POST/PUT/DELETE /api/referrers.php` 推荐者 CRUD
 - `GET/POST/PUT/DELETE /api/receipts.php` 收款单 CRUD（用于订单核对）
 - `GET/POST/PUT/DELETE /api/delivery_logs.php` 教练交付记录 CRUD
@@ -54,14 +56,14 @@ mysql -uroot -p < db/schema.sql
 ## 系统管理（RBAC）
 
 - 一级菜单新增：`系统管理`。
-- 二级菜单包含：用户管理、菜单管理、角色管理、权限管理、RBAC分配。
+- 二级菜单包含：员工管理、菜单管理、角色管理、权限管理、RBAC分配。
 - 可进行用户、角色、权限、用户-角色分配、角色-权限分配的增删改查。
 
 
 ## 学员与用户资料扩展
 
 - 学员资料已扩展为常见培训行业字段：性别、生日、手机号、微信、身份证号、意向等级、跟进状态、来源渠道、报课名称（数组）、顾问、交付教练、监护人信息、地址、备注等。
-- 用户资料已扩展为常见组织字段：性别、手机号、邮箱、身份证号、部门、岗位、入职日期、备注等。
+- 员工资料已扩展为常见组织字段：性别、手机号、邮箱、身份证号、部门、岗位、入职日期、备注等。
 - 前端 `dashboard.html` 已支持学员与用户的编辑（点击列表“编辑”回填表单后保存）。
 
 - 学员资料新增：报课名称（数组）、交付教练；并移除校区、班级字段。

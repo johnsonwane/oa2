@@ -51,6 +51,7 @@ try {
         'rbac_groups' => ['group_manage'],
         'rbac_permissions' => ['perm_manage'],
         'rbac_assign' => ['rbac_assign'],
+        'departments' => ['group_manage','menu_departments','menu_manage'],
         'receipts' => ['menu_receipts','menu_finance'],
         'delivery_logs' => ['menu_delivery_logs'],
         'department_stats' => ['menu_department_stats'],

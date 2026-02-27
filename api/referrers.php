@@ -6,17 +6,23 @@ require_once __DIR__ . '/order_referrer_bootstrap.php';
 try {
     $pdo = get_db_connection();
     ensure_order_referrer_schema($pdo);
+    ensure_table_columns($pdo, 'oa_referrer', [
+        'wechat_name' => "`wechat_name` VARCHAR(80) DEFAULT ''",
+        'commission_type' => "`commission_type` VARCHAR(20) NOT NULL DEFAULT 'rate'",
+        'fixed_amount' => "`fixed_amount` DECIMAL(10,2) NOT NULL DEFAULT 0",
+        'payout_detail' => "`payout_detail` VARCHAR(255) DEFAULT ''",
+    ]);
     $m = $_SERVER['REQUEST_METHOD'];
 
     if ($m === 'GET') {
         $keyword = trim((string)($_GET['keyword'] ?? ''));
         $status = isset($_GET['status']) ? trim((string)$_GET['status']) : '';
 
-        $sql = 'SELECT id,name,phone,channel,commission_rate,remark,status,created_at FROM oa_referrer';
+        $sql = 'SELECT id,name,wechat_name,phone,channel,commission_type,commission_rate,fixed_amount,payout_detail,remark,status,created_at FROM oa_referrer';
         $where = [];
         $params = [];
         if ($keyword !== '') {
-            $where[] = '(name LIKE :kw OR phone LIKE :kw OR channel LIKE :kw)';
+            $where[] = '(name LIKE :kw OR wechat_name LIKE :kw OR phone LIKE :kw OR channel LIKE :kw)';
             $params[':kw'] = "%{$keyword}%";
         }
         if ($status !== '') {
@@ -25,26 +31,6 @@ try {
         }
 
         $whereSql = $where ? (' WHERE ' . implode(' AND ', $where)) : '';
-
-        if (paged_mode($_GET)) {
-            $p = parse_pagination($_GET);
-            $countStmt = $pdo->prepare('SELECT COUNT(*) FROM oa_referrer' . $whereSql);
-            $countStmt->execute($params);
-            $total = (int)$countStmt->fetchColumn();
-
-            $stmt = $pdo->prepare($sql . $whereSql . ' ORDER BY id DESC LIMIT :limit OFFSET :offset');
-            foreach ($params as $k => $v) {
-                $stmt->bindValue($k, $v);
-            }
-            $stmt->bindValue(':limit', $p['page_size'], PDO::PARAM_INT);
-            $stmt->bindValue(':offset', $p['offset'], PDO::PARAM_INT);
-            $stmt->execute();
-            json_response(0, 'ok', [
-                'items' => $stmt->fetchAll(),
-                'pagination' => ['page' => $p['page'], 'page_size' => $p['page_size'], 'total' => $total],
-            ]);
-        }
-
         $stmt = $pdo->prepare($sql . $whereSql . ' ORDER BY id DESC');
         $stmt->execute($params);
         json_response(0, 'ok', $stmt->fetchAll());
@@ -54,19 +40,24 @@ try {
         $d = request_body();
         require_fields($d, ['name', 'phone']);
         $name = trim((string)$d['name']);
+        $wechat = trim((string)($d['wechat_name'] ?? ''));
         $phone = trim((string)$d['phone']);
         $channel = trim((string)($d['channel'] ?? ''));
-        $rate = (float)($d['commission_rate'] ?? 0);
-        if ($rate < 0 || $rate > 100) {
-            json_response(400, 'commission_rate 需在 0-100 之间', null, 400);
+        $type = trim((string)($d['commission_type'] ?? 'rate'));
+        if (!in_array($type, ['rate', 'fixed'], true)) {
+            json_response(400, 'commission_type 只能为 rate 或 fixed', null, 400);
         }
+        $rate = (float)($d['commission_rate'] ?? 0);
+        $fixed = (float)($d['fixed_amount'] ?? 0);
+        if ($rate < 0 || $rate > 100) json_response(400, 'commission_rate 需在 0-100 之间', null, 400);
+        if ($fixed < 0) json_response(400, 'fixed_amount 不能为负数', null, 400);
 
         if ($m === 'POST') {
             $dup = $pdo->prepare('SELECT id FROM oa_referrer WHERE phone=? LIMIT 1');
             $dup->execute([$phone]);
             if ($dup->fetchColumn()) json_response(409, '手机号已存在', null, 409);
-            $stmt = $pdo->prepare('INSERT INTO oa_referrer(name,phone,channel,commission_rate,remark,status) VALUES(?,?,?,?,?,?)');
-            $stmt->execute([$name, $phone, $channel, $rate, trim((string)($d['remark'] ?? '')), (int)($d['status'] ?? 1)]);
+            $stmt = $pdo->prepare('INSERT INTO oa_referrer(name,wechat_name,phone,channel,commission_type,commission_rate,fixed_amount,payout_detail,remark,status) VALUES(?,?,?,?,?,?,?,?,?,?)');
+            $stmt->execute([$name, $wechat, $phone, $channel, $type, $rate, $fixed, trim((string)($d['payout_detail'] ?? '')), trim((string)($d['remark'] ?? '')), (int)($d['status'] ?? 1)]);
             json_response(0, 'created', ['id' => (int)$pdo->lastInsertId()]);
         }
 
@@ -75,8 +66,8 @@ try {
         $dup = $pdo->prepare('SELECT id FROM oa_referrer WHERE phone=? AND id<>? LIMIT 1');
         $dup->execute([$phone, $id]);
         if ($dup->fetchColumn()) json_response(409, '手机号已存在', null, 409);
-        $stmt = $pdo->prepare('UPDATE oa_referrer SET name=?,phone=?,channel=?,commission_rate=?,remark=?,status=? WHERE id=?');
-        $stmt->execute([$name, $phone, $channel, $rate, trim((string)($d['remark'] ?? '')), (int)($d['status'] ?? 1), $id]);
+        $stmt = $pdo->prepare('UPDATE oa_referrer SET name=?,wechat_name=?,phone=?,channel=?,commission_type=?,commission_rate=?,fixed_amount=?,payout_detail=?,remark=?,status=? WHERE id=?');
+        $stmt->execute([$name, $wechat, $phone, $channel, $type, $rate, $fixed, trim((string)($d['payout_detail'] ?? '')), trim((string)($d['remark'] ?? '')), (int)($d['status'] ?? 1), $id]);
         json_response(0, 'updated');
     }
 

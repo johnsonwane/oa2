@@ -8,6 +8,16 @@ try {
     $pdo = get_db_connection();
     ensure_order_referrer_schema($pdo);
     ensure_business_workflow_schema($pdo);
+    ensure_table_columns($pdo, 'oa_order', [
+        'student_wechat_name' => "`student_wechat_name` VARCHAR(80) DEFAULT ''",
+        'student_mobile' => "`student_mobile` VARCHAR(20) DEFAULT ''",
+        'student_address' => "`student_address` VARCHAR(255) DEFAULT ''",
+        'payment_time' => "`payment_time` DATETIME DEFAULT NULL",
+        'receipt_time' => "`receipt_time` DATETIME DEFAULT NULL",
+        'refund_time' => "`refund_time` DATETIME DEFAULT NULL",
+        'refund_amount' => "`refund_amount` DECIMAL(10,2) NOT NULL DEFAULT 0",
+        'remark' => "`remark` VARCHAR(255) DEFAULT ''",
+    ]);
     $m = $_SERVER['REQUEST_METHOD'];
 
     if ($m === 'GET') {
@@ -49,7 +59,7 @@ try {
 
         $baseSql = ' FROM oa_order o LEFT JOIN oa_student s ON s.id=o.student_id LEFT JOIN oa_course c ON c.id=o.course_id LEFT JOIN oa_referrer r ON r.id=o.referrer_id LEFT JOIN oa_user su ON su.id=o.seller_user_id';
         $whereSql = $where ? (' WHERE ' . implode(' AND ', $where)) : '';
-        $selectSql = 'SELECT o.id,o.student_id,s.name student_name,o.course_id,c.course_name,o.amount,o.total_amount,o.paid_amount,o.pay_status,o.payment_stage,o.sales_commission_amount,o.seller_user_id,o.seller_role,o.seller_commission_amount,su.real_name seller_name,o.referrer_id,o.referrer_commission_amount,r.name referrer_name,o.created_at';
+        $selectSql = 'SELECT o.id,o.student_id,s.name student_name,o.course_id,c.course_name,o.amount,o.total_amount,o.paid_amount,o.pay_status,o.payment_stage,o.sales_commission_amount,o.seller_user_id,o.seller_role,o.seller_commission_amount,su.real_name seller_name,o.referrer_id,o.referrer_commission_amount,r.name referrer_name,o.student_wechat_name,o.student_mobile,o.student_address,o.payment_time,o.receipt_time,o.refund_time,o.refund_amount,o.remark,o.created_at';
 
         if (paged_mode($_GET)) {
             $p = parse_pagination($_GET);
@@ -165,7 +175,7 @@ try {
         $referrerId = $referrerId > 0 ? $referrerId : null;
         $referrerRate = 0.0;
         if ($referrerId !== null) {
-            $refStmt = $pdo->prepare('SELECT id, commission_rate FROM oa_referrer WHERE id=? AND status=1 LIMIT 1');
+            $refStmt = $pdo->prepare('SELECT id, commission_type, commission_rate, fixed_amount FROM oa_referrer WHERE id=? AND status=1 LIMIT 1');
             $refStmt->execute([$referrerId]);
             $ref = $refStmt->fetch();
             if (!$ref) {
@@ -176,7 +186,7 @@ try {
 
         $referrerCommission = isset($d['referrer_commission_amount']) && $d['referrer_commission_amount'] !== ''
             ? (float)$d['referrer_commission_amount']
-            : round($paidAmount * $referrerRate / 100, 2);
+            : (($referrerId !== null && (($ref['commission_type'] ?? 'rate') === 'fixed')) ? (float)($ref['fixed_amount'] ?? 0) : round($paidAmount * $referrerRate / 100, 2));
         if ($referrerCommission < 0) {
             json_response(400, 'referrer_commission_amount 不能为负数', null, 400);
         }
@@ -184,9 +194,22 @@ try {
             $referrerCommission = 0.0;
         }
 
+
+        $studentWechatName = trim((string)($d['student_wechat_name'] ?? ''));
+        $studentMobile = trim((string)($d['student_mobile'] ?? ''));
+        $studentAddress = trim((string)($d['student_address'] ?? ''));
+        $paymentTime = trim((string)($d['payment_time'] ?? '')) ?: null;
+        $receiptTime = trim((string)($d['receipt_time'] ?? '')) ?: null;
+        $refundTime = trim((string)($d['refund_time'] ?? '')) ?: null;
+        $refundAmount = (float)($d['refund_amount'] ?? 0);
+        if ($refundAmount < 0) {
+            json_response(400, 'refund_amount 不能为负数', null, 400);
+        }
+        $orderRemark = trim((string)($d['remark'] ?? ''));
+
         if ($m === 'POST') {
-            $stmt = $pdo->prepare('INSERT INTO oa_order(student_id,course_id,amount,total_amount,paid_amount,pay_status,payment_stage,sales_commission_amount,seller_user_id,seller_role,seller_commission_amount,referrer_id,referrer_commission_amount) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)');
-            $stmt->execute([$studentId, $courseId, $totalAmount, $totalAmount, $paidAmount, $payStatus, $paymentStage, $salesCommission, $sellerUserId, $sellerRole, $sellerCommission, $referrerId, $referrerCommission]);
+            $stmt = $pdo->prepare('INSERT INTO oa_order(student_id,course_id,amount,total_amount,paid_amount,pay_status,payment_stage,sales_commission_amount,seller_user_id,seller_role,seller_commission_amount,referrer_id,referrer_commission_amount,student_wechat_name,student_mobile,student_address,payment_time,receipt_time,refund_time,refund_amount,remark) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
+            $stmt->execute([$studentId, $courseId, $totalAmount, $totalAmount, $paidAmount, $payStatus, $paymentStage, $salesCommission, $sellerUserId, $sellerRole, $sellerCommission, $referrerId, $referrerCommission, $studentWechatName, $studentMobile, $studentAddress, $paymentTime, $receiptTime, $refundTime, $refundAmount, $orderRemark]);
             if ($payStatus === 1) {
                 $stu = $pdo->prepare("UPDATE oa_student SET is_student=1, student_stage='active', follow_status='已报名', converted_at=NOW() WHERE id=?");
                 $stu->execute([$studentId]);
@@ -194,8 +217,8 @@ try {
             json_response(0, 'created', ['id' => (int)$pdo->lastInsertId()]);
         }
 
-        $stmt = $pdo->prepare('UPDATE oa_order SET student_id=?,course_id=?,amount=?,total_amount=?,paid_amount=?,pay_status=?,payment_stage=?,sales_commission_amount=?,seller_user_id=?,seller_role=?,seller_commission_amount=?,referrer_id=?,referrer_commission_amount=? WHERE id=?');
-        $stmt->execute([$studentId, $courseId, $totalAmount, $totalAmount, $paidAmount, $payStatus, $paymentStage, $salesCommission, $sellerUserId, $sellerRole, $sellerCommission, $referrerId, $referrerCommission, $id]);
+        $stmt = $pdo->prepare('UPDATE oa_order SET student_id=?,course_id=?,amount=?,total_amount=?,paid_amount=?,pay_status=?,payment_stage=?,sales_commission_amount=?,seller_user_id=?,seller_role=?,seller_commission_amount=?,referrer_id=?,referrer_commission_amount=?,student_wechat_name=?,student_mobile=?,student_address=?,payment_time=?,receipt_time=?,refund_time=?,refund_amount=?,remark=? WHERE id=?');
+        $stmt->execute([$studentId, $courseId, $totalAmount, $totalAmount, $paidAmount, $payStatus, $paymentStage, $salesCommission, $sellerUserId, $sellerRole, $sellerCommission, $referrerId, $referrerCommission, $studentWechatName, $studentMobile, $studentAddress, $paymentTime, $receiptTime, $refundTime, $refundAmount, $orderRemark, $id]);
         if ($payStatus === 1) {
             $stu = $pdo->prepare("UPDATE oa_student SET is_student=1, student_stage='active', follow_status='已报名', converted_at=COALESCE(converted_at,NOW()) WHERE id=?");
             $stu->execute([$studentId]);

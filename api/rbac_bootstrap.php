@@ -65,6 +65,7 @@ function ensure_rbac_tables(PDO $pdo): void
       ('菜单推荐者', 'menu_referrers', '菜单可见性', '可见推荐者管理', 1),
       ('菜单用户管理', 'menu_users', '菜单可见性', '可见用户管理', 1),
       ('菜单菜单管理', 'menu_manage', '菜单可见性', '可见菜单管理', 1),
+      ('菜单部门管理', 'menu_departments', '菜单可见性', '可见部门管理', 1),
       ('菜单收款单', 'menu_receipts', '菜单可见性', '可见收款单管理', 1),
       ('菜单交付记录', 'menu_delivery_logs', '菜单可见性', '可见交付记录', 1),
       ('菜单部门统计', 'menu_department_stats', '菜单可见性', '可见部门统计', 1)
