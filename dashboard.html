@@ -48,7 +48,7 @@
         <label>性别（男/女）<select v-model="studentForm.gender"><option value="">请选择</option><option value="男">男</option><option value="女">女</option></select></label>
         <label>出生日期（YYYY-MM-DD）<input v-model="studentForm.birthday" type="date"></label>
         <label>手机号（必填）<input v-model.trim="studentForm.phone" placeholder="用于联系" required></label>
-        <label>微信号（可选）<input v-model.trim="studentForm.wechat" placeholder="学员微信"></label>
+        <label>微信ID（必填）<input v-model.trim="studentForm.wechat" placeholder="学员微信ID" required></label>
         <label>身份证号（可选）<input v-model.trim="studentForm.id_no" placeholder="实名信息"></label>
         <label>学员等级（A1/B2）<input v-model.trim="studentForm.level" placeholder="学习等级"></label>
         <label>意向等级（高/中/低）<input v-model.trim="studentForm.intention_level" placeholder="转化意向"></label>
@@ -146,9 +146,9 @@
     </section>
 
     <section class="content-card" v-if="activeTab==='rbac_groups'">
-      <h2>系统管理 / 用户组管理</h2>
-      <form class="inline-form" @submit.prevent="saveGroup"><input v-model.trim="groupForm.group_name" placeholder="用户组名" required><input v-model.trim="groupForm.group_code" placeholder="组编码" required><input v-model.trim="groupForm.remark" placeholder="备注"><button>{{groupForm.id?'保存用户组':'新增用户组'}}</button><button type="button" class="btn-secondary" @click="resetGroupForm">重置</button></form>
-      <table class="table"><thead><tr><th>ID</th><th>组名</th><th>编码</th><th>备注</th><th>操作</th></tr></thead><tbody><tr v-for="g in groups" :key="g.id"><td>{{g.id}}</td><td>{{g.group_name}}</td><td>{{g.group_code}}</td><td>{{g.remark}}</td><td><button class="btn-mini" @click="editGroup(g)">编辑</button></td></tr></tbody></table>
+      <h2>系统管理 / 角色管理</h2>
+      <form class="inline-form" @submit.prevent="saveGroup"><input v-model.trim="groupForm.group_name" placeholder="角色名" required><input v-model.trim="groupForm.group_code" placeholder="组编码" required><input v-model.trim="groupForm.remark" placeholder="备注"><button>{{groupForm.id?'保存角色':'新增角色'}}</button><button type="button" class="btn-secondary" @click="resetGroupForm">重置</button></form>
+      <table class="table"><thead><tr><th>ID</th><th>角色名</th><th>编码</th><th>备注</th><th>操作</th></tr></thead><tbody><tr v-for="g in groups" :key="g.id"><td>{{g.id}}</td><td>{{g.group_name}}</td><td>{{g.group_code}}</td><td>{{g.remark}}</td><td><button class="btn-mini" @click="editGroup(g)">编辑</button></td></tr></tbody></table>
     </section>
 
     <section class="content-card" v-if="activeTab==='rbac_permissions'">
@@ -161,13 +161,13 @@
       <h2>系统管理 / 权限组分配</h2>
       <div class="cards">
         <div>
-          <h3>用户 -> 用户组</h3>
-          <form class="inline-form" @submit.prevent="assignUserGroup"><select v-model.number="assignForm.user_id" required><option value="">选择用户</option><option v-for="u in users" :value="Number(u.id)">{{u.username}}</option></select><select v-model.number="assignForm.group_id" required><option value="">选择组</option><option v-for="g in groups" :value="Number(g.id)">{{g.group_name}}</option></select><button>分配</button></form>
-          <table class="table"><thead><tr><th>用户</th><th>组</th><th></th></tr></thead><tbody><tr v-for="x in assignData.user_groups" :key="'ug'+x.id"><td>{{x.username}}</td><td>{{x.group_name}}</td><td><button class="btn-mini btn-danger" @click="delAssign('user_group',x.id)">删除</button></td></tr></tbody></table>
+          <h3>用户 -> 角色</h3>
+          <form class="inline-form" @submit.prevent="assignUserGroup"><select v-model.number="assignForm.user_id" required><option value="">选择用户</option><option v-for="u in users" :value="Number(u.id)">{{u.username}}</option></select><select v-model.number="assignForm.group_id" required><option value="">选择角色</option><option v-for="g in groups" :value="Number(g.id)">{{g.group_name}}</option></select><button>分配</button></form>
+          <table class="table"><thead><tr><th>用户</th><th>角色</th><th></th></tr></thead><tbody><tr v-for="x in assignData.user_groups" :key="'ug'+x.id"><td>{{x.username}}</td><td>{{x.group_name}}</td><td><button class="btn-mini btn-danger" @click="delAssign('user_group',x.id)">删除</button></td></tr></tbody></table>
         </div>
         <div>
-          <h3>用户组 -> 权限</h3>
-          <form class="inline-form" @submit.prevent="assignGroupPerm"><select v-model.number="assignForm2.group_id" required><option value="">选择组</option><option v-for="g in groups" :value="Number(g.id)">{{g.group_name}}</option></select><select v-model.number="assignForm2.perm_id" required><option value="">选择权限</option><option v-for="p in perms" :value="Number(p.id)">{{p.perm_name}}</option></select><button>分配</button></form>
+          <h3>角色 -> 权限</h3>
+          <form class="inline-form" @submit.prevent="assignGroupPerm"><select v-model.number="assignForm2.group_id" required><option value="">选择角色</option><option v-for="g in groups" :value="Number(g.id)">{{g.group_name}}</option></select><select v-model.number="assignForm2.perm_id" required><option value="">选择权限</option><option v-for="p in perms" :value="Number(p.id)">{{p.perm_name}}</option></select><button>分配</button></form>
           <table class="table"><thead><tr><th>组</th><th>权限</th><th></th></tr></thead><tbody><tr v-for="x in assignData.group_perms" :key="'gp'+x.id"><td>{{x.group_name}}</td><td>{{x.perm_name}}</td><td><button class="btn-mini btn-danger" @click="delAssign('group_perm',x.id)">删除</button></td></tr></tbody></table>
         </div>
       </div>
@@ -206,9 +206,9 @@ createApp({
 
     const api=async(url,opt={})=>{const r=await fetch(url,{headers:{'Content-Type':'application/json'},...opt});const j=await r.json();if(!r.ok||j.code!==0) throw new Error(j.message||'请求失败');return j.data;};
     const loadSummary=async()=>summary.value=await api('/api/dashboard_summary.php');
-    const loadStudents=async()=>{const q=studentKeyword.value?`?keyword=${encodeURIComponent(studentKeyword.value)}`:'';students.value=await api(`/api/students.php${q}`);};
+    const loadStudents=async()=>{const q=new URLSearchParams(); if(studentKeyword.value) q.set('keyword',studentKeyword.value); if(user.value?.id) q.set('user_id',String(user.value.id)); students.value=await api(`/api/students.php?${q.toString()}`);};
     const loadCourses=async()=>courses.value=await api('/api/courses.php');
-    const loadOrders=async()=>{const q=orderKeyword.value?`?keyword=${encodeURIComponent(orderKeyword.value)}`:'';orders.value=await api(`/api/orders.php${q}`);};
+    const loadOrders=async()=>{const q=new URLSearchParams(); if(orderKeyword.value) q.set('keyword',orderKeyword.value); if(user.value?.id) q.set('user_id',String(user.value.id)); orders.value=await api(`/api/orders.php?${q.toString()}`);};
     const loadReferrers=async()=>{const q=referrerKeyword.value?`?keyword=${encodeURIComponent(referrerKeyword.value)}`:'';referrers.value=await api(`/api/referrers.php${q}`);};
     const loadFinance=async()=>finance.value=await api('/api/finance.php');
     const loadTodos=async()=>todos.value=await api('/api/todos.php');

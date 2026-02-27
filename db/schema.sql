@@ -167,21 +167,23 @@ CREATE TABLE IF NOT EXISTS oa_notification (
 INSERT INTO oa_user (username, password_hash, real_name, role, gender, mobile, email, id_no, department, position, hire_date, remark, status) VALUES
 ('admin', '$2y$12$rVtPrImk7H.Q6rvIHF4Ql.z8/SgRl3OChjDcGMQG.aXn4Cn7RTxDO', '系统管理员', '超管', '男', '13800000000', 'admin@oa2.local', '310101198801010011', '系统管理部', '平台管理员', '2024-01-01', '系统默认管理员', 1),
 ('consultant01', '$2y$12$rVtPrImk7H.Q6rvIHF4Ql.z8/SgRl3OChjDcGMQG.aXn4Cn7RTxDO', '顾问A', '顾问', '女', '13800000010', 'consultant01@oa2.local', '310101199001010022', '招生咨询部', '课程顾问', '2024-03-01', '负责A校区咨询', 1),
-('finance01', '$2y$12$rVtPrImk7H.Q6rvIHF4Ql.z8/SgRl3OChjDcGMQG.aXn4Cn7RTxDO', '财务A', '财务', '女', '13800000020', 'finance01@oa2.local', '310101199202020033', '财务部', '会计', '2024-02-01', '财务结算负责人', 1)
+('finance01', '$2y$12$rVtPrImk7H.Q6rvIHF4Ql.z8/SgRl3OChjDcGMQG.aXn4Cn7RTxDO', '班主任A', '班主任', '女', '13800000020', 'headteacher01@oa2.local', '310101199202020033', '教务部', '班主任', '2024-02-01', '负责在读学员管理', 1),
+('coach01', '$2y$12$rVtPrImk7H.Q6rvIHF4Ql.z8/SgRl3OChjDcGMQG.aXn4Cn7RTxDO', '教练甲', '教练', '男', '13800000030', 'coach01@oa2.local', '310101199303030044', '教学部', '教练', '2024-02-10', '负责部分学员销课跟进', 1)
 ON DUPLICATE KEY UPDATE real_name=VALUES(real_name), role=VALUES(role), mobile=VALUES(mobile), email=VALUES(email), department=VALUES(department), position=VALUES(position), status=VALUES(status);
 
 INSERT INTO oa_user_group (group_name, group_code, remark, status) VALUES
-('超级管理员组', 'super_admin', '拥有全部权限', 1),
-('顾问组', 'consultant_group', '顾问业务权限', 1),
-('财务组', 'finance_group', '财务业务权限', 1)
+('超级管理员', 'super_admin', '拥有全部权限', 1),
+('顾问', 'consultant_role', '仅管理未成交准学员', 1),
+('班主任', 'headteacher_role', '管理所有学员及销课信息', 1),
+('教练', 'coach_role', '管理自己跟进学员销课记录', 1)
 ON DUPLICATE KEY UPDATE group_name=VALUES(group_name), remark=VALUES(remark), status=VALUES(status);
 
 INSERT INTO oa_permission (perm_name, perm_code, module_name, remark, status) VALUES
 ('用户管理-查看', 'user_view', '系统管理', '查看用户', 1),
 ('用户管理-新增修改', 'user_edit', '系统管理', '新增与修改用户', 1),
-('用户组管理', 'group_manage', '系统管理', '用户组增删改查', 1),
+('角色管理', 'group_manage', '系统管理', '角色增删改查', 1),
 ('权限管理', 'perm_manage', '系统管理', '权限增删改查', 1),
-('权限分配', 'rbac_assign', '系统管理', '组与权限、用户组分配', 1),
+('权限分配', 'rbac_assign', '系统管理', '角色与权限、用户角色分配', 1),
 ('菜单总览', 'menu_overview', '菜单可见性', '可见数据总览', 1),
 ('菜单学员', 'menu_students', '菜单可见性', '可见学员管理', 1),
 ('菜单课程', 'menu_courses', '菜单可见性', '可见课程管理', 1),
@@ -197,16 +199,20 @@ ON DUPLICATE KEY UPDATE perm_name=VALUES(perm_name), module_name=VALUES(module_n
 INSERT IGNORE INTO oa_user_group_rel (user_id, group_id)
 SELECT u.id, g.id FROM oa_user u, oa_user_group g WHERE u.username='admin' AND g.group_code='super_admin';
 INSERT IGNORE INTO oa_user_group_rel (user_id, group_id)
-SELECT u.id, g.id FROM oa_user u, oa_user_group g WHERE u.username='consultant01' AND g.group_code='consultant_group';
+SELECT u.id, g.id FROM oa_user u, oa_user_group g WHERE u.username='consultant01' AND g.group_code='consultant_role';
 INSERT IGNORE INTO oa_user_group_rel (user_id, group_id)
-SELECT u.id, g.id FROM oa_user u, oa_user_group g WHERE u.username='finance01' AND g.group_code='finance_group';
+SELECT u.id, g.id FROM oa_user u, oa_user_group g WHERE u.username='finance01' AND g.group_code='headteacher_role';
+INSERT IGNORE INTO oa_user_group_rel (user_id, group_id)
+SELECT u.id, g.id FROM oa_user u, oa_user_group g WHERE u.username='coach01' AND g.group_code='coach_role';
 
 INSERT IGNORE INTO oa_group_permission_rel (group_id, perm_id)
 SELECT g.id, p.id FROM oa_user_group g, oa_permission p WHERE g.group_code='super_admin';
 INSERT IGNORE INTO oa_group_permission_rel (group_id, perm_id)
-SELECT g.id, p.id FROM oa_user_group g, oa_permission p WHERE g.group_code='consultant_group' AND p.perm_code IN ('menu_overview','menu_students','menu_courses','menu_orders','menu_todos','menu_notifications','menu_referrers');
+SELECT g.id, p.id FROM oa_user_group g, oa_permission p WHERE g.group_code='consultant_role' AND p.perm_code IN ('menu_overview','menu_students','menu_notifications');
 INSERT IGNORE INTO oa_group_permission_rel (group_id, perm_id)
-SELECT g.id, p.id FROM oa_user_group g, oa_permission p WHERE g.group_code='finance_group' AND p.perm_code IN ('menu_overview','menu_orders','menu_finance','menu_notifications');
+SELECT g.id, p.id FROM oa_user_group g, oa_permission p WHERE g.group_code='headteacher_role' AND p.perm_code IN ('menu_overview','menu_students','menu_orders','menu_finance','menu_notifications','menu_referrers');
+INSERT IGNORE INTO oa_group_permission_rel (group_id, perm_id)
+SELECT g.id, p.id FROM oa_user_group g, oa_permission p WHERE g.group_code='coach_role' AND p.perm_code IN ('menu_overview','menu_students','menu_orders','menu_notifications');
 
 INSERT INTO oa_menu (parent_name, menu_name, menu_key, path, icon, sort_no, status) VALUES
 ('总览','数据总览','overview','/overview','🏠',1,1),
@@ -219,7 +225,7 @@ INSERT INTO oa_menu (parent_name, menu_name, menu_key, path, icon, sort_no, stat
 ('业务管理','推荐者管理','referrers','/referrers','🤝',17,1),
 ('系统管理','用户管理','users','/users','👥',21,1),
 ('系统管理','菜单管理','menus','/menus','🧭',22,1),
-('系统管理','用户组管理','rbac_groups','/rbac/groups','🧩',23,1),
+('系统管理','角色管理','rbac_groups','/rbac/groups','🧩',23,1),
 ('系统管理','权限管理','rbac_permissions','/rbac/permissions','🔐',24,1),
 ('系统管理','RBAC分配','rbac_assign','/rbac/assign','🛡️',25,1)
 ON DUPLICATE KEY UPDATE menu_name=VALUES(menu_name), parent_name=VALUES(parent_name), path=VALUES(path), icon=VALUES(icon), sort_no=VALUES(sort_no), status=VALUES(status);

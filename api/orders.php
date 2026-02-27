@@ -14,6 +14,7 @@ try {
         $payStatus = isset($_GET['pay_status']) ? trim((string)$_GET['pay_status']) : '';
         $keyword = trim((string)($_GET['keyword'] ?? ''));
         $paymentStage = trim((string)($_GET['payment_stage'] ?? ''));
+        $userId = (int)($_GET['user_id'] ?? 0);
 
         if ($payStatus !== '') {
             $where[] = 'o.pay_status = :pay_status';
@@ -26,6 +27,22 @@ try {
         if ($paymentStage !== '') {
             $where[] = 'o.payment_stage = :payment_stage';
             $params[':payment_stage'] = $paymentStage;
+        }
+
+        if ($userId > 0) {
+            $uStmt = $pdo->prepare('SELECT role, real_name FROM oa_user WHERE id=? LIMIT 1');
+            $uStmt->execute([$userId]);
+            $u = $uStmt->fetch();
+            if ($u) {
+                $roleName = trim((string)($u['role'] ?? ''));
+                $realName = trim((string)($u['real_name'] ?? ''));
+                if ($roleName === '顾问') {
+                    $where[] = '1=0';
+                } elseif ($roleName === '教练') {
+                    $where[] = 's.delivery_coach = :coach_name';
+                    $params[':coach_name'] = $realName;
+                }
+            }
         }
 
         $baseSql = ' FROM oa_order o LEFT JOIN oa_student s ON s.id=o.student_id LEFT JOIN oa_course c ON c.id=o.course_id LEFT JOIN oa_referrer r ON r.id=o.referrer_id';

@@ -13,6 +13,7 @@ try {
         $params = [];
         $keyword = trim((string)($_GET['keyword'] ?? ''));
         $status = trim((string)($_GET['follow_status'] ?? ''));
+        $userId = (int)($_GET['user_id'] ?? 0);
 
         if ($keyword !== '') {
             $where[] = '(name LIKE :kw OR phone LIKE :kw OR consultant LIKE :kw OR delivery_coach LIKE :kw)';
@@ -21,6 +22,22 @@ try {
         if ($status !== '') {
             $where[] = 'follow_status = :follow_status';
             $params[':follow_status'] = $status;
+        }
+
+        if ($userId > 0) {
+            $uStmt = $pdo->prepare('SELECT role, real_name FROM oa_user WHERE id=? LIMIT 1');
+            $uStmt->execute([$userId]);
+            $u = $uStmt->fetch();
+            if ($u) {
+                $roleName = trim((string)($u['role'] ?? ''));
+                $realName = trim((string)($u['real_name'] ?? ''));
+                if ($roleName === '顾问') {
+                    $where[] = "(follow_status <> '已报名' OR follow_status = '' OR follow_status IS NULL)";
+                } elseif ($roleName === '教练') {
+                    $where[] = 'delivery_coach = :coach_name';
+                    $params[':coach_name'] = $realName;
+                }
+            }
         }
 
         $whereSql = $where ? (' WHERE ' . implode(' AND ', $where)) : '';
@@ -57,7 +74,7 @@ try {
 
     if ($m === 'POST') {
         $d = request_body();
-        require_fields($d, ['name', 'phone']);
+        require_fields($d, ['wechat', 'phone']);
 
         $phone = trim($d['phone']);
         $existsStmt = $pdo->prepare('SELECT id FROM oa_student WHERE phone = ? LIMIT 1');
@@ -68,7 +85,7 @@ try {
 
         $stmt = $pdo->prepare('INSERT INTO oa_student(name, gender, birthday, phone, wechat, id_no, level, intention_level, follow_status, source, enrolled_courses, consultant, delivery_coach, guardian_name, guardian_phone, address, remark) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
         $stmt->execute([
-            trim($d['name']),
+            trim((string)($d['name'] ?? '')),
             trim((string)($d['gender'] ?? '')),
             normalize_date_or_empty($d['birthday'] ?? ''),
             $phone,
@@ -93,7 +110,7 @@ try {
         $d = request_body();
         $id = (int)($d['id'] ?? 0);
         if ($id <= 0) json_response(400, 'id非法', null, 400);
-        require_fields($d, ['name', 'phone']);
+        require_fields($d, ['wechat', 'phone']);
 
         $phone = trim($d['phone']);
         $existsStmt = $pdo->prepare('SELECT id FROM oa_student WHERE phone = ? AND id <> ? LIMIT 1');
@@ -104,7 +121,7 @@ try {
 
         $stmt = $pdo->prepare('UPDATE oa_student SET name=?, gender=?, birthday=?, phone=?, wechat=?, id_no=?, level=?, intention_level=?, follow_status=?, source=?, enrolled_courses=?, consultant=?, delivery_coach=?, guardian_name=?, guardian_phone=?, address=?, remark=? WHERE id=?');
         $stmt->execute([
-            trim($d['name']),
+            trim((string)($d['name'] ?? '')),
             trim((string)($d['gender'] ?? '')),
             normalize_date_or_empty($d['birthday'] ?? ''),
             $phone,

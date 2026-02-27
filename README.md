@@ -26,9 +26,9 @@
 - `GET/POST/PUT/DELETE /api/referrers.php` 推荐者 CRUD
 - `GET /api/user_menus.php?user_id=xx` 按用户返回可见菜单（RBAC菜单过滤）
 - `GET /api/dashboard_summary.php` 统计汇总
-- `GET/POST/PUT/DELETE /api/rbac_groups.php` 用户组 CRUD
+- `GET/POST/PUT/DELETE /api/rbac_groups.php` 角色 CRUD
 - `GET/POST/PUT/DELETE /api/rbac_permissions.php` 权限 CRUD
-- `GET/POST/DELETE /api/rbac_assign.php` 用户组分配、权限组分配
+- `GET/POST/DELETE /api/rbac_assign.php` 角色分配、角色权限分配
 
 ## 数据库配置
 
@@ -51,8 +51,8 @@ mysql -uroot -p < db/schema.sql
 ## 系统管理（RBAC）
 
 - 一级菜单新增：`系统管理`。
-- 二级菜单包含：用户管理、菜单管理、用户组管理、权限管理、RBAC分配。
-- 可进行用户、用户组、权限、用户组-用户分配、用户组-权限分配的增删改查。
+- 二级菜单包含：用户管理、菜单管理、角色管理、权限管理、RBAC分配。
+- 可进行用户、角色、权限、用户-角色分配、角色-权限分配的增删改查。
 
 
 ## 学员与用户资料扩展
@@ -79,4 +79,7 @@ mysql -uroot -p < db/schema.sql
 - 订单支持付款阶段（定金/中期款/尾款/全款）、销售分成与推荐者分成。
 - 新增推荐者管理：可维护推荐者姓名、手机、渠道、默认分成比例，并在订单中选择推荐者自动计算分成。
 
-- 已支持按用户组/权限返回登录后可见菜单，不同用户登录展示不同左侧菜单。
+- 已支持按角色/权限返回登录后可见菜单，不同用户登录展示不同左侧菜单。
+
+- 学员信息中改为“微信ID”为必填，姓名改为可选，减少录入歧义。
+- 角色语义升级：顾问仅管理未成交准学员；班主任管理全部学员和销课信息；教练仅管理自己跟进学员的销课记录。
