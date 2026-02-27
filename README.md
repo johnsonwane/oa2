@@ -19,6 +19,7 @@
 - `GET/POST/PUT/DELETE /api/students.php` 学员 CRUD
 - `GET/POST/PUT/DELETE /api/courses.php` 课程 CRUD
 - `GET/POST/PUT/DELETE /api/orders.php` 订单 CRUD（支持定金/中期款/尾款/全款与分成字段）
+- `orders.php` 已增加旧库兼容补列（`oa_order`/`oa_user`/`oa_student` 必要字段），可降低历史库直接升级时的 500 风险。
 - `GET/POST/PUT/DELETE /api/finance.php` 财务记录与统计（支持编辑）
 - `GET/POST/PUT/DELETE /api/todos.php` 待办 CRUD
 - `GET/POST/PUT/DELETE /api/notifications.php` 通知 CRUD

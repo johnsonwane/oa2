@@ -8,7 +8,18 @@ try {
     $pdo = get_db_connection();
     ensure_order_referrer_schema($pdo);
     ensure_business_workflow_schema($pdo);
+    ensure_table_columns($pdo, 'oa_user', [
+        'real_name' => "`real_name` VARCHAR(50) DEFAULT ''",
+        'role' => "`role` VARCHAR(30) DEFAULT ''",
+    ]);
+    ensure_table_columns($pdo, 'oa_student', [
+        'name' => "`name` VARCHAR(50) DEFAULT ''",
+        'delivery_coach' => "`delivery_coach` VARCHAR(50) DEFAULT ''",
+    ]);
     ensure_table_columns($pdo, 'oa_order', [
+        'amount' => "`amount` DECIMAL(10,2) NOT NULL DEFAULT 0",
+        'pay_status' => "`pay_status` TINYINT NOT NULL DEFAULT 0",
+        'created_at' => "`created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP",
         'student_wechat_name' => "`student_wechat_name` VARCHAR(80) DEFAULT ''",
         'student_mobile' => "`student_mobile` VARCHAR(20) DEFAULT ''",
         'student_address' => "`student_address` VARCHAR(255) DEFAULT ''",
