@@ -107,12 +107,31 @@ CREATE TABLE IF NOT EXISTS oa_course (
   PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+CREATE TABLE IF NOT EXISTS oa_referrer (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  name VARCHAR(50) NOT NULL,
+  phone VARCHAR(20) NOT NULL,
+  channel VARCHAR(50) DEFAULT '',
+  commission_rate DECIMAL(5,2) NOT NULL DEFAULT 0,
+  remark VARCHAR(255) DEFAULT '',
+  status TINYINT NOT NULL DEFAULT 1,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_referrer_phone (phone)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 CREATE TABLE IF NOT EXISTS oa_order (
   id INT UNSIGNED NOT NULL AUTO_INCREMENT,
   student_id INT UNSIGNED NOT NULL,
   course_id INT UNSIGNED NOT NULL,
   amount DECIMAL(10,2) NOT NULL DEFAULT 0,
+  total_amount DECIMAL(10,2) NOT NULL DEFAULT 0,
+  paid_amount DECIMAL(10,2) NOT NULL DEFAULT 0,
   pay_status TINYINT NOT NULL DEFAULT 0,
+  payment_stage VARCHAR(20) NOT NULL DEFAULT 'full',
+  sales_commission_amount DECIMAL(10,2) NOT NULL DEFAULT 0,
+  referrer_id INT UNSIGNED DEFAULT NULL,
+  referrer_commission_amount DECIMAL(10,2) NOT NULL DEFAULT 0,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -187,6 +206,7 @@ INSERT INTO oa_menu (parent_name, menu_name, menu_key, path, icon, sort_no, stat
 ('业务管理','财务管理','finance','/finance','💰',14,1),
 ('业务管理','待办管理','todos','/todos','✅',15,1),
 ('业务管理','通知管理','notifications','/notifications','🔔',16,1),
+('业务管理','推荐者管理','referrers','/referrers','🤝',17,1),
 ('系统管理','用户管理','users','/users','👥',21,1),
 ('系统管理','菜单管理','menus','/menus','🧭',22,1),
 ('系统管理','用户组管理','rbac_groups','/rbac/groups','🧩',23,1),
@@ -204,10 +224,14 @@ INSERT INTO oa_course (course_name, coach_name, period_weeks, price, status) VAL
 ('新媒体运营实战班', '讲师钱', 8, 9800, 1),
 ('AI 应用办公提效课', '讲师孙', 4, 3999, 1);
 
-INSERT INTO oa_order (student_id, course_id, amount, pay_status) VALUES
-(1, 1, 12800, 1),
-(2, 2, 9800, 1),
-(3, 3, 3999, 0);
+INSERT INTO oa_referrer (name, phone, channel, commission_rate, remark, status) VALUES
+('老学员张姐', '13700000001', '老带新', 5.00, '历史推荐稳定', 1),
+('合作渠道A', '13700000002', '渠道合作', 8.00, '每月导流', 1);
+
+INSERT INTO oa_order (student_id, course_id, amount, total_amount, paid_amount, pay_status, payment_stage, sales_commission_amount, referrer_id, referrer_commission_amount) VALUES
+(1, 1, 12800, 12800, 2000, 1, 'deposit', 200, 1, 100),
+(2, 2, 9800, 9800, 9800, 1, 'full', 980, 2, 784),
+(3, 3, 3999, 3999, 0, 0, 'final', 0, NULL, 0);
 
 INSERT INTO oa_finance_record (record_type, item_name, amount, record_date, remark) VALUES
 ('income', '学费到账-张三', 12800, '2026-02-01', '支付宝'),

@@ -74,8 +74,25 @@
 
     <section class="content-card" v-if="activeTab==='orders'">
       <h2>订单管理</h2>
-      <form class="inline-form" @submit.prevent="saveOrder"><select v-model.number="orderForm.student_id" required><option value="">选择学员</option><option v-for="s in students" :value="Number(s.id)">{{s.name}}</option></select><select v-model.number="orderForm.course_id" required><option value="">选择课程</option><option v-for="c in courses" :value="Number(c.id)">{{c.course_name}}</option></select><input v-model.number="orderForm.amount" type="number" step="0.01" placeholder="金额"><select v-model.number="orderForm.pay_status"><option :value="0">待支付</option><option :value="1">已支付</option></select><button>{{orderForm.id?'保存订单':'新增订单'}}</button><button type="button" class="btn-secondary" @click="resetOrderForm">重置</button></form>
-      <table class="table"><thead><tr><th>ID</th><th>学员</th><th>课程</th><th>金额</th><th>状态</th><th>操作</th></tr></thead><tbody><tr v-for="o in orders" :key="o.id"><td>{{o.id}}</td><td>{{o.student_name}}</td><td>{{o.course_name}}</td><td>¥{{o.amount}}</td><td>{{Number(o.pay_status)===1?'已支付':'待支付'}}</td><td><button class="btn-mini" @click="editOrder(o)">编辑</button></td></tr></tbody></table>
+      <form class="inline-form" @submit.prevent="saveOrder">
+        <select v-model.number="orderForm.student_id" required><option value="">选择学员</option><option v-for="s in students" :value="Number(s.id)">{{s.name}}</option></select>
+        <select v-model.number="orderForm.course_id" required><option value="">选择课程</option><option v-for="c in courses" :value="Number(c.id)">{{c.course_name}}</option></select>
+        <select v-model="orderForm.payment_stage"><option value="deposit">定金</option><option value="middle">中期款</option><option value="final">尾款</option><option value="full">全款</option></select>
+        <input v-model.number="orderForm.total_amount" type="number" step="0.01" placeholder="订单总额">
+        <input v-model.number="orderForm.paid_amount" type="number" step="0.01" placeholder="本次实收">
+        <input v-model.number="orderForm.sales_commission_amount" type="number" step="0.01" placeholder="销售分成">
+        <select v-model.number="orderForm.referrer_id"><option :value="0">无推荐者</option><option v-for="r in referrers" :value="Number(r.id)">{{r.name}}</option></select>
+        <input v-model.number="orderForm.referrer_commission_amount" type="number" step="0.01" placeholder="推荐者分成">
+        <select v-model.number="orderForm.pay_status"><option :value="0">待支付</option><option :value="1">已支付</option></select>
+        <button>{{orderForm.id?'保存订单':'新增订单'}}</button><button type="button" class="btn-secondary" @click="resetOrderForm">重置</button>
+      </form>
+      <table class="table"><thead><tr><th>ID</th><th>学员</th><th>课程</th><th>付款阶段</th><th>总额/实收</th><th>销售分成</th><th>推荐者分成</th><th>状态</th><th>操作</th></tr></thead><tbody><tr v-for="o in orders" :key="o.id"><td>{{o.id}}</td><td>{{o.student_name}}</td><td>{{o.course_name}}</td><td>{{paymentStageLabel(o.payment_stage)}}</td><td>¥{{o.total_amount||o.amount}} / ¥{{o.paid_amount||o.amount}}</td><td>¥{{o.sales_commission_amount||0}}</td><td>{{o.referrer_name||'-'}} / ¥{{o.referrer_commission_amount||0}}</td><td>{{Number(o.pay_status)===1?'已支付':'待支付'}}</td><td><button class="btn-mini" @click="editOrder(o)">编辑</button></td></tr></tbody></table>
+    </section>
+
+    <section class="content-card" v-if="activeTab==='referrers'">
+      <h2>推荐者管理</h2>
+      <form class="inline-form" @submit.prevent="saveReferrer"><input v-model.trim="referrerForm.name" placeholder="推荐者姓名" required><input v-model.trim="referrerForm.phone" placeholder="手机号" required><input v-model.trim="referrerForm.channel" placeholder="渠道"><input v-model.number="referrerForm.commission_rate" type="number" step="0.01" min="0" max="100" placeholder="分成比例%"><input v-model.trim="referrerForm.remark" placeholder="备注"><select v-model.number="referrerForm.status"><option :value="1">启用</option><option :value="0">禁用</option></select><button>{{referrerForm.id?'保存推荐者':'新增推荐者'}}</button><button type="button" class="btn-secondary" @click="resetReferrerForm">重置</button></form>
+      <table class="table"><thead><tr><th>ID</th><th>姓名</th><th>手机</th><th>渠道</th><th>分成比例</th><th>状态</th><th>操作</th></tr></thead><tbody><tr v-for="r in referrers" :key="r.id"><td>{{r.id}}</td><td>{{r.name}}</td><td>{{r.phone}}</td><td>{{r.channel}}</td><td>{{r.commission_rate}}%</td><td>{{Number(r.status)===1?'启用':'禁用'}}</td><td><button class="btn-mini" @click="editReferrer(r)">编辑</button></td></tr></tbody></table>
     </section>
 
     <section class="content-card" v-if="activeTab==='finance'">
@@ -163,15 +180,16 @@ createApp({
     const error = ref('');
     const user = ref({});
     const summary = ref({ students: 0, courses: 0, orders: 0, todos_open: 0, notifications_unread: 0 });
-    const students=ref([]),courses=ref([]),orders=ref([]),todos=ref([]),notifications=ref([]),users=ref([]),menus=ref([]),groups=ref([]),perms=ref([]);
+    const students=ref([]),courses=ref([]),orders=ref([]),referrers=ref([]),todos=ref([]),notifications=ref([]),users=ref([]),menus=ref([]),groups=ref([]),perms=ref([]);
     const finance=ref({list:[],summary:{income:0,expense:0,balance:0}});
     const assignData=ref({user_groups:[],group_perms:[]});
     const groupedMenus=ref([]);
 
     const studentForm=reactive({id:0,name:'',gender:'',birthday:'',phone:'',wechat:'',id_no:'',level:'',intention_level:'',follow_status:'',source:'',enrolled_courses_text:'',consultant:'',delivery_coach:'',guardian_name:'',guardian_phone:'',address:'',remark:''});
     const courseForm=reactive({id:0,course_name:'',coach_name:'',period_weeks:0,price:0,status:1});
-    const orderForm=reactive({id:0,student_id:'',course_id:'',amount:0,pay_status:0});
+    const orderForm=reactive({id:0,student_id:'',course_id:'',payment_stage:'full',total_amount:0,paid_amount:0,sales_commission_amount:0,referrer_id:0,referrer_commission_amount:0,pay_status:0});
     const financeForm=reactive({id:0,record_type:'income',item_name:'',amount:0,record_date:''});
+    const referrerForm=reactive({id:0,name:'',phone:'',channel:'',commission_rate:0,remark:'',status:1});
     const todoForm=reactive({id:0,title:'',priority:'中',status:'todo',due_date:''});
     const notificationForm=reactive({id:0,title:'',content:'',is_read:0});
     const userForm=reactive({id:0,username:'',real_name:'',role:'',gender:'',mobile:'',email:'',id_no:'',department:'',position:'',hire_date:'',remark:'',password:''});
@@ -186,6 +204,7 @@ createApp({
     const loadStudents=async()=>students.value=await api('/api/students.php');
     const loadCourses=async()=>courses.value=await api('/api/courses.php');
     const loadOrders=async()=>orders.value=await api('/api/orders.php');
+    const loadReferrers=async()=>referrers.value=await api('/api/referrers.php');
     const loadFinance=async()=>finance.value=await api('/api/finance.php');
     const loadTodos=async()=>todos.value=await api('/api/todos.php');
     const loadNotifications=async()=>notifications.value=await api('/api/notifications.php');
@@ -198,6 +217,7 @@ createApp({
     const createHelper=async(url,form,loader)=>{error.value=''; try{await api(url,{method:'POST',body:JSON.stringify(form)}); await loader();}catch(e){error.value=e.message;}};
 
     const formatCourses=(val)=>{try{const arr=Array.isArray(val)?val:JSON.parse(val||'[]');return Array.isArray(arr)?arr.join(','):'';}catch(e){return String(val||'');}};
+    const paymentStageLabel=(v)=>({deposit:'定金',middle:'中期款',final:'尾款',full:'全款'}[v]||'全款');
     const saveStudent=async()=>{error.value='';try{const payload={...studentForm,enrolled_courses:(studentForm.enrolled_courses_text||'').split(',').map(x=>x.trim()).filter(Boolean)};if(studentForm.id){await api('/api/students.php',{method:'PUT',body:JSON.stringify(payload)});}else{await api('/api/students.php',{method:'POST',body:JSON.stringify(payload)});}resetStudentForm();await loadStudents();}catch(e){error.value=e.message;}};
     
     const resetStudentForm=()=>Object.assign(studentForm,{id:0,name:'',gender:'',birthday:'',phone:'',wechat:'',id_no:'',level:'',intention_level:'',follow_status:'',source:'',enrolled_courses_text:'',consultant:'',delivery_coach:'',guardian_name:'',guardian_phone:'',address:'',remark:''});
@@ -209,8 +229,8 @@ createApp({
     const editCourse=(row)=>Object.assign(courseForm,{id:Number(row.id),course_name:row.course_name||'',coach_name:row.coach_name||'',period_weeks:Number(row.period_weeks||0),price:Number(row.price||0),status:Number(row.status||1)});
     const saveCourse=async()=>{error.value='';try{if(courseForm.id){await api('/api/courses.php',{method:'PUT',body:JSON.stringify(courseForm)});}else{await api('/api/courses.php',{method:'POST',body:JSON.stringify(courseForm)});}resetCourseForm();await loadCourses();}catch(e){error.value=e.message;}};
 
-    const resetOrderForm=()=>Object.assign(orderForm,{id:0,student_id:'',course_id:'',amount:0,pay_status:0});
-    const editOrder=(row)=>Object.assign(orderForm,{id:Number(row.id),student_id:Number(row.student_id||0),course_id:Number(row.course_id||0),amount:Number(row.amount||0),pay_status:Number(row.pay_status||0)});
+    const resetOrderForm=()=>Object.assign(orderForm,{id:0,student_id:'',course_id:'',payment_stage:'full',total_amount:0,paid_amount:0,sales_commission_amount:0,referrer_id:0,referrer_commission_amount:0,pay_status:0});
+    const editOrder=(row)=>Object.assign(orderForm,{id:Number(row.id),student_id:Number(row.student_id||0),course_id:Number(row.course_id||0),payment_stage:row.payment_stage||'full',total_amount:Number(row.total_amount||row.amount||0),paid_amount:Number(row.paid_amount||row.amount||0),sales_commission_amount:Number(row.sales_commission_amount||0),referrer_id:Number(row.referrer_id||0),referrer_commission_amount:Number(row.referrer_commission_amount||0),pay_status:Number(row.pay_status||0)});
     const saveOrder=async()=>{error.value='';try{if(orderForm.id){await api('/api/orders.php',{method:'PUT',body:JSON.stringify(orderForm)});}else{await api('/api/orders.php',{method:'POST',body:JSON.stringify(orderForm)});}resetOrderForm();await loadOrders();}catch(e){error.value=e.message;}};
 
     const resetFinanceForm=()=>Object.assign(financeForm,{id:0,record_type:'income',item_name:'',amount:0,record_date:''});
@@ -224,6 +244,10 @@ createApp({
     const resetNotificationForm=()=>Object.assign(notificationForm,{id:0,title:'',content:'',is_read:0});
     const editNotification=(row)=>Object.assign(notificationForm,{id:Number(row.id),title:row.title||'',content:row.content||'',is_read:Number(row.is_read||0)});
     const saveNotification=async()=>{error.value='';try{if(notificationForm.id){await api('/api/notifications.php',{method:'PUT',body:JSON.stringify(notificationForm)});}else{await api('/api/notifications.php',{method:'POST',body:JSON.stringify(notificationForm)});}resetNotificationForm();await loadNotifications();}catch(e){error.value=e.message;}};
+
+    const resetReferrerForm=()=>Object.assign(referrerForm,{id:0,name:'',phone:'',channel:'',commission_rate:0,remark:'',status:1});
+    const editReferrer=(row)=>Object.assign(referrerForm,{id:Number(row.id),name:row.name||'',phone:row.phone||'',channel:row.channel||'',commission_rate:Number(row.commission_rate||0),remark:row.remark||'',status:Number(row.status||1)});
+    const saveReferrer=async()=>{error.value='';try{if(referrerForm.id){await api('/api/referrers.php',{method:'PUT',body:JSON.stringify(referrerForm)});}else{await api('/api/referrers.php',{method:'POST',body:JSON.stringify(referrerForm)});}resetReferrerForm();await loadReferrers();}catch(e){error.value=e.message;}};
 
     const saveUser=async()=>{error.value='';try{if(userForm.id){await api('/api/users.php',{method:'PUT',body:JSON.stringify(userForm)});}else{await api('/api/users.php',{method:'POST',body:JSON.stringify(userForm)});}resetUserForm();await loadUsers();}catch(e){error.value=e.message;}};
 
@@ -243,14 +267,14 @@ createApp({
     const assignGroupPerm=()=>createHelper('/api/rbac_assign.php',{type:'group_perm',...assignForm2},loadAssign);
     const delAssign=async(type,id)=>{try{await api(`/api/rbac_assign.php?type=${type}&id=${id}`,{method:'DELETE'}); await loadAssign();}catch(e){error.value=e.message;}};
 
-    const reloadAll=async()=>{error.value=''; try{await Promise.all([loadSummary(),loadStudents(),loadCourses(),loadOrders(),loadFinance(),loadTodos(),loadNotifications(),loadUsers(),loadMenus(),loadGroups(),loadPerms(),loadAssign()]);}catch(e){error.value=e.message;}};
+    const reloadAll=async()=>{error.value=''; try{await Promise.all([loadSummary(),loadStudents(),loadCourses(),loadOrders(),loadReferrers(),loadFinance(),loadTodos(),loadNotifications(),loadUsers(),loadMenus(),loadGroups(),loadPerms(),loadAssign()]);}catch(e){error.value=e.message;}};
     const logout=()=>{localStorage.removeItem('oa_token');localStorage.removeItem('oa_user');location.href='./login.html';};
 
     onMounted(async()=>{const t=localStorage.getItem('oa_token');const u=localStorage.getItem('oa_user');if(!t||!u){location.href='./login.html';return;}user.value=JSON.parse(u||'{}');await reloadAll();});
 
-    return {activeTab,error,user,summary,students,courses,orders,finance,todos,notifications,users,menus,groups,perms,assignData,groupedMenus,
-      studentForm,courseForm,orderForm,financeForm,todoForm,notificationForm,userForm,menuForm,groupForm,permForm,assignForm,assignForm2,
-      formatCourses,saveStudent,editStudent,resetStudentForm,saveCourse,editCourse,resetCourseForm,saveOrder,editOrder,resetOrderForm,saveFinance,editFinance,resetFinanceForm,saveTodo,editTodo,resetTodoForm,saveNotification,editNotification,resetNotificationForm,saveUser,editUser,resetUserForm,saveMenu,editMenu,resetMenuForm,saveGroup,editGroup,resetGroupForm,savePerm,editPerm,resetPermForm,assignUserGroup,assignGroupPerm,delAssign,reloadAll,logout};
+    return {activeTab,error,user,summary,students,courses,orders,referrers,finance,todos,notifications,users,menus,groups,perms,assignData,groupedMenus,
+      studentForm,courseForm,orderForm,financeForm,referrerForm,todoForm,notificationForm,userForm,menuForm,groupForm,permForm,assignForm,assignForm2,
+      formatCourses,paymentStageLabel,saveStudent,editStudent,resetStudentForm,saveCourse,editCourse,resetCourseForm,saveOrder,editOrder,resetOrderForm,saveFinance,editFinance,resetFinanceForm,resetReferrerForm,editReferrer,saveReferrer,saveTodo,editTodo,resetTodoForm,saveNotification,editNotification,resetNotificationForm,saveUser,editUser,resetUserForm,saveMenu,editMenu,resetMenuForm,saveGroup,editGroup,resetGroupForm,savePerm,editPerm,resetPermForm,assignUserGroup,assignGroupPerm,delAssign,reloadAll,logout};
   }
 }).mount('#app');
 </script>

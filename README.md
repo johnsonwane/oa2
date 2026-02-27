@@ -18,11 +18,12 @@
 - `GET/POST/PUT/DELETE /api/menu.php` 菜单 CRUD
 - `GET/POST/PUT/DELETE /api/students.php` 学员 CRUD
 - `GET/POST/PUT/DELETE /api/courses.php` 课程 CRUD
-- `GET/POST/PUT/DELETE /api/orders.php` 订单 CRUD
+- `GET/POST/PUT/DELETE /api/orders.php` 订单 CRUD（支持定金/中期款/尾款/全款与分成字段）
 - `GET/POST/PUT/DELETE /api/finance.php` 财务记录与统计（支持编辑）
 - `GET/POST/PUT/DELETE /api/todos.php` 待办 CRUD
 - `GET/POST/PUT/DELETE /api/notifications.php` 通知 CRUD
 - `GET/POST/PUT/DELETE /api/users.php` 用户 CRUD
+- `GET/POST/PUT/DELETE /api/referrers.php` 推荐者 CRUD
 - `GET /api/dashboard_summary.php` 统计汇总
 - `GET/POST/PUT/DELETE /api/rbac_groups.php` 用户组 CRUD
 - `GET/POST/PUT/DELETE /api/rbac_permissions.php` 权限 CRUD
@@ -72,3 +73,6 @@ mysql -uroot -p < db/schema.sql
 - `orders.php` 在未传 `amount` 时会自动回填课程价格，减少人工录入错误。
 - `finance.php` 新增 `PUT` 更新能力，并支持按 `record_type`、`from_date`、`to_date` 的筛选与分页。
 - `students.php` 对手机号增加重复校验（创建与编辑均生效），降低重复线索/重复学员风险。
+
+- 订单支持付款阶段（定金/中期款/尾款/全款）、销售分成与推荐者分成。
+- 新增推荐者管理：可维护推荐者姓名、手机、渠道、默认分成比例，并在订单中选择推荐者自动计算分成。
