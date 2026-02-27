@@ -44,6 +44,7 @@ function ensure_rbac_tables(PDO $pdo): void
       ('顾问', 'consultant_role', '仅管理未成交准学员', 1),
       ('班主任', 'headteacher_role', '管理所有学员及销课信息', 1),
       ('教练', 'coach_role', '管理自己跟进学员销课记录', 1),
+      ('财务', 'finance_role', '负责收款数据上报和统计', 1),
       ('部门经理', 'manager_role', '查看本部门经营统计', 1),
       ('老板', 'boss_role', '查看全局经营统计', 1)
       ON DUPLICATE KEY UPDATE group_name=VALUES(group_name), remark=VALUES(remark), status=VALUES(status)");

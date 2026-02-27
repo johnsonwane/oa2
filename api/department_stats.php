@@ -39,6 +39,7 @@ try {
                    COUNT(DISTINCT o.id) order_count,
                    IFNULL(SUM(o.paid_amount),0) paid_amount,
                    IFNULL(SUM(o.sales_commission_amount),0) sales_commission,
+                   IFNULL(SUM(CASE WHEN o.seller_role='教练' THEN o.seller_commission_amount ELSE 0 END),0) coach_sales_commission,
                    IFNULL(SUM(o.referrer_commission_amount),0) referrer_commission
             FROM oa_user u
             LEFT JOIN oa_student s ON s.consultant = u.real_name OR s.delivery_coach = u.real_name

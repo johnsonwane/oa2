@@ -47,9 +47,9 @@ try {
             }
         }
 
-        $baseSql = ' FROM oa_order o LEFT JOIN oa_student s ON s.id=o.student_id LEFT JOIN oa_course c ON c.id=o.course_id LEFT JOIN oa_referrer r ON r.id=o.referrer_id';
+        $baseSql = ' FROM oa_order o LEFT JOIN oa_student s ON s.id=o.student_id LEFT JOIN oa_course c ON c.id=o.course_id LEFT JOIN oa_referrer r ON r.id=o.referrer_id LEFT JOIN oa_user su ON su.id=o.seller_user_id';
         $whereSql = $where ? (' WHERE ' . implode(' AND ', $where)) : '';
-        $selectSql = 'SELECT o.id,o.student_id,s.name student_name,o.course_id,c.course_name,o.amount,o.total_amount,o.paid_amount,o.pay_status,o.payment_stage,o.sales_commission_amount,o.referrer_id,o.referrer_commission_amount,r.name referrer_name,o.created_at';
+        $selectSql = 'SELECT o.id,o.student_id,s.name student_name,o.course_id,c.course_name,o.amount,o.total_amount,o.paid_amount,o.pay_status,o.payment_stage,o.sales_commission_amount,o.seller_user_id,o.seller_role,o.seller_commission_amount,su.real_name seller_name,o.referrer_id,o.referrer_commission_amount,r.name referrer_name,o.created_at';
 
         if (paged_mode($_GET)) {
             $p = parse_pagination($_GET);
@@ -124,11 +124,41 @@ try {
             json_response(400, 'paid_amount 不能为负数', null, 400);
         }
 
+        $sellerUserId = (int)($d['seller_user_id'] ?? 0);
+        $sellerUserId = $sellerUserId > 0 ? $sellerUserId : null;
+        $sellerRole = trim((string)($d['seller_role'] ?? ''));
+        if ($sellerUserId !== null) {
+            $suStmt = $pdo->prepare('SELECT id, role FROM oa_user WHERE id=? LIMIT 1');
+            $suStmt->execute([$sellerUserId]);
+            $su = $suStmt->fetch();
+            if (!$su) {
+                json_response(404, '销售归属用户不存在', null, 404);
+            }
+            if ($sellerRole === '') {
+                $sellerRole = trim((string)($su['role'] ?? ''));
+            }
+        }
+
+        $defaultRate = 0.10;
+        if ($sellerRole === '教练') {
+            $defaultRate = 0.08;
+        } elseif ($sellerRole === '顾问') {
+            $defaultRate = 0.10;
+        } elseif ($sellerRole === '班主任') {
+            $defaultRate = 0.06;
+        }
+
         $salesCommission = isset($d['sales_commission_amount']) && $d['sales_commission_amount'] !== ''
             ? (float)$d['sales_commission_amount']
-            : round($paidAmount * 0.10, 2);
+            : round($paidAmount * $defaultRate, 2);
         if ($salesCommission < 0) {
             json_response(400, 'sales_commission_amount 不能为负数', null, 400);
+        }
+        $sellerCommission = isset($d['seller_commission_amount']) && $d['seller_commission_amount'] !== ''
+            ? (float)$d['seller_commission_amount']
+            : $salesCommission;
+        if ($sellerCommission < 0) {
+            json_response(400, 'seller_commission_amount 不能为负数', null, 400);
         }
 
         $referrerId = (int)($d['referrer_id'] ?? 0);
@@ -155,19 +185,19 @@ try {
         }
 
         if ($m === 'POST') {
-            $stmt = $pdo->prepare('INSERT INTO oa_order(student_id,course_id,amount,total_amount,paid_amount,pay_status,payment_stage,sales_commission_amount,referrer_id,referrer_commission_amount) VALUES(?,?,?,?,?,?,?,?,?,?)');
-            $stmt->execute([$studentId, $courseId, $totalAmount, $totalAmount, $paidAmount, $payStatus, $paymentStage, $salesCommission, $referrerId, $referrerCommission]);
+            $stmt = $pdo->prepare('INSERT INTO oa_order(student_id,course_id,amount,total_amount,paid_amount,pay_status,payment_stage,sales_commission_amount,seller_user_id,seller_role,seller_commission_amount,referrer_id,referrer_commission_amount) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)');
+            $stmt->execute([$studentId, $courseId, $totalAmount, $totalAmount, $paidAmount, $payStatus, $paymentStage, $salesCommission, $sellerUserId, $sellerRole, $sellerCommission, $referrerId, $referrerCommission]);
             if ($payStatus === 1) {
-                $stu = $pdo->prepare("UPDATE oa_student SET is_student=1, follow_status='已报名', converted_at=NOW() WHERE id=?");
+                $stu = $pdo->prepare("UPDATE oa_student SET is_student=1, student_stage='active', follow_status='已报名', converted_at=NOW() WHERE id=?");
                 $stu->execute([$studentId]);
             }
             json_response(0, 'created', ['id' => (int)$pdo->lastInsertId()]);
         }
 
-        $stmt = $pdo->prepare('UPDATE oa_order SET student_id=?,course_id=?,amount=?,total_amount=?,paid_amount=?,pay_status=?,payment_stage=?,sales_commission_amount=?,referrer_id=?,referrer_commission_amount=? WHERE id=?');
-        $stmt->execute([$studentId, $courseId, $totalAmount, $totalAmount, $paidAmount, $payStatus, $paymentStage, $salesCommission, $referrerId, $referrerCommission, $id]);
+        $stmt = $pdo->prepare('UPDATE oa_order SET student_id=?,course_id=?,amount=?,total_amount=?,paid_amount=?,pay_status=?,payment_stage=?,sales_commission_amount=?,seller_user_id=?,seller_role=?,seller_commission_amount=?,referrer_id=?,referrer_commission_amount=? WHERE id=?');
+        $stmt->execute([$studentId, $courseId, $totalAmount, $totalAmount, $paidAmount, $payStatus, $paymentStage, $salesCommission, $sellerUserId, $sellerRole, $sellerCommission, $referrerId, $referrerCommission, $id]);
         if ($payStatus === 1) {
-            $stu = $pdo->prepare("UPDATE oa_student SET is_student=1, follow_status='已报名', converted_at=COALESCE(converted_at,NOW()) WHERE id=?");
+            $stu = $pdo->prepare("UPDATE oa_student SET is_student=1, student_stage='active', follow_status='已报名', converted_at=COALESCE(converted_at,NOW()) WHERE id=?");
             $stu->execute([$studentId]);
         }
         json_response(0, 'updated');

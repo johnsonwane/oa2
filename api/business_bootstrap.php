@@ -12,6 +12,14 @@ function ensure_business_workflow_schema(PDO $pdo): void
         'owner_consultant_user_id' => "`owner_consultant_user_id` INT UNSIGNED DEFAULT NULL",
         'headteacher_user_id' => "`headteacher_user_id` INT UNSIGNED DEFAULT NULL",
         'coach_user_id' => "`coach_user_id` INT UNSIGNED DEFAULT NULL",
+        'student_stage' => "`student_stage` VARCHAR(30) NOT NULL DEFAULT 'lead' COMMENT 'lead线索/pending_payment待缴费/active在读/completed结课'",
+    ]);
+
+
+    ensure_table_columns($pdo, 'oa_order', [
+        'seller_user_id' => "`seller_user_id` INT UNSIGNED DEFAULT NULL",
+        'seller_role' => "`seller_role` VARCHAR(20) DEFAULT ''",
+        'seller_commission_amount' => "`seller_commission_amount` DECIMAL(10,2) NOT NULL DEFAULT 0",
     ]);
 
     $pdo->exec("CREATE TABLE IF NOT EXISTS oa_delivery_log (

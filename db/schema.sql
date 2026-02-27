@@ -94,6 +94,7 @@ CREATE TABLE IF NOT EXISTS oa_student (
   owner_consultant_user_id INT UNSIGNED DEFAULT NULL,
   headteacher_user_id INT UNSIGNED DEFAULT NULL,
   coach_user_id INT UNSIGNED DEFAULT NULL,
+  student_stage VARCHAR(30) NOT NULL DEFAULT 'lead',
   enrolled_courses JSON DEFAULT NULL,
   consultant VARCHAR(50) DEFAULT '',
   delivery_coach VARCHAR(50) DEFAULT '',
@@ -138,6 +139,9 @@ CREATE TABLE IF NOT EXISTS oa_order (
   pay_status TINYINT NOT NULL DEFAULT 0,
   payment_stage VARCHAR(20) NOT NULL DEFAULT 'full',
   sales_commission_amount DECIMAL(10,2) NOT NULL DEFAULT 0,
+  seller_user_id INT UNSIGNED DEFAULT NULL,
+  seller_role VARCHAR(20) DEFAULT '',
+  seller_commission_amount DECIMAL(10,2) NOT NULL DEFAULT 0,
   referrer_id INT UNSIGNED DEFAULT NULL,
   referrer_commission_amount DECIMAL(10,2) NOT NULL DEFAULT 0,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -200,7 +204,8 @@ CREATE TABLE IF NOT EXISTS oa_notification (
 INSERT INTO oa_user (username, password_hash, real_name, role, gender, mobile, email, id_no, department, position, hire_date, remark, status) VALUES
 ('admin', '$2y$12$rVtPrImk7H.Q6rvIHF4Ql.z8/SgRl3OChjDcGMQG.aXn4Cn7RTxDO', '系统管理员', '超管', '男', '13800000000', 'admin@oa2.local', '310101198801010011', '系统管理部', '平台管理员', '2024-01-01', '系统默认管理员', 1),
 ('consultant01', '$2y$12$rVtPrImk7H.Q6rvIHF4Ql.z8/SgRl3OChjDcGMQG.aXn4Cn7RTxDO', '顾问A', '顾问', '女', '13800000010', 'consultant01@oa2.local', '310101199001010022', '招生咨询部', '课程顾问', '2024-03-01', '负责A校区咨询', 1),
-('finance01', '$2y$12$rVtPrImk7H.Q6rvIHF4Ql.z8/SgRl3OChjDcGMQG.aXn4Cn7RTxDO', '班主任A', '班主任', '女', '13800000020', 'headteacher01@oa2.local', '310101199202020033', '教务部', '班主任', '2024-02-01', '负责在读学员管理', 1),
+('headteacher01', '$2y$12$rVtPrImk7H.Q6rvIHF4Ql.z8/SgRl3OChjDcGMQG.aXn4Cn7RTxDO', '班主任A', '班主任', '女', '13800000020', 'headteacher01@oa2.local', '310101199202020033', '教务部', '班主任', '2024-02-01', '负责在读学员管理', 1),
+('finance01', '$2y$12$rVtPrImk7H.Q6rvIHF4Ql.z8/SgRl3OChjDcGMQG.aXn4Cn7RTxDO', '财务A', '财务', '女', '13800000021', 'finance01@oa2.local', '310101199202020034', '财务部', '财务', '2024-02-02', '负责收款数据上报与统计', 1),
 ('coach01', '$2y$12$rVtPrImk7H.Q6rvIHF4Ql.z8/SgRl3OChjDcGMQG.aXn4Cn7RTxDO', '教练甲', '教练', '男', '13800000030', 'coach01@oa2.local', '310101199303030044', '教学部', '教练', '2024-02-10', '负责部分学员销课跟进', 1),
 ('manager01', '$2y$12$rVtPrImk7H.Q6rvIHF4Ql.z8/SgRl3OChjDcGMQG.aXn4Cn7RTxDO', '招生经理', '部门经理', '男', '13800000040', 'manager01@oa2.local', '310101198704040055', '招生咨询部', '经理', '2024-01-15', '查看本部门统计', 1),
 ('boss01', '$2y$12$rVtPrImk7H.Q6rvIHF4Ql.z8/SgRl3OChjDcGMQG.aXn4Cn7RTxDO', '老板', '老板', '男', '13800000050', 'boss01@oa2.local', '310101198001010066', '管理层', 'CEO', '2023-01-01', '查看全局经营统计', 1)
@@ -211,6 +216,7 @@ INSERT INTO oa_user_group (group_name, group_code, remark, status) VALUES
 ('顾问', 'consultant_role', '仅管理未成交准学员', 1),
 ('班主任', 'headteacher_role', '管理所有学员及销课信息', 1),
 ('教练', 'coach_role', '管理自己跟进学员销课记录', 1),
+('财务', 'finance_role', '负责收款数据上报和统计', 1),
 ('部门经理', 'manager_role', '查看本部门经营统计', 1),
 ('老板', 'boss_role', '查看全局经营统计', 1)
 ON DUPLICATE KEY UPDATE group_name=VALUES(group_name), remark=VALUES(remark), status=VALUES(status);
@@ -241,9 +247,11 @@ SELECT u.id, g.id FROM oa_user u, oa_user_group g WHERE u.username='admin' AND g
 INSERT IGNORE INTO oa_user_group_rel (user_id, group_id)
 SELECT u.id, g.id FROM oa_user u, oa_user_group g WHERE u.username='consultant01' AND g.group_code='consultant_role';
 INSERT IGNORE INTO oa_user_group_rel (user_id, group_id)
-SELECT u.id, g.id FROM oa_user u, oa_user_group g WHERE u.username='finance01' AND g.group_code='headteacher_role';
+SELECT u.id, g.id FROM oa_user u, oa_user_group g WHERE u.username='headteacher01' AND g.group_code='headteacher_role';
 INSERT IGNORE INTO oa_user_group_rel (user_id, group_id)
 SELECT u.id, g.id FROM oa_user u, oa_user_group g WHERE u.username='coach01' AND g.group_code='coach_role';
+INSERT IGNORE INTO oa_user_group_rel (user_id, group_id)
+SELECT u.id, g.id FROM oa_user u, oa_user_group g WHERE u.username='finance01' AND g.group_code='finance_role';
 INSERT IGNORE INTO oa_user_group_rel (user_id, group_id)
 SELECT u.id, g.id FROM oa_user u, oa_user_group g WHERE u.username='manager01' AND g.group_code='manager_role';
 INSERT IGNORE INTO oa_user_group_rel (user_id, group_id)
@@ -295,10 +303,10 @@ INSERT INTO oa_referrer (name, phone, channel, commission_rate, remark, status) 
 ('老学员张姐', '13700000001', '老带新', 5.00, '历史推荐稳定', 1),
 ('合作渠道A', '13700000002', '渠道合作', 8.00, '每月导流', 1);
 
-INSERT INTO oa_order (student_id, course_id, amount, total_amount, paid_amount, pay_status, payment_stage, sales_commission_amount, referrer_id, referrer_commission_amount) VALUES
-(1, 1, 12800, 12800, 2000, 1, 'deposit', 200, 1, 100),
-(2, 2, 9800, 9800, 9800, 1, 'full', 980, 2, 784),
-(3, 3, 3999, 3999, 0, 0, 'final', 0, NULL, 0);
+INSERT INTO oa_order (student_id, course_id, amount, total_amount, paid_amount, pay_status, payment_stage, sales_commission_amount, seller_user_id, seller_role, seller_commission_amount, referrer_id, referrer_commission_amount) VALUES
+(1, 1, 12800, 12800, 2000, 1, 'deposit', 200, 2, '顾问', 200, 1, 100),
+(2, 2, 9800, 9800, 9800, 1, 'full', 784, 4, '教练', 784, 2, 784),
+(3, 3, 3999, 3999, 0, 0, 'final', 0, NULL, '', 0, NULL, 0);
 
 INSERT INTO oa_receipt (order_id, receipt_no, amount, pay_method, pay_time, verified_status, remark) VALUES
 (1, 'SKD2026001', 2000, '微信支付', '2026-02-01 10:00:00', 1, '定金收款'),
