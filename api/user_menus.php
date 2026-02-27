@@ -24,7 +24,7 @@ try {
     }
 
     $role = trim((string)($user['role'] ?? ''));
-    if ($role === '超管' || stripos($role, 'admin') !== false) {
+    if ($role === '超管' || $role === '老板' || stripos($role, 'admin') !== false) {
         $menus = $pdo->query('SELECT id, menu_name, menu_key, path, icon, sort_no, status, parent_name FROM oa_menu WHERE status=1 ORDER BY sort_no ASC, id ASC')->fetchAll();
         json_response(0, 'ok', $menus);
     }
@@ -51,6 +51,9 @@ try {
         'rbac_groups' => ['group_manage'],
         'rbac_permissions' => ['perm_manage'],
         'rbac_assign' => ['rbac_assign'],
+        'receipts' => ['menu_receipts','menu_finance'],
+        'delivery_logs' => ['menu_delivery_logs'],
+        'department_stats' => ['menu_department_stats'],
     ];
 
     $allMenus = $pdo->query('SELECT id, menu_name, menu_key, path, icon, sort_no, status, parent_name FROM oa_menu WHERE status=1 ORDER BY sort_no ASC, id ASC')->fetchAll();

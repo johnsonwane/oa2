@@ -43,7 +43,9 @@ function ensure_rbac_tables(PDO $pdo): void
       ('超级管理员', 'super_admin', '拥有全部权限', 1),
       ('顾问', 'consultant_role', '仅管理未成交准学员', 1),
       ('班主任', 'headteacher_role', '管理所有学员及销课信息', 1),
-      ('教练', 'coach_role', '管理自己跟进学员销课记录', 1)
+      ('教练', 'coach_role', '管理自己跟进学员销课记录', 1),
+      ('部门经理', 'manager_role', '查看本部门经营统计', 1),
+      ('老板', 'boss_role', '查看全局经营统计', 1)
       ON DUPLICATE KEY UPDATE group_name=VALUES(group_name), remark=VALUES(remark), status=VALUES(status)");
 
     $pdo->exec("INSERT INTO oa_permission (perm_name, perm_code, module_name, remark, status) VALUES
@@ -61,6 +63,9 @@ function ensure_rbac_tables(PDO $pdo): void
       ('菜单通知', 'menu_notifications', '菜单可见性', '可见通知管理', 1),
       ('菜单推荐者', 'menu_referrers', '菜单可见性', '可见推荐者管理', 1),
       ('菜单用户管理', 'menu_users', '菜单可见性', '可见用户管理', 1),
-      ('菜单菜单管理', 'menu_manage', '菜单可见性', '可见菜单管理', 1)
+      ('菜单菜单管理', 'menu_manage', '菜单可见性', '可见菜单管理', 1),
+      ('菜单收款单', 'menu_receipts', '菜单可见性', '可见收款单管理', 1),
+      ('菜单交付记录', 'menu_delivery_logs', '菜单可见性', '可见交付记录', 1),
+      ('菜单部门统计', 'menu_department_stats', '菜单可见性', '可见部门统计', 1)
       ON DUPLICATE KEY UPDATE perm_name=VALUES(perm_name), module_name=VALUES(module_name), remark=VALUES(remark), status=VALUES(status)");
 }

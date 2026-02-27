@@ -2,10 +2,12 @@
 require_once __DIR__ . '/common.php';
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/order_referrer_bootstrap.php';
+require_once __DIR__ . '/business_bootstrap.php';
 
 try {
     $pdo = get_db_connection();
     ensure_order_referrer_schema($pdo);
+    ensure_business_workflow_schema($pdo);
     $m = $_SERVER['REQUEST_METHOD'];
 
     if ($m === 'GET') {
@@ -155,11 +157,19 @@ try {
         if ($m === 'POST') {
             $stmt = $pdo->prepare('INSERT INTO oa_order(student_id,course_id,amount,total_amount,paid_amount,pay_status,payment_stage,sales_commission_amount,referrer_id,referrer_commission_amount) VALUES(?,?,?,?,?,?,?,?,?,?)');
             $stmt->execute([$studentId, $courseId, $totalAmount, $totalAmount, $paidAmount, $payStatus, $paymentStage, $salesCommission, $referrerId, $referrerCommission]);
+            if ($payStatus === 1) {
+                $stu = $pdo->prepare("UPDATE oa_student SET is_student=1, follow_status='已报名', converted_at=NOW() WHERE id=?");
+                $stu->execute([$studentId]);
+            }
             json_response(0, 'created', ['id' => (int)$pdo->lastInsertId()]);
         }
 
         $stmt = $pdo->prepare('UPDATE oa_order SET student_id=?,course_id=?,amount=?,total_amount=?,paid_amount=?,pay_status=?,payment_stage=?,sales_commission_amount=?,referrer_id=?,referrer_commission_amount=? WHERE id=?');
         $stmt->execute([$studentId, $courseId, $totalAmount, $totalAmount, $paidAmount, $payStatus, $paymentStage, $salesCommission, $referrerId, $referrerCommission, $id]);
+        if ($payStatus === 1) {
+            $stu = $pdo->prepare("UPDATE oa_student SET is_student=1, follow_status='已报名', converted_at=COALESCE(converted_at,NOW()) WHERE id=?");
+            $stu->execute([$studentId]);
+        }
         json_response(0, 'updated');
     }
 

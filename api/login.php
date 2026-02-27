@@ -14,7 +14,7 @@ try {
     $password = (string)$data['password'];
 
     $pdo = get_db_connection();
-    $stmt = $pdo->prepare('SELECT id, username, password_hash, real_name, role FROM oa_user WHERE username = ? AND status = 1 LIMIT 1');
+    $stmt = $pdo->prepare('SELECT id, username, password_hash, real_name, role, department, position FROM oa_user WHERE username = ? AND status = 1 LIMIT 1');
     $stmt->execute([$username]);
     $user = $stmt->fetch();
 
@@ -31,6 +31,8 @@ try {
             'username' => $user['username'],
             'real_name' => $user['real_name'],
             'role' => $user['role'],
+            'department' => $user['department'] ?? '',
+            'position' => $user['position'] ?? '',
         ],
     ]);
 } catch (Throwable $e) {

@@ -24,6 +24,9 @@
 - `GET/POST/PUT/DELETE /api/notifications.php` 通知 CRUD
 - `GET/POST/PUT/DELETE /api/users.php` 用户 CRUD
 - `GET/POST/PUT/DELETE /api/referrers.php` 推荐者 CRUD
+- `GET/POST/PUT/DELETE /api/receipts.php` 收款单 CRUD（用于订单核对）
+- `GET/POST/PUT/DELETE /api/delivery_logs.php` 教练交付记录 CRUD
+- `GET /api/department_stats.php?user_id=xx` 部门经营统计（老板看全局，部门经理看本部门）
 - `GET /api/user_menus.php?user_id=xx` 按用户返回可见菜单（RBAC菜单过滤）
 - `GET /api/dashboard_summary.php` 统计汇总
 - `GET/POST/PUT/DELETE /api/rbac_groups.php` 角色 CRUD

@@ -2,10 +2,12 @@
 require_once __DIR__ . '/common.php';
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/profile_bootstrap.php';
+require_once __DIR__ . '/business_bootstrap.php';
 
 try {
     $pdo = get_db_connection();
     ensure_student_user_profile_columns($pdo);
+    ensure_business_workflow_schema($pdo);
     $m = $_SERVER['REQUEST_METHOD'];
 
     if ($m === 'GET') {
@@ -48,7 +50,7 @@ try {
             $countStmt->execute($params);
             $total = (int)$countStmt->fetchColumn();
 
-            $sql = 'SELECT id, name, gender, birthday, phone, wechat, id_no, level, intention_level, follow_status, source, enrolled_courses, consultant, delivery_coach, guardian_name, guardian_phone, address, remark, created_at FROM oa_student'
+            $sql = 'SELECT id, name, gender, birthday, phone, wechat, id_no, level, intention_level, follow_status, source, source_channel, miniapp_openid, is_student, lead_registered_at, converted_at, owner_consultant_user_id, headteacher_user_id, coach_user_id, enrolled_courses, consultant, delivery_coach, guardian_name, guardian_phone, address, remark, created_at FROM oa_student'
                 . $whereSql . ' ORDER BY id DESC LIMIT :limit OFFSET :offset';
             $stmt = $pdo->prepare($sql);
             foreach ($params as $k => $v) {
@@ -67,7 +69,7 @@ try {
             ]);
         }
 
-        $stmt = $pdo->prepare('SELECT id, name, gender, birthday, phone, wechat, id_no, level, intention_level, follow_status, source, enrolled_courses, consultant, delivery_coach, guardian_name, guardian_phone, address, remark, created_at FROM oa_student' . $whereSql . ' ORDER BY id DESC');
+        $stmt = $pdo->prepare('SELECT id, name, gender, birthday, phone, wechat, id_no, level, intention_level, follow_status, source, source_channel, miniapp_openid, is_student, lead_registered_at, converted_at, owner_consultant_user_id, headteacher_user_id, coach_user_id, enrolled_courses, consultant, delivery_coach, guardian_name, guardian_phone, address, remark, created_at FROM oa_student' . $whereSql . ' ORDER BY id DESC');
         $stmt->execute($params);
         json_response(0, 'ok', $stmt->fetchAll());
     }
@@ -83,7 +85,7 @@ try {
             json_response(409, '手机号已存在', null, 409);
         }
 
-        $stmt = $pdo->prepare('INSERT INTO oa_student(name, gender, birthday, phone, wechat, id_no, level, intention_level, follow_status, source, enrolled_courses, consultant, delivery_coach, guardian_name, guardian_phone, address, remark) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
+        $stmt = $pdo->prepare('INSERT INTO oa_student(name, gender, birthday, phone, wechat, id_no, level, intention_level, follow_status, source, source_channel, miniapp_openid, is_student, lead_registered_at, converted_at, owner_consultant_user_id, headteacher_user_id, coach_user_id, enrolled_courses, consultant, delivery_coach, guardian_name, guardian_phone, address, remark) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
         $stmt->execute([
             trim((string)($d['name'] ?? '')),
             trim((string)($d['gender'] ?? '')),
@@ -95,6 +97,14 @@ try {
             trim((string)($d['intention_level'] ?? '')),
             trim((string)($d['follow_status'] ?? '')),
             trim((string)($d['source'] ?? '')),
+            trim((string)($d['source_channel'] ?? '')),
+            trim((string)($d['miniapp_openid'] ?? '')),
+            (int)($d['is_student'] ?? 0),
+            trim((string)($d['lead_registered_at'] ?? '')) ?: date('Y-m-d H:i:s'),
+            trim((string)($d['converted_at'] ?? '')) ?: null,
+            (int)($d['owner_consultant_user_id'] ?? 0) ?: null,
+            (int)($d['headteacher_user_id'] ?? 0) ?: null,
+            (int)($d['coach_user_id'] ?? 0) ?: null,
             json_encode($d['enrolled_courses'] ?? [], JSON_UNESCAPED_UNICODE),
             trim((string)($d['consultant'] ?? '')),
             trim((string)($d['delivery_coach'] ?? '')),
@@ -119,7 +129,7 @@ try {
             json_response(409, '手机号已存在', null, 409);
         }
 
-        $stmt = $pdo->prepare('UPDATE oa_student SET name=?, gender=?, birthday=?, phone=?, wechat=?, id_no=?, level=?, intention_level=?, follow_status=?, source=?, enrolled_courses=?, consultant=?, delivery_coach=?, guardian_name=?, guardian_phone=?, address=?, remark=? WHERE id=?');
+        $stmt = $pdo->prepare('UPDATE oa_student SET name=?, gender=?, birthday=?, phone=?, wechat=?, id_no=?, level=?, intention_level=?, follow_status=?, source=?, source_channel=?, miniapp_openid=?, is_student=?, lead_registered_at=?, converted_at=?, owner_consultant_user_id=?, headteacher_user_id=?, coach_user_id=?, enrolled_courses=?, consultant=?, delivery_coach=?, guardian_name=?, guardian_phone=?, address=?, remark=? WHERE id=?');
         $stmt->execute([
             trim((string)($d['name'] ?? '')),
             trim((string)($d['gender'] ?? '')),
@@ -131,6 +141,14 @@ try {
             trim((string)($d['intention_level'] ?? '')),
             trim((string)($d['follow_status'] ?? '')),
             trim((string)($d['source'] ?? '')),
+            trim((string)($d['source_channel'] ?? '')),
+            trim((string)($d['miniapp_openid'] ?? '')),
+            (int)($d['is_student'] ?? 0),
+            trim((string)($d['lead_registered_at'] ?? '')) ?: date('Y-m-d H:i:s'),
+            trim((string)($d['converted_at'] ?? '')) ?: null,
+            (int)($d['owner_consultant_user_id'] ?? 0) ?: null,
+            (int)($d['headteacher_user_id'] ?? 0) ?: null,
+            (int)($d['coach_user_id'] ?? 0) ?: null,
             json_encode($d['enrolled_courses'] ?? [], JSON_UNESCAPED_UNICODE),
             trim((string)($d['consultant'] ?? '')),
             trim((string)($d['delivery_coach'] ?? '')),

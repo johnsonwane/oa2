@@ -86,6 +86,14 @@ CREATE TABLE IF NOT EXISTS oa_student (
   intention_level VARCHAR(30) DEFAULT '',
   follow_status VARCHAR(30) DEFAULT '',
   source VARCHAR(50) DEFAULT '',
+  source_channel VARCHAR(50) DEFAULT '',
+  miniapp_openid VARCHAR(80) DEFAULT '',
+  is_student TINYINT NOT NULL DEFAULT 0,
+  lead_registered_at DATETIME DEFAULT NULL,
+  converted_at DATETIME DEFAULT NULL,
+  owner_consultant_user_id INT UNSIGNED DEFAULT NULL,
+  headteacher_user_id INT UNSIGNED DEFAULT NULL,
+  coach_user_id INT UNSIGNED DEFAULT NULL,
   enrolled_courses JSON DEFAULT NULL,
   consultant VARCHAR(50) DEFAULT '',
   delivery_coach VARCHAR(50) DEFAULT '',
@@ -136,6 +144,31 @@ CREATE TABLE IF NOT EXISTS oa_order (
   PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+CREATE TABLE IF NOT EXISTS oa_delivery_log (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  student_id INT UNSIGNED NOT NULL,
+  coach_user_id INT UNSIGNED DEFAULT NULL,
+  progress_stage VARCHAR(30) DEFAULT '',
+  content TEXT NOT NULL,
+  log_date DATE NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS oa_receipt (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  order_id INT UNSIGNED NOT NULL,
+  receipt_no VARCHAR(60) NOT NULL,
+  amount DECIMAL(10,2) NOT NULL,
+  pay_method VARCHAR(30) DEFAULT '',
+  pay_time DATETIME DEFAULT NULL,
+  verified_status TINYINT NOT NULL DEFAULT 0,
+  remark VARCHAR(255) DEFAULT '',
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_receipt_no (receipt_no)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 CREATE TABLE IF NOT EXISTS oa_finance_record (
   id INT UNSIGNED NOT NULL AUTO_INCREMENT,
   record_type ENUM('income','expense') NOT NULL,
@@ -168,14 +201,18 @@ INSERT INTO oa_user (username, password_hash, real_name, role, gender, mobile, e
 ('admin', '$2y$12$rVtPrImk7H.Q6rvIHF4Ql.z8/SgRl3OChjDcGMQG.aXn4Cn7RTxDO', '系统管理员', '超管', '男', '13800000000', 'admin@oa2.local', '310101198801010011', '系统管理部', '平台管理员', '2024-01-01', '系统默认管理员', 1),
 ('consultant01', '$2y$12$rVtPrImk7H.Q6rvIHF4Ql.z8/SgRl3OChjDcGMQG.aXn4Cn7RTxDO', '顾问A', '顾问', '女', '13800000010', 'consultant01@oa2.local', '310101199001010022', '招生咨询部', '课程顾问', '2024-03-01', '负责A校区咨询', 1),
 ('finance01', '$2y$12$rVtPrImk7H.Q6rvIHF4Ql.z8/SgRl3OChjDcGMQG.aXn4Cn7RTxDO', '班主任A', '班主任', '女', '13800000020', 'headteacher01@oa2.local', '310101199202020033', '教务部', '班主任', '2024-02-01', '负责在读学员管理', 1),
-('coach01', '$2y$12$rVtPrImk7H.Q6rvIHF4Ql.z8/SgRl3OChjDcGMQG.aXn4Cn7RTxDO', '教练甲', '教练', '男', '13800000030', 'coach01@oa2.local', '310101199303030044', '教学部', '教练', '2024-02-10', '负责部分学员销课跟进', 1)
+('coach01', '$2y$12$rVtPrImk7H.Q6rvIHF4Ql.z8/SgRl3OChjDcGMQG.aXn4Cn7RTxDO', '教练甲', '教练', '男', '13800000030', 'coach01@oa2.local', '310101199303030044', '教学部', '教练', '2024-02-10', '负责部分学员销课跟进', 1),
+('manager01', '$2y$12$rVtPrImk7H.Q6rvIHF4Ql.z8/SgRl3OChjDcGMQG.aXn4Cn7RTxDO', '招生经理', '部门经理', '男', '13800000040', 'manager01@oa2.local', '310101198704040055', '招生咨询部', '经理', '2024-01-15', '查看本部门统计', 1),
+('boss01', '$2y$12$rVtPrImk7H.Q6rvIHF4Ql.z8/SgRl3OChjDcGMQG.aXn4Cn7RTxDO', '老板', '老板', '男', '13800000050', 'boss01@oa2.local', '310101198001010066', '管理层', 'CEO', '2023-01-01', '查看全局经营统计', 1)
 ON DUPLICATE KEY UPDATE real_name=VALUES(real_name), role=VALUES(role), mobile=VALUES(mobile), email=VALUES(email), department=VALUES(department), position=VALUES(position), status=VALUES(status);
 
 INSERT INTO oa_user_group (group_name, group_code, remark, status) VALUES
 ('超级管理员', 'super_admin', '拥有全部权限', 1),
 ('顾问', 'consultant_role', '仅管理未成交准学员', 1),
 ('班主任', 'headteacher_role', '管理所有学员及销课信息', 1),
-('教练', 'coach_role', '管理自己跟进学员销课记录', 1)
+('教练', 'coach_role', '管理自己跟进学员销课记录', 1),
+('部门经理', 'manager_role', '查看本部门经营统计', 1),
+('老板', 'boss_role', '查看全局经营统计', 1)
 ON DUPLICATE KEY UPDATE group_name=VALUES(group_name), remark=VALUES(remark), status=VALUES(status);
 
 INSERT INTO oa_permission (perm_name, perm_code, module_name, remark, status) VALUES
@@ -193,7 +230,10 @@ INSERT INTO oa_permission (perm_name, perm_code, module_name, remark, status) VA
 ('菜单通知', 'menu_notifications', '菜单可见性', '可见通知管理', 1),
 ('菜单推荐者', 'menu_referrers', '菜单可见性', '可见推荐者管理', 1),
 ('菜单用户管理', 'menu_users', '菜单可见性', '可见用户管理', 1),
-('菜单菜单管理', 'menu_manage', '菜单可见性', '可见菜单管理', 1)
+('菜单菜单管理', 'menu_manage', '菜单可见性', '可见菜单管理', 1),
+('菜单收款单', 'menu_receipts', '菜单可见性', '可见收款单管理', 1),
+('菜单交付记录', 'menu_delivery_logs', '菜单可见性', '可见交付记录', 1),
+('菜单部门统计', 'menu_department_stats', '菜单可见性', '可见部门统计', 1)
 ON DUPLICATE KEY UPDATE perm_name=VALUES(perm_name), module_name=VALUES(module_name), remark=VALUES(remark), status=VALUES(status);
 
 INSERT IGNORE INTO oa_user_group_rel (user_id, group_id)
@@ -204,6 +244,10 @@ INSERT IGNORE INTO oa_user_group_rel (user_id, group_id)
 SELECT u.id, g.id FROM oa_user u, oa_user_group g WHERE u.username='finance01' AND g.group_code='headteacher_role';
 INSERT IGNORE INTO oa_user_group_rel (user_id, group_id)
 SELECT u.id, g.id FROM oa_user u, oa_user_group g WHERE u.username='coach01' AND g.group_code='coach_role';
+INSERT IGNORE INTO oa_user_group_rel (user_id, group_id)
+SELECT u.id, g.id FROM oa_user u, oa_user_group g WHERE u.username='manager01' AND g.group_code='manager_role';
+INSERT IGNORE INTO oa_user_group_rel (user_id, group_id)
+SELECT u.id, g.id FROM oa_user u, oa_user_group g WHERE u.username='boss01' AND g.group_code='boss_role';
 
 INSERT IGNORE INTO oa_group_permission_rel (group_id, perm_id)
 SELECT g.id, p.id FROM oa_user_group g, oa_permission p WHERE g.group_code='super_admin';
@@ -212,7 +256,11 @@ SELECT g.id, p.id FROM oa_user_group g, oa_permission p WHERE g.group_code='cons
 INSERT IGNORE INTO oa_group_permission_rel (group_id, perm_id)
 SELECT g.id, p.id FROM oa_user_group g, oa_permission p WHERE g.group_code='headteacher_role' AND p.perm_code IN ('menu_overview','menu_students','menu_orders','menu_finance','menu_notifications','menu_referrers');
 INSERT IGNORE INTO oa_group_permission_rel (group_id, perm_id)
-SELECT g.id, p.id FROM oa_user_group g, oa_permission p WHERE g.group_code='coach_role' AND p.perm_code IN ('menu_overview','menu_students','menu_orders','menu_notifications');
+SELECT g.id, p.id FROM oa_user_group g, oa_permission p WHERE g.group_code='coach_role' AND p.perm_code IN ('menu_overview','menu_students','menu_orders','menu_delivery_logs','menu_notifications');
+INSERT IGNORE INTO oa_group_permission_rel (group_id, perm_id)
+SELECT g.id, p.id FROM oa_user_group g, oa_permission p WHERE g.group_code='manager_role' AND p.perm_code IN ('menu_overview','menu_department_stats');
+INSERT IGNORE INTO oa_group_permission_rel (group_id, perm_id)
+SELECT g.id, p.id FROM oa_user_group g, oa_permission p WHERE g.group_code='boss_role' AND p.perm_code IN ('menu_overview','menu_department_stats');
 
 INSERT INTO oa_menu (parent_name, menu_name, menu_key, path, icon, sort_no, status) VALUES
 ('总览','数据总览','overview','/overview','🏠',1,1),
@@ -223,11 +271,14 @@ INSERT INTO oa_menu (parent_name, menu_name, menu_key, path, icon, sort_no, stat
 ('业务管理','待办管理','todos','/todos','✅',15,1),
 ('业务管理','通知管理','notifications','/notifications','🔔',16,1),
 ('业务管理','推荐者管理','referrers','/referrers','🤝',17,1),
+('业务管理','收款单管理','receipts','/receipts','🧾',18,1),
+('业务管理','交付记录','delivery_logs','/delivery_logs','📒',19,1),
 ('系统管理','用户管理','users','/users','👥',21,1),
 ('系统管理','菜单管理','menus','/menus','🧭',22,1),
 ('系统管理','角色管理','rbac_groups','/rbac/groups','🧩',23,1),
 ('系统管理','权限管理','rbac_permissions','/rbac/permissions','🔐',24,1),
-('系统管理','RBAC分配','rbac_assign','/rbac/assign','🛡️',25,1)
+('系统管理','RBAC分配','rbac_assign','/rbac/assign','🛡️',25,1),
+('经营分析','部门统计','department_stats','/department_stats','📊',30,1)
 ON DUPLICATE KEY UPDATE menu_name=VALUES(menu_name), parent_name=VALUES(parent_name), path=VALUES(path), icon=VALUES(icon), sort_no=VALUES(sort_no), status=VALUES(status);
 
 INSERT INTO oa_student (name, gender, birthday, phone, wechat, id_no, level, intention_level, follow_status, source, enrolled_courses, consultant, delivery_coach, guardian_name, guardian_phone, address, remark) VALUES
@@ -248,6 +299,14 @@ INSERT INTO oa_order (student_id, course_id, amount, total_amount, paid_amount, 
 (1, 1, 12800, 12800, 2000, 1, 'deposit', 200, 1, 100),
 (2, 2, 9800, 9800, 9800, 1, 'full', 980, 2, 784),
 (3, 3, 3999, 3999, 0, 0, 'final', 0, NULL, 0);
+
+INSERT INTO oa_receipt (order_id, receipt_no, amount, pay_method, pay_time, verified_status, remark) VALUES
+(1, 'SKD2026001', 2000, '微信支付', '2026-02-01 10:00:00', 1, '定金收款'),
+(2, 'SKD2026002', 9800, '银行转账', '2026-02-02 11:00:00', 1, '全款收款');
+
+INSERT INTO oa_delivery_log (student_id, coach_user_id, progress_stage, content, log_date) VALUES
+(1, 4, '开班', '已建群并发放课前资料', '2026-02-03'),
+(2, 4, '中期', '完成阶段测评并反馈学习建议', '2026-02-15');
 
 INSERT INTO oa_finance_record (record_type, item_name, amount, record_date, remark) VALUES
 ('income', '学费到账-张三', 12800, '2026-02-01', '支付宝'),
