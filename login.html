@@ -40,15 +40,17 @@
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify(form)
             });
-            const j = await r.json();
+            const text = await r.text();
+            let j = {};
+            try { j = text ? JSON.parse(text) : {}; } catch (_) { j = {}; }
             if (!r.ok || j.code !== 0) {
-              error.value = j.message || '登录失败';
+              error.value = j.message || text || '登录失败';
               return;
             }
             localStorage.setItem('oa_token', j.data.token);
             localStorage.setItem('oa_user', JSON.stringify(j.data.user || {}));
             localStorage.setItem('oa_username', (j.data.user && j.data.user.username) || form.username);
-            location.href = './dashboard.html';
+            location.href = './index.html';
           } catch (e) {
             error.value = '网络异常';
           } finally {
