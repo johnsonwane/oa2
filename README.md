@@ -12,6 +12,8 @@
 - `index.html`：管理台（左侧菜单 + 右侧模块）
 - `assets/style.css`：样式文件
 
+- 独立菜单页面（按模块拆分）：`overview.html`、`students.html`、`courses.html`、`orders.html`、`referrers.html`、`receipts.html`、`delivery_logs.html`、`department_stats.html`、`finance.html`、`todos.html`、`notifications.html`、`users.html`、`departments.html`、`menus.html`、`rbac_groups.html`、`rbac_permissions.html`、`rbac_assign.html`
+
 ## API 接口
 
 - `POST /api/login.php` 登录
