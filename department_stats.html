@@ -12,12 +12,10 @@
   <aside class="oa-sidebar" :class="{'open': sidebarOpen}">
     <div class="brand">培训公司 OA</div>
     <div class="user-box">{{ user.real_name || user.username }}（{{ user.role || '访客' }}）</div>
-    <template v-for="group in groupedMenus" :key="group.parent">
-      <div class="group-title">{{ group.parent }}</div>
+    <div class="group-title">功能菜单</div>
       <ul class="menu-tree simple">
-        <li v-for="m in group.children" :key="m.id" :class="{active:activeTab===m.menu_key}" @click="selectMenu(m.menu_key)">{{ m.menu_name }}</li>
+        <li class="active">部门统计</li>
       </ul>
-    </template>
   </aside>
   <div v-if="isMobile && sidebarOpen" class="sidebar-overlay" @click="sidebarOpen=false"></div>
 
@@ -34,191 +32,9 @@
       </div>
     </header>
 
-    <section class="content-card" v-if="activeTab==='overview'">
-      <h2>数据总览</h2>
-      <div class="cards">
-        <div class="stat"><span>学员数</span><strong>{{ summary.students }}</strong></div><div class="stat"><span>线索数</span><strong>{{ summary.leads || 0 }}</strong></div>
-        <div class="stat"><span>课程数</span><strong>{{ summary.courses }}</strong></div>
-        <div class="stat"><span>订单数</span><strong>{{ summary.orders }}</strong></div><div class="stat"><span>收款单</span><strong>{{ summary.receipts || 0 }}</strong></div>
-        <div class="stat"><span>待办未完成</span><strong>{{ summary.todos_open }}</strong></div>
-        <div class="stat"><span>未读通知</span><strong>{{ summary.notifications_unread }}</strong></div>
-      </div>
-    </section>
-
-    <section class="content-card" v-if="activeTab==='students'">
-      <h2>学员管理</h2>
-      <form class="inline-form" @submit.prevent="loadStudents"><input v-model.trim="studentKeyword" placeholder="搜索姓名/手机/顾问"><select v-model="studentCategory"><option value="">全部</option><option value="lead">线索</option><option value="pending_payment">待缴费学员</option><option value="active">正式学员</option></select><button type="submit" class="btn-secondary">查询</button></form>
-      <div class="section-actions"><button type="button" @click="openEditor('student', false)">新增学员</button></div><form :class="['inline-form','editor-form',{show:activeEditor==='student'}]" @submit.prevent="saveStudent">
-        <label>姓名（选填）<input v-model.trim="studentForm.name" placeholder="例如：张三"></label>
-        <label>性别（男/女）<select v-model="studentForm.gender"><option value="">请选择</option><option value="男">男</option><option value="女">女</option></select></label>
-        <label>出生日期（YYYY-MM-DD）<input v-model="studentForm.birthday" type="date"></label>
-        <label>手机号（必填）<input v-model.trim="studentForm.phone" placeholder="用于联系" required></label>
-        <label>微信名（必填）<input v-model.trim="studentForm.wechat_name" placeholder="例如：小明同学" required></label>
-        <label>微信ID（选填）<input v-model.trim="studentForm.wechat" placeholder="学员微信ID"></label>
-        <label>身份证号（可选）<input v-model.trim="studentForm.id_no" placeholder="实名信息"></label>
-        <label>学员等级（A1/B2）<input v-model.trim="studentForm.level" placeholder="学习等级"></label>
-        <label>意向等级（高/中/低）<input v-model.trim="studentForm.intention_level" placeholder="转化意向"></label>
-        <label>跟进状态（跟进中/已报名）<input v-model.trim="studentForm.follow_status" placeholder="当前状态"></label>
-        <label>来源渠道（抖音/转介绍）<input v-model.trim="studentForm.source" placeholder="获客来源"></label>
-        <label>报课名称（数组，逗号分隔）<input v-model.trim="studentForm.enrolled_courses_text" placeholder="Python全栈训练营,就业辅导课"></label>
-        <label>顾问（招生负责人）<input v-model.trim="studentForm.consultant" placeholder="顾问姓名"></label>
-        <label>交付教练（带班教练）<input v-model.trim="studentForm.delivery_coach" placeholder="教练姓名"></label>
-                <label>联系地址（可选）<input v-model.trim="studentForm.address" placeholder="详细地址"></label>
-        <label>备注（学习目标）<input v-model.trim="studentForm.remark" placeholder="个性化记录"></label>
-        <button>{{ studentForm.id ? '保存学员' : '新增学员' }}</button>
-        <button type="button" class="btn-secondary" @click="closeEditor">取消</button>
-      </form>
-      <table class="table"><thead><tr><th>ID</th><th>姓名/微信名/微信ID</th><th>性别</th><th>手机号</th><th>意向/跟进</th><th>来源</th><th>报课名称</th><th>顾问/教练</th><th>地址</th><th>操作</th></tr></thead><tbody><tr v-for="s in students" :key="s.id"><td>{{s.id}}</td><td>{{s.name||"-"}}<br><small>微信名：{{s.wechat_name||"-"}}</small><br><small>微信ID：{{s.wechat||"-"}}</small></td><td>{{s.gender||"-"}}</td><td>{{s.phone}}</td><td>{{s.intention_level||"-"}} / {{s.follow_status||"-"}}</td><td>{{s.source||"-"}}</td><td>{{ formatCourses(s.enrolled_courses) }}</td><td>{{s.consultant||"-"}} / {{s.delivery_coach||"-"}}</td><td>{{s.address||"-"}}</td><td><button class="btn-mini btn-secondary" @click="viewRecord('学员详情',s)">查看</button><button class="btn-mini" @click="editStudent(s)">编辑</button></td></tr></tbody></table>
-    </section>
-
-    <section class="content-card" v-if="activeTab==='courses'">
-      <h2>课程管理</h2>
-      <div class="section-actions"><button type="button" @click="openEditor('course', false)">新增课程</button></div><form :class="['inline-form','editor-form',{show:activeEditor==='course'}]" @submit.prevent="saveCourse"><input v-model.trim="courseForm.course_name" placeholder="课程名" required><input v-model.trim="courseForm.coach_name" placeholder="讲师" required><input v-model.number="courseForm.period_weeks" type="number" placeholder="周期周数"><input v-model.number="courseForm.price" type="number" step="0.01" placeholder="价格"><button>{{courseForm.id?'保存课程':'新增课程'}}</button><button type="button" class="btn-secondary" @click="closeEditor">取消</button></form>
-      <table class="table"><thead><tr><th>ID</th><th>课程</th><th>讲师</th><th>周期</th><th>价格</th><th>操作</th></tr></thead><tbody><tr v-for="c in courses" :key="c.id"><td>{{c.id}}</td><td>{{c.course_name}}</td><td>{{c.coach_name}}</td><td>{{c.period_weeks}}周</td><td>¥{{c.price}}</td><td><button class="btn-mini btn-secondary" @click="viewRecord('课程详情',c)">查看</button><button class="btn-mini" @click="editCourse(c)">编辑</button></td></tr></tbody></table>
-    </section>
-
-    <section class="content-card" v-if="activeTab==='orders'">
-      <h2>订单管理</h2>
-      <form class="inline-form" @submit.prevent="loadOrders"><input v-model.trim="orderKeyword" placeholder="搜索学员/课程/推荐者"><button type="submit" class="btn-secondary">查询</button></form>
-      <div class="section-actions"><button type="button" @click="openEditor('order', false)">新增订单</button></div><form :class="['inline-form','editor-form',{show:activeEditor==='order'}]" @submit.prevent="saveOrder">
-        <select v-model.number="orderForm.student_id" required><option value="">选择学员</option><option v-for="s in students" :value="Number(s.id)">{{s.name}}</option></select>
-        <select v-model.number="orderForm.course_id" required><option value="">选择课程</option><option v-for="c in courses" :value="Number(c.id)">{{c.course_name}}</option></select>
-        <select v-model="orderForm.payment_stage"><option value="deposit">定金</option><option value="middle">中期款</option><option value="final">尾款</option><option value="full">全款</option></select>
-        <input v-model.number="orderForm.total_amount" type="number" step="0.01" placeholder="订单总额">
-        <input v-model.number="orderForm.paid_amount" type="number" step="0.01" placeholder="本次实收">
-        <input v-model.number="orderForm.sales_commission_amount" type="number" step="0.01" placeholder="销售分成"><select v-model.number="orderForm.seller_user_id"><option :value="0">销售归属人</option><option v-for="u in users.filter(x=>['顾问','教练','班主任'].includes(x.role))" :value="Number(u.id)">{{u.real_name}}({{u.role}})</option></select><select v-model="orderForm.seller_role"><option value="">销售角色自动</option><option value="顾问">顾问</option><option value="教练">教练</option><option value="班主任">班主任</option></select><input v-model.number="orderForm.seller_commission_amount" type="number" step="0.01" placeholder="销售核算分成"><input v-model.trim="orderForm.student_wechat_name" placeholder="学员微信名"><input v-model.trim="orderForm.student_mobile" placeholder="学员手机号"><input v-model.trim="orderForm.student_address" placeholder="学员地址"><input v-model="orderForm.payment_time" type="datetime-local" placeholder="付款时间"><input v-model="orderForm.receipt_time" type="datetime-local" placeholder="收款时间"><input v-model="orderForm.refund_time" type="datetime-local" placeholder="退款时间"><input v-model.number="orderForm.refund_amount" type="number" step="0.01" placeholder="退款金额"><input v-model.trim="orderForm.remark" placeholder="备注">
-        <select v-model.number="orderForm.referrer_id"><option :value="0">无推荐者</option><option v-for="r in referrers" :value="Number(r.id)">{{r.name}}</option></select>
-        <input v-model.number="orderForm.referrer_commission_amount" type="number" step="0.01" placeholder="推荐者分成">
-        <select v-model.number="orderForm.pay_status"><option :value="0">待支付</option><option :value="1">已支付</option></select>
-        <button>{{orderForm.id?'保存订单':'新增订单'}}</button><button type="button" class="btn-secondary" @click="closeEditor">取消</button>
-      </form>
-      <table class="table"><thead><tr><th>ID</th><th>学员</th><th>课程</th><th>付款阶段</th><th>总额/实收</th><th>销售归属</th><th>销售分成</th><th>推荐者分成</th><th>状态</th><th>操作</th></tr></thead><tbody><tr v-for="o in orders" :key="o.id"><td>{{o.id}}</td><td>{{o.student_name}}</td><td>{{o.course_name}}</td><td>{{paymentStageLabel(o.payment_stage)}}</td><td>¥{{o.total_amount||o.amount}} / ¥{{o.paid_amount||o.amount}}</td><td>{{o.seller_name||'-'}}/{{o.seller_role||'-'}}</td><td>¥{{o.seller_commission_amount||o.sales_commission_amount||0}}</td><td>{{o.referrer_name||'-'}} / ¥{{o.referrer_commission_amount||0}}</td><td>{{Number(o.pay_status)===1?'已支付':'待支付'}}</td><td><button class="btn-mini btn-secondary" @click="viewRecord('订单详情',o)">查看</button><button class="btn-mini" @click="editOrder(o)">编辑</button></td></tr></tbody></table>
-    </section>
-
-    <section class="content-card" v-if="activeTab==='referrers'">
-      <h2>推荐者管理</h2>
-      <form class="inline-form" @submit.prevent="loadReferrers"><input v-model.trim="referrerKeyword" placeholder="搜索姓名/手机号/渠道"><button type="submit" class="btn-secondary">查询</button></form>
-      <div class="section-actions"><button type="button" @click="openEditor('referrer', false)">新增推荐者</button></div><form :class="['inline-form','editor-form',{show:activeEditor==='referrer'}]" @submit.prevent="saveReferrer"><input v-model.trim="referrerForm.name" placeholder="推荐者姓名" required><input v-model.trim="referrerForm.wechat_name" placeholder="微信名"><input v-model.trim="referrerForm.phone" placeholder="手机号" required><input v-model.trim="referrerForm.channel" placeholder="渠道"><select v-model="referrerForm.commission_type"><option value="rate">比例</option><option value="fixed">固定金额</option></select><input v-model.number="referrerForm.commission_rate" type="number" step="0.01" min="0" max="100" placeholder="分成比例%"><input v-model.number="referrerForm.fixed_amount" type="number" step="0.01" placeholder="固定金额"><input v-model.trim="referrerForm.payout_detail" placeholder="发放方式详情"><input v-model.trim="referrerForm.remark" placeholder="备注"><select v-model.number="referrerForm.status"><option :value="1">启用</option><option :value="0">禁用</option></select><button>{{referrerForm.id?'保存推荐者':'新增推荐者'}}</button><button type="button" class="btn-secondary" @click="closeEditor">取消</button></form>
-      <table class="table"><thead><tr><th>ID</th><th>姓名</th><th>手机</th><th>渠道</th><th>分成比例</th><th>状态</th><th>操作</th></tr></thead><tbody><tr v-for="r in referrers" :key="r.id"><td>{{r.id}}</td><td>{{r.name}}</td><td>{{r.phone}}</td><td>{{r.channel}}</td><td>{{r.commission_rate}}%</td><td>{{Number(r.status)===1?'启用':'禁用'}}</td><td><button class="btn-mini btn-secondary" @click="viewRecord('推荐者详情',r)">查看</button><button class="btn-mini" @click="editReferrer(r)">编辑</button></td></tr></tbody></table>
-    </section>
-
-
-    <section class="content-card" v-if="activeTab==='receipts'">
-      <h2>收款单管理</h2>
-      <div class="section-actions"><button type="button" @click="openEditor('receipt', false)">新增收款单</button></div><form :class="['inline-form','editor-form',{show:activeEditor==='receipt'}]" @submit.prevent="saveReceipt"><select v-model.number="receiptForm.order_id" required><option value="">选择订单</option><option v-for="o in orders" :value="Number(o.id)">#{{o.id}} {{o.student_name}}/{{o.course_name}}</option></select><input v-model.trim="receiptForm.receipt_no" placeholder="收款单号" required><input v-model.number="receiptForm.amount" type="number" step="0.01" placeholder="金额" required><select v-model="receiptForm.channel"><option value="">收款渠道</option><option v-for="x in receiptChannelOptions" :key="x" :value="x">{{x}}</option></select><select v-model.number="receiptForm.receiver_user_id"><option :value="0">收款人(员工)</option><option v-for="u in users" :value="Number(u.id)">{{u.real_name}}</option></select><input v-model="receiptForm.pay_time" type="datetime-local"><input v-model="receiptForm.refund_time" type="datetime-local"><input v-model.number="receiptForm.refund_amount" type="number" step="0.01" placeholder="退款金额"><select v-model.number="receiptForm.verified_status"><option :value="0">未核销</option><option :value="1">已核销</option></select><input v-model.trim="receiptForm.remark" placeholder="备注"><button>{{receiptForm.id?'保存收款单':'新增收款单'}}</button><button type="button" class="btn-secondary" @click="closeEditor">取消</button></form>
-      <table class="table"><thead><tr><th>单号</th><th>订单</th><th>学员/课程</th><th>金额</th><th>核销</th><th>操作</th></tr></thead><tbody><tr v-for="r in receipts" :key="r.id"><td>{{r.receipt_no}}</td><td>#{{r.order_id}}</td><td>{{r.student_name}}/{{r.course_name}}</td><td>¥{{r.amount}}</td><td>{{Number(r.verified_status)===1?'已核销':'未核销'}}</td><td><button class="btn-mini btn-secondary" @click="viewRecord('收款单详情',r)">查看</button><button class="btn-mini" @click="editReceipt(r)">编辑</button></td></tr></tbody></table>
-    </section>
-
-    <section class="content-card" v-if="activeTab==='delivery_logs'">
-      <h2>交付记录</h2>
-      <div class="section-actions"><button type="button" @click="openEditor('delivery', false)">新增交付记录</button></div><form :class="['inline-form','editor-form',{show:activeEditor==='delivery'}]" @submit.prevent="saveDeliveryLog"><select v-model.number="deliveryLogForm.student_id" required><option value="">选择学员</option><option v-for="s in students" :value="Number(s.id)">{{s.name||s.wechat}}</option></select><select v-model.number="deliveryLogForm.coach_user_id"><option :value="0">选择教练</option><option v-for="u in users.filter(x=>x.role==='教练')" :value="Number(u.id)">{{u.real_name}}</option></select><input v-model.trim="deliveryLogForm.progress_stage" placeholder="阶段(开班/中期/结课)"><input v-model="deliveryLogForm.log_date" type="date" required><input v-model.trim="deliveryLogForm.content" placeholder="交付记录" required><button>{{deliveryLogForm.id?'保存记录':'新增记录'}}</button><button type="button" class="btn-secondary" @click="closeEditor">取消</button></form>
-      <table class="table"><thead><tr><th>学员</th><th>教练</th><th>阶段</th><th>日期</th><th>内容</th><th>操作</th></tr></thead><tbody><tr v-for="l in deliveryLogs" :key="l.id"><td>{{l.student_name}}</td><td>{{l.coach_name||'-'}}</td><td>{{l.progress_stage}}</td><td>{{l.log_date}}</td><td>{{l.content}}</td><td><button class="btn-mini btn-secondary" @click="viewRecord('交付记录详情',l)">查看</button><button class="btn-mini" @click="editDeliveryLog(l)">编辑</button></td></tr></tbody></table>
-    </section>
-
     <section class="content-card" v-if="activeTab==='department_stats'">
       <h2>部门统计</h2>
       <table class="table"><thead><tr><th>部门</th><th>人员</th><th>学员</th><th>订单</th><th>实收</th><th>销售分成</th><th>教练销售分成</th><th>推荐分成</th></tr></thead><tbody><tr v-for="d in departmentStats" :key="d.department"><td>{{d.department||'未分配'}}</td><td>{{d.user_count}}</td><td>{{d.student_count}}</td><td>{{d.order_count}}</td><td>¥{{d.paid_amount}}</td><td>¥{{d.sales_commission}}</td><td>¥{{d.coach_sales_commission||0}}</td><td>¥{{d.referrer_commission}}</td></tr></tbody></table>
-    </section>
-
-    <section class="content-card" v-if="activeTab==='finance'">
-      <h2>财务管理</h2>
-      <div class="cards"><div class="stat"><span>收入</span><strong>¥{{ finance.summary.income || 0 }}</strong></div><div class="stat"><span>支出</span><strong>¥{{ finance.summary.expense || 0 }}</strong></div><div class="stat"><span>结余</span><strong>¥{{ finance.summary.balance || 0 }}</strong></div></div>
-      <div class="section-actions"><button type="button" @click="openEditor('finance', false)">新增财务记录</button></div><form :class="['inline-form','editor-form',{show:activeEditor==='finance'}]" @submit.prevent="saveFinance"><select v-model="financeForm.record_type"><option value="income">收入</option><option value="expense">支出</option></select><input v-model.trim="financeForm.item_name" placeholder="项目名" required><input v-model.number="financeForm.amount" type="number" step="0.01" placeholder="金额" required><input v-model="financeForm.record_date" type="date" required><button>{{financeForm.id?'保存记录':'新增记录'}}</button><button type="button" class="btn-secondary" @click="closeEditor">取消</button></form>
-      <table class="table"><thead><tr><th>类型</th><th>项目</th><th>金额</th><th>日期</th><th>操作</th></tr></thead><tbody><tr v-for="f in finance.list" :key="f.id"><td>{{f.record_type}}</td><td>{{f.item_name}}</td><td>¥{{f.amount}}</td><td>{{f.record_date}}</td><td><button class="btn-mini btn-secondary" @click="viewRecord('财务记录详情',f)">查看</button><button class="btn-mini" @click="editFinance(f)">编辑</button></td></tr></tbody></table>
-    </section>
-
-    <section class="content-card" v-if="activeTab==='todos'">
-      <h2>待办管理</h2>
-      <div class="section-actions"><button type="button" @click="openEditor('todo', false)">新增待办</button></div><form :class="['inline-form','editor-form',{show:activeEditor==='todo'}]" @submit.prevent="saveTodo"><input v-model.trim="todoForm.title" placeholder="待办事项" required><select v-model="todoForm.priority"><option>高</option><option>中</option><option>低</option></select><select v-model="todoForm.status"><option value="todo">todo</option><option value="doing">doing</option><option value="done">done</option></select><input v-model="todoForm.due_date" type="date"><button>{{todoForm.id?'保存待办':'新增待办'}}</button><button type="button" class="btn-secondary" @click="closeEditor">取消</button></form>
-      <table class="table"><thead><tr><th>事项</th><th>优先级</th><th>状态</th><th>截止日</th><th>操作</th></tr></thead><tbody><tr v-for="t in todos" :key="t.id"><td>{{t.title}}</td><td>{{t.priority}}</td><td>{{t.status}}</td><td>{{t.due_date}}</td><td><button class="btn-mini btn-secondary" @click="viewRecord('待办详情',t)">查看</button><button class="btn-mini" @click="editTodo(t)">编辑</button></td></tr></tbody></table>
-    </section>
-
-    <section class="content-card" v-if="activeTab==='notifications'">
-      <h2>通知管理</h2>
-      <div class="section-actions"><button type="button" @click="openEditor('notification', false)">发送通知</button></div><form :class="['inline-form','editor-form',{show:activeEditor==='notification'}]" @submit.prevent="saveNotification"><input v-model.trim="notificationForm.title" placeholder="标题" required><input v-model.trim="notificationForm.content" placeholder="内容" required><select v-model.number="notificationForm.is_read"><option :value="0">未读</option><option :value="1">已读</option></select><button>{{notificationForm.id?'保存通知':'发送通知'}}</button><button type="button" class="btn-secondary" @click="closeEditor">取消</button></form>
-      <table class="table"><thead><tr><th>标题</th><th>内容</th><th>状态</th><th>操作</th></tr></thead><tbody><tr v-for="n in notifications" :key="n.id"><td>{{n.title}}</td><td>{{n.content}}</td><td>{{Number(n.is_read)===1?'已读':'未读'}}</td><td><button class="btn-mini btn-secondary" @click="viewRecord('通知详情',n)">查看</button><button class="btn-mini" @click="editNotification(n)">编辑</button></td></tr></tbody></table>
-    </section>
-
-    <section class="content-card" v-if="activeTab==='users'">
-      <h2>员工管理（RBAC）</h2>
-      <form class="inline-form" @submit.prevent="loadUsers"><input v-model.trim="userKeyword" placeholder="搜索用户名/姓名/手机"><button type="submit" class="btn-secondary">查询</button></form>
-      <div class="section-actions"><button type="button" @click="openEditor('user', false)">新增员工</button></div><form :class="['inline-form','editor-form',{show:activeEditor==='user'}]" @submit.prevent="saveUser">
-        <div class="form-section-title">系统相关信息</div>
-        <input v-model.trim="userForm.username" placeholder="登录账号（可编辑）" required>
-        <input v-model="userForm.password" type="password" :placeholder="userForm.id ? '新密码（不填则不修改）' : '初始密码'" :required="!userForm.id">
-        <select v-model="userForm.role" required><option value="">角色</option><option v-for="x in roleOptions" :key="'r'+x" :value="x">{{x}}</option></select>
-        <select v-model.number="userForm.status"><option :value="1">启用</option><option :value="0">禁用</option></select>
-
-        <div class="form-section-title">员工个人详细信息</div>
-        <input v-model.trim="userForm.employee_no" placeholder="员工编号">
-        <input v-model.trim="userForm.company_name" placeholder="所在公司">
-        <input v-model.trim="userForm.real_name" placeholder="姓名" required>
-        <select v-model="userForm.department"><option value="">部门</option><option v-for="x in departmentOptions" :key="'d'+x" :value="x">{{x}}</option></select>
-        <select v-model="userForm.position"><option value="">职位</option><option v-for="x in positionOptions" :key="'p'+x" :value="x">{{x}}</option></select>
-        <input v-model.trim="userForm.mobile" placeholder="手机号">
-        <input v-model.trim="userForm.social_city" placeholder="社保缴纳城市">
-        <input v-model.trim="userForm.hukou_place" placeholder="户籍地">
-        <select v-model="userForm.hukou_type"><option value="">户籍性质</option><option>城镇</option><option>农村</option></select>
-        <input v-model.trim="userForm.id_no" placeholder="身份证号">
-        <input v-model="userForm.birth_date" type="date" placeholder="出生日期">
-        <input v-model.number="userForm.age" type="number" placeholder="年龄">
-        <select v-model="userForm.gender"><option value="">性别</option><option value="男">男</option><option value="女">女</option></select>
-        <input v-model.trim="userForm.native_place" placeholder="籍贯"><input v-model.trim="userForm.ethnicity" placeholder="民族">
-        <input v-model.trim="userForm.marital_status" placeholder="婚姻状况">
-        <input v-model.trim="userForm.home_address" placeholder="现家庭住址">
-        <input v-model.trim="userForm.emergency_contact" placeholder="紧急联系人及电话">
-        <input v-model.trim="userForm.education" placeholder="学历"><input v-model.trim="userForm.graduation_school" placeholder="毕业学校"><input v-model.trim="userForm.major" placeholder="专业">
-        <input v-model="userForm.hire_date" type="date" placeholder="入职日期"><input v-model.trim="userForm.contract_years" placeholder="签订年限"><input v-model.number="userForm.working_days" type="number" placeholder="在职天数"><input v-model="userForm.contract_end_date" type="date" placeholder="合同截止日期">
-        <select v-model.number="userForm.is_probation"><option :value="1">试用期</option><option :value="0">已转正</option></select>
-        <input v-model.number="userForm.probation_salary" type="number" step="0.01" placeholder="试用期工资"><input v-model="userForm.regular_date" type="date" placeholder="转正日期"><input v-model.number="userForm.regular_salary" type="number" step="0.01" placeholder="转正工资">
-        <input v-model.trim="userForm.bank_name" placeholder="开户行"><input v-model.trim="userForm.bank_card_no" placeholder="工资卡号">
-        <input v-model.trim="userForm.salary_adjust_records" placeholder="调薪记录">
-        <select v-model="userForm.employment_status"><option>在职</option><option>离职</option></select><input v-model="userForm.leave_date" type="date" placeholder="离职时间">
-        <input v-model.trim="userForm.remark" placeholder="备注">
-        <button>{{ userForm.id ? '保存员工' : '新增员工' }}</button>
-        <button type="button" class="btn-secondary" @click="closeEditor">取消</button>
-      </form>
-      <table class="table"><thead><tr><th>ID</th><th>员工编号</th><th>姓名</th><th>账号</th><th>角色</th><th>部门/职位</th><th>联系方式</th><th>入职/状态</th><th>操作</th></tr></thead><tbody><tr v-for="u in users" :key="u.id"><td>{{u.id}}</td><td>{{u.employee_no||"-"}}</td><td>{{u.real_name||"-"}}</td><td>{{u.username}}</td><td>{{u.role||"-"}}</td><td>{{u.department||"-"}} / {{u.position||"-"}}</td><td>{{u.mobile||"-"}}<br><small>{{u.email||"-"}}</small></td><td>{{u.hire_date||"-"}} / {{Number(u.status)===1?'启用':'禁用'}}</td><td><button class="btn-mini btn-secondary" @click="viewRecord('员工详情',u)">查看</button><button class="btn-mini" @click="editUser(u)">编辑</button></td></tr></tbody></table>
-    </section>
-
-    <section class="content-card" v-if="activeTab==='departments'">
-      <h2>部门管理</h2>
-      <div class="section-actions"><button type="button" @click="openEditor('department', false)">新增部门</button></div><form :class="['inline-form','editor-form',{show:activeEditor==='department'}]" @submit.prevent="saveDepartment"><input v-model.trim="departmentForm.dept_name" placeholder="部门名称" required><input v-model.trim="departmentForm.dept_code" placeholder="部门编码" required><input v-model.trim="departmentForm.parent_name" placeholder="上级部门"><input v-model.number="departmentForm.sort_no" type="number" placeholder="排序"><button>{{departmentForm.id?'保存部门':'新增部门'}}</button><button type="button" class="btn-secondary" @click="closeEditor">取消</button></form>
-      <table class="table"><thead><tr><th>ID</th><th>部门</th><th>编码</th><th>上级</th><th>操作</th></tr></thead><tbody><tr v-for="d in departments" :key="d.id"><td>{{d.id}}</td><td>{{d.dept_name}}</td><td>{{d.dept_code}}</td><td>{{d.parent_name}}</td><td><button class="btn-mini btn-secondary" @click="viewRecord('部门详情',d)">查看</button><button class="btn-mini" @click="editDepartment(d)">编辑</button></td></tr></tbody></table>
-    </section>
-
-    <section class="content-card" v-if="activeTab==='menus'">
-      <h2>菜单管理（与左侧菜单对应）</h2>
-      <div class="section-actions"><button type="button" @click="openEditor('menu', false)">新增菜单</button></div><form :class="['inline-form','editor-form',{show:activeEditor==='menu'}]" @submit.prevent="saveMenu"><input v-model.trim="menuForm.parent_name" placeholder="一级菜单" required><input v-model.trim="menuForm.menu_name" placeholder="二级菜单名" required><input v-model.trim="menuForm.menu_key" placeholder="菜单key" required><input v-model.trim="menuForm.path" placeholder="路径" required><button>{{menuForm.id?'保存菜单':'新增菜单'}}</button><button type="button" class="btn-secondary" @click="closeEditor">取消</button></form>
-      <table class="table"><thead><tr><th>一级</th><th>二级</th><th>KEY</th><th>PATH</th><th>操作</th></tr></thead><tbody><tr v-for="m in menus" :key="m.id"><td>{{m.parent_name}}</td><td>{{m.menu_name}}</td><td>{{m.menu_key}}</td><td>{{m.path}}</td><td><button class="btn-mini btn-secondary" @click="viewRecord('菜单详情',m)">查看</button><button class="btn-mini" @click="editMenu(m)">编辑</button></td></tr></tbody></table>
-    </section>
-
-    <section class="content-card" v-if="activeTab==='rbac_groups'">
-      <h2>系统管理 / 角色管理</h2>
-      <div class="section-actions"><button type="button" @click="openEditor('group', false)">新增角色</button></div><form :class="['inline-form','editor-form',{show:activeEditor==='group'}]" @submit.prevent="saveGroup"><input v-model.trim="groupForm.group_name" placeholder="角色名" required><input v-model.trim="groupForm.group_code" placeholder="组编码" required><input v-model.trim="groupForm.remark" placeholder="备注"><button>{{groupForm.id?'保存角色':'新增角色'}}</button><button type="button" class="btn-secondary" @click="closeEditor">取消</button></form>
-      <table class="table"><thead><tr><th>ID</th><th>角色名</th><th>编码</th><th>备注</th><th>操作</th></tr></thead><tbody><tr v-for="g in groups" :key="g.id"><td>{{g.id}}</td><td>{{g.group_name}}</td><td>{{g.group_code}}</td><td>{{g.remark}}</td><td><button class="btn-mini" @click="editGroup(g)">编辑</button></td></tr></tbody></table>
-    </section>
-
-    <section class="content-card" v-if="activeTab==='rbac_permissions'">
-      <h2>系统管理 / 权限管理</h2>
-      <div class="section-actions"><button type="button" @click="openEditor('perm', false)">新增权限</button></div><form :class="['inline-form','editor-form',{show:activeEditor==='perm'}]" @submit.prevent="savePerm"><input v-model.trim="permForm.perm_name" placeholder="权限名称" required><input v-model.trim="permForm.perm_code" placeholder="权限编码" required><input v-model.trim="permForm.module_name" placeholder="模块名"><button>{{permForm.id?'保存权限':'新增权限'}}</button><button type="button" class="btn-secondary" @click="closeEditor">取消</button></form>
-      <table class="table"><thead><tr><th>ID</th><th>权限名</th><th>编码</th><th>模块</th><th>操作</th></tr></thead><tbody><tr v-for="p in perms" :key="p.id"><td>{{p.id}}</td><td>{{p.perm_name}}</td><td>{{p.perm_code}}</td><td>{{p.module_name}}</td><td><button class="btn-mini btn-secondary" @click="viewRecord('权限详情',p)">查看</button><button class="btn-mini" @click="editPerm(p)">编辑</button></td></tr></tbody></table>
-    </section>
-
-    <section class="content-card" v-if="activeTab==='rbac_assign'">
-      <h2>系统管理 / 权限组分配</h2>
-      <div class="cards">
-        <div>
-          <h3>用户 -> 角色</h3>
-          <form class="inline-form" @submit.prevent="assignUserGroup"><select v-model.number="assignForm.user_id" required><option value="">选择用户</option><option v-for="u in users" :value="Number(u.id)">{{u.username}}</option></select><select v-model.number="assignForm.group_id" required><option value="">选择角色</option><option v-for="g in groups" :value="Number(g.id)">{{g.group_name}}</option></select><button>分配</button></form>
-          <table class="table"><thead><tr><th>用户</th><th>角色</th><th></th></tr></thead><tbody><tr v-for="x in assignData.user_groups" :key="'ug'+x.id"><td>{{x.username}}</td><td>{{x.group_name}}</td><td><button class="btn-mini btn-danger" @click="delAssign('user_group',x.id)">删除</button></td></tr></tbody></table>
-        </div>
-        <div>
-          <h3>角色 -> 权限</h3>
-          <form class="inline-form" @submit.prevent="assignGroupPerm"><select v-model.number="assignForm2.group_id" required><option value="">选择角色</option><option v-for="g in groups" :value="Number(g.id)">{{g.group_name}}</option></select><select v-model.number="assignForm2.perm_id" required><option value="">选择权限</option><option v-for="p in perms" :value="Number(p.id)">{{p.perm_name}}</option></select><button>分配</button></form>
-          <table class="table"><thead><tr><th>组</th><th>权限</th><th></th></tr></thead><tbody><tr v-for="x in assignData.group_perms" :key="'gp'+x.id"><td>{{x.group_name}}</td><td>{{x.perm_name}}</td><td><button class="btn-mini btn-danger" @click="delAssign('group_perm',x.id)">删除</button></td></tr></tbody></table>
-        </div>
-      </div>
     </section>
 
     <div class="editor-overlay" v-if="activeEditor" @click="closeEditor"></div>
@@ -411,7 +227,7 @@ createApp({
     const assignGroupPerm=()=>createHelper('/api/rbac_assign.php',{type:'group_perm',...assignForm2},loadAssign);
     const delAssign=async(type,id)=>{try{await api(`/api/rbac_assign.php?type=${type}&id=${id}`,{method:'DELETE'}); await loadAssign();}catch(e){error.value=e.message;}};
 
-    const reloadAll=async()=>{error.value=''; try{await Promise.all([loadSummary(),loadStudents(),loadCourses(),loadOrders(),loadReferrers(),loadReceipts(),loadDeliveryLogs(),loadDepartmentStats(),loadFinance(),loadTodos(),loadNotifications(),loadUsers(),loadDepartments(),loadMetaOptions(),loadMenus(),loadGroups(),loadPerms(),loadAssign()]);}catch(e){error.value=e.message;}};
+    const reloadAll=async()=>{error.value=''; try{await Promise.all([loadDepartmentStats()]);}catch(e){error.value=e.message;}};
     const toggleSidebar=()=>{sidebarOpen.value=!sidebarOpen.value;};
     const selectMenu=(menuKey)=>{if(activeTab.value!==menuKey){activeTab.value=menuKey;} if(isMobile.value) sidebarOpen.value=false;};
     const viewRecord=(title,row)=>{detailDialog.open=true;detailDialog.title=title;detailDialog.content=JSON.stringify(row,null,2);};
