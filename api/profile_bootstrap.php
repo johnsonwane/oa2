@@ -2,15 +2,33 @@
 
 function ensure_table_columns(PDO $pdo, string $table, array $columns): void
 {
+    if ($table === '' || empty($columns)) {
+        return;
+    }
+
+    $tableStmt = $pdo->prepare('SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?');
+    $tableStmt->execute([$table]);
+    if ((int)$tableStmt->fetchColumn() === 0) {
+        return;
+    }
+
     $exists = [];
-    $stmt = $pdo->query("SHOW COLUMNS FROM `{$table}`");
-    foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
-        $exists[$row['Field']] = true;
+    $columnStmt = $pdo->prepare('SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?');
+    $columnStmt->execute([$table]);
+    foreach ($columnStmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+        $name = (string)($row['COLUMN_NAME'] ?? '');
+        if ($name !== '') {
+            $exists[$name] = true;
+        }
     }
 
     foreach ($columns as $name => $ddl) {
         if (!isset($exists[$name])) {
-            $pdo->exec("ALTER TABLE `{$table}` ADD COLUMN {$ddl}");
+            try {
+                $pdo->exec("ALTER TABLE `{$table}` ADD COLUMN {$ddl}");
+            } catch (Throwable $e) {
+                // 兼容生产环境只读账号或受限权限，忽略补列失败。
+            }
         }
     }
 }
