@@ -364,8 +364,11 @@ createApp({
     const csvEscape=(v)=>{const t=String(v??''); if(/[",\n]/.test(t)) return '"'+t.replace(/"/g,'""')+'"'; return t;};
     const toCsv=(rows)=>{if(!rows.length) return ''; const headers=[...new Set(rows.flatMap(r=>Object.keys(r||{})))]; const lines=[headers.join(',')]; rows.forEach(r=>lines.push(headers.map(h=>csvEscape(r?.[h]??'')).join(','))); return '\uFEFF'+lines.join('\n');};
     const parseCsvLine=(line)=>{const out=[]; let cur=''; let q=false; for(let i=0;i<line.length;i++){const ch=line[i]; if(ch==='"'){ if(q && line[i+1]==='"'){cur+='"'; i++;} else {q=!q;} } else if(ch===',' && !q){out.push(cur); cur='';} else {cur+=ch;} } out.push(cur); return out;};
-    const fromCsv=(text)=>{const lines=text.replace(/^\uFEFF/,'').split(/\r?\n/).filter(Boolean); if(!lines.length) return []; const headers=parseCsvLine(lines[0]); return lines.slice(1).map(l=>{const vals=parseCsvLine(l); const o={}; headers.forEach((h,i)=>o[h]=vals[i]??''); return o;});};
-    const cleanImportRow=(row)=>{const o={...row}; delete o.id; delete o.created_at; delete o.updated_at; if('enrolled_courses' in o && typeof o.enrolled_courses==='string' && o.enrolled_courses.trim().startsWith('[')){ try{o.enrolled_courses=JSON.parse(o.enrolled_courses);}catch(_){}}; return o;};
+    const splitCsvRows=(text)=>{const rows=[]; let cur=''; let q=false; for(let i=0;i<text.length;i++){const ch=text[i]; if(ch==='"'){ if(q && text[i+1]==='"'){cur+='""'; i++;} else {q=!q; cur+=ch;} } else if((ch==='\n'||ch==='\r') && !q){ if(ch==='\r' && text[i+1]==='\n') i++; if(cur.trim()!=='') rows.push(cur); cur=''; } else {cur+=ch;} } if(cur.trim()!=='') rows.push(cur); return rows;};
+    const fromCsv=(text)=>{const rows=splitCsvRows(text.replace(/^\uFEFF/,'')); if(!rows.length) return []; const headers=parseCsvLine(rows[0]); return rows.slice(1).map(l=>{const vals=parseCsvLine(l); const o={}; headers.forEach((h,i)=>o[h]=vals[i]??''); return o;});};
+    const normalizeSlashDate=(v)=>{if(typeof v!=='string') return v; const t=v.trim(); if(!t||!t.includes('/')) return v; const m=t.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})(?:[ T](\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?$/); if(!m) return v; const y=m[1]; const mm=m[2].padStart(2,'0'); const dd=m[3].padStart(2,'0'); if(!m[4]) return `${y}-${mm}-${dd}`; const hh=m[4].padStart(2,'0'); const mi=m[5].padStart(2,'0'); const ss=(m[6]||'00').padStart(2,'0'); return `${y}-${mm}-${dd} ${hh}:${mi}:${ss}`;};
+    const cleanImportRow=(row)=>{const o={...row}; delete o.id; delete o.created_at; delete o.updated_at; Object.keys(o).forEach(k=>{o[k]=normalizeSlashDate(o[k]);}); if('enrolled_courses' in o && typeof o.enrolled_courses==='string' && o.enrolled_courses.trim().startsWith('[')){ try{o.enrolled_courses=JSON.parse(o.enrolled_courses);}catch(_){}}; return o;};
+    const decodeImportFile=async(file)=>{const buf=await file.arrayBuffer(); try{return new TextDecoder('utf-8',{fatal:true}).decode(buf);}catch(_){try{return new TextDecoder('gb18030').decode(buf);}catch(__){return new TextDecoder().decode(buf);}}};
 
     const exportCurrentTab=async()=>{
       if(!canImportExportTab()) return;
@@ -391,7 +394,7 @@ createApp({
       error.value='';
       try{
         const conf=ioConfig[activeTab.value];
-        const text=await f.text();
+        const text=await decodeImportFile(f);
         const rows=fromCsv(text);
         const oldData=await api(conf.url);
         const oldRows=conf.list(oldData)||[];
@@ -418,7 +421,7 @@ createApp({
     onMounted(async()=>{window.addEventListener('resize',onResize);const t=localStorage.getItem('oa_token');const u=localStorage.getItem('oa_user');if(!t||!u){location.href='./login.html';return;}user.value=JSON.parse(u||'{}');await reloadAll();});
     onBeforeUnmount(()=>window.removeEventListener('resize',onResize));
 
-    return {activeTab,error,user,summary,students,courses,orders,referrers,receipts,deliveryLogs,departmentStats,finance,todos,notifications,users,departments,menus,groups,perms,assignData,groupedMenus,departmentOptions,positionOptions,roleOptions,receiptChannelOptions,studentKeyword,studentCategory,orderKeyword,referrerKeyword,userKeyword,sidebarOpen,isMobile,detailDialog,activeEditor,importFileRef,toggleSidebar,selectMenu,viewRecord,closeDetailDialog,openEditor,closeEditor,canImportExportTab,exportCurrentTab,triggerImport,handleImportFile,
+    return {activeTab,error,user,summary,students,courses,orders,referrers,receipts,deliveryLogs,departmentStats,finance,todos,notifications,users,departments,menus,groups,perms,assignData,groupedMenus,departmentOptions,positionOptions,roleOptions,receiptChannelOptions,studentKeyword,studentCategory,orderKeyword,referrerKeyword,userKeyword,sidebarOpen,isMobile,detailDialog,activeEditor,importFileRef,toggleSidebar,selectMenu,viewRecord,closeDetailDialog,openEditor,closeEditor,canImportExportTab,exportCurrentTab,triggerImport,handleImportFile,decodeImportFile,
       studentForm,courseForm,orderForm,financeForm,referrerForm,receiptForm,deliveryLogForm,todoForm,notificationForm,userForm,departmentForm,menuForm,groupForm,permForm,assignForm,assignForm2,
       formatCourses,paymentStageLabel,saveStudent,editStudent,resetStudentForm,saveCourse,editCourse,resetCourseForm,saveOrder,editOrder,resetOrderForm,saveFinance,editFinance,resetFinanceForm,resetReferrerForm,editReferrer,saveReferrer,resetReceiptForm,editReceipt,saveReceipt,resetDeliveryLogForm,editDeliveryLog,saveDeliveryLog,saveTodo,editTodo,resetTodoForm,saveNotification,editNotification,resetNotificationForm,saveDepartment,editDepartment,resetDepartmentForm,saveUser,editUser,resetUserForm,saveMenu,editMenu,resetMenuForm,saveGroup,editGroup,resetGroupForm,savePerm,editPerm,resetPermForm,assignUserGroup,assignGroupPerm,delAssign,reloadAll,logout};
   }
