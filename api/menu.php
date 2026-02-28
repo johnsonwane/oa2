@@ -2,13 +2,30 @@
 require_once __DIR__ . '/common.php';
 require_once __DIR__ . '/db.php';
 
+
+function normalize_menu_row(array $menu): array
+{
+    $key = (string)($menu['menu_key'] ?? '');
+    if ($key === 'users') {
+        $menu['menu_name'] = '员工管理';
+    }
+    if ($key === 'todos') {
+        $menu['menu_name'] = '待办';
+        $menu['parent_name'] = '总览';
+        $menu['sort_no'] = 2;
+    }
+    return $menu;
+}
+
+
 try {
     $pdo = get_db_connection();
     $method = $_SERVER['REQUEST_METHOD'];
 
     if ($method === 'GET') {
         $stmt = $pdo->query('SELECT id, menu_name, menu_key, path, icon, sort_no, status, parent_name FROM oa_menu ORDER BY sort_no ASC, id ASC');
-        json_response(0, '查询成功', $stmt->fetchAll());
+        $rows = array_map('normalize_menu_row', $stmt->fetchAll());
+        json_response(0, '查询成功', $rows);
     }
 
     if ($method === 'POST') {

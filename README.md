@@ -9,7 +9,6 @@
 ## H5 页面入口
 
 - `login.html`：登录页
-- `index.html`：管理台（左侧菜单 + 右侧模块）
 - `assets/style.css`：样式文件
 
 - 独立菜单页面（按模块拆分）：`overview.html`、`students.html`、`courses.html`、`orders.html`、`referrers.html`、`receipts.html`、`delivery_logs.html`、`department_stats.html`、`finance.html`、`todos.html`、`notifications.html`、`users.html`、`departments.html`、`menus.html`、`rbac_groups.html`、`rbac_permissions.html`、`rbac_assign.html`
@@ -55,7 +54,7 @@
 2. 将导入导出能力逐步后端化（保留前端入口）。
 
 ### Phase 3：前端结构治理（待执行）
-1. 拆分 `index.html` 超大脚本为模块化能力。
+1. 继续收敛独立页面公共能力，减少重复脚本。
 2. 统一新增/编辑/查看的表单 schema 与交互。
 
 ### 当前已执行的小步（含验证）
@@ -112,7 +111,7 @@ mysql -uroot -p < db/schema.sql
 
 - 学员资料已扩展为常见培训行业字段：性别、生日、手机号、微信、身份证号、意向等级、跟进状态、来源渠道、报课名称（数组）、顾问、交付教练、监护人信息、地址、备注等。
 - 员工资料已扩展为常见组织字段：性别、手机号、邮箱、身份证号、部门、岗位、入职日期、备注等。
-- 前端 `index.html` 已支持学员与用户的编辑（点击列表“编辑”回填表单后保存）。
+- 前端独立页面已支持学员与员工编辑（点击列表“编辑”回填表单后保存）。
 
 - 学员资料新增：报课名称（数组）、交付教练；并移除校区、班级字段。
 

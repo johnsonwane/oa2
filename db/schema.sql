@@ -296,10 +296,10 @@ INSERT INTO oa_permission (perm_name, perm_code, module_name, remark, status) VA
 ('菜单课程', 'menu_courses', '菜单可见性', '可见课程管理', 1),
 ('菜单订单', 'menu_orders', '菜单可见性', '可见订单管理', 1),
 ('菜单财务', 'menu_finance', '菜单可见性', '可见财务管理', 1),
-('菜单待办', 'menu_todos', '菜单可见性', '可见待办管理', 1),
+('菜单待办', 'menu_todos', '菜单可见性', '可见待办', 1),
 ('菜单通知', 'menu_notifications', '菜单可见性', '可见通知管理', 1),
 ('菜单推荐者', 'menu_referrers', '菜单可见性', '可见推荐者管理', 1),
-('菜单用户管理', 'menu_users', '菜单可见性', '可见用户管理', 1),
+('菜单员工管理', 'menu_users', '菜单可见性', '可见员工管理', 1),
 ('菜单菜单管理', 'menu_manage', '菜单可见性', '可见菜单管理', 1),
 ('菜单部门管理', 'menu_departments', '菜单可见性', '可见部门管理', 1),
 ('菜单收款单', 'menu_receipts', '菜单可见性', '可见收款单管理', 1),
@@ -325,15 +325,15 @@ SELECT u.id, g.id FROM oa_user u, oa_user_group g WHERE u.username='boss01' AND 
 INSERT IGNORE INTO oa_group_permission_rel (group_id, perm_id)
 SELECT g.id, p.id FROM oa_user_group g, oa_permission p WHERE g.group_code='super_admin';
 INSERT IGNORE INTO oa_group_permission_rel (group_id, perm_id)
-SELECT g.id, p.id FROM oa_user_group g, oa_permission p WHERE g.group_code='consultant_role' AND p.perm_code IN ('menu_overview','menu_students','menu_notifications');
+SELECT g.id, p.id FROM oa_user_group g, oa_permission p WHERE g.group_code='consultant_role' AND p.perm_code IN ('menu_overview','menu_todos','menu_students','menu_notifications');
 INSERT IGNORE INTO oa_group_permission_rel (group_id, perm_id)
-SELECT g.id, p.id FROM oa_user_group g, oa_permission p WHERE g.group_code='headteacher_role' AND p.perm_code IN ('menu_overview','menu_students','menu_orders','menu_finance','menu_notifications','menu_referrers');
+SELECT g.id, p.id FROM oa_user_group g, oa_permission p WHERE g.group_code='headteacher_role' AND p.perm_code IN ('menu_overview','menu_todos','menu_students','menu_orders','menu_finance','menu_notifications','menu_referrers');
 INSERT IGNORE INTO oa_group_permission_rel (group_id, perm_id)
-SELECT g.id, p.id FROM oa_user_group g, oa_permission p WHERE g.group_code='coach_role' AND p.perm_code IN ('menu_overview','menu_students','menu_orders','menu_delivery_logs','menu_notifications');
+SELECT g.id, p.id FROM oa_user_group g, oa_permission p WHERE g.group_code='coach_role' AND p.perm_code IN ('menu_overview','menu_todos','menu_students','menu_orders','menu_delivery_logs','menu_notifications');
 INSERT IGNORE INTO oa_group_permission_rel (group_id, perm_id)
-SELECT g.id, p.id FROM oa_user_group g, oa_permission p WHERE g.group_code='manager_role' AND p.perm_code IN ('menu_overview','menu_department_stats');
+SELECT g.id, p.id FROM oa_user_group g, oa_permission p WHERE g.group_code='manager_role' AND p.perm_code IN ('menu_overview','menu_todos','menu_department_stats');
 INSERT IGNORE INTO oa_group_permission_rel (group_id, perm_id)
-SELECT g.id, p.id FROM oa_user_group g, oa_permission p WHERE g.group_code='boss_role' AND p.perm_code IN ('menu_overview','menu_department_stats');
+SELECT g.id, p.id FROM oa_user_group g, oa_permission p WHERE g.group_code='boss_role' AND p.perm_code IN ('menu_overview','menu_todos','menu_department_stats');
 
 INSERT INTO oa_menu (parent_name, menu_name, menu_key, path, icon, sort_no, status) VALUES
 ('总览','数据总览','overview','/overview','🏠',1,1),
@@ -341,12 +341,12 @@ INSERT INTO oa_menu (parent_name, menu_name, menu_key, path, icon, sort_no, stat
 ('业务管理','课程管理','courses','/courses','📘',12,1),
 ('业务管理','订单管理','orders','/orders','🧾',13,1),
 ('业务管理','财务管理','finance','/finance','💰',14,1),
-('业务管理','待办管理','todos','/todos','✅',15,1),
+('总览','待办','todos','/todos','✅',2,1),
 ('业务管理','通知管理','notifications','/notifications','🔔',16,1),
 ('业务管理','推荐者管理','referrers','/referrers','🤝',17,1),
 ('业务管理','收款单管理','receipts','/receipts','🧾',18,1),
 ('业务管理','交付记录','delivery_logs','/delivery_logs','📒',19,1),
-('系统管理','用户管理','users','/users','👥',21,1),
+('系统管理','员工管理','users','/users','👥',21,1),
 ('系统管理','菜单管理','menus','/menus','🧭',22,1),
 ('系统管理','角色管理','rbac_groups','/rbac/groups','🧩',23,1),
 ('系统管理','权限管理','rbac_permissions','/rbac/permissions','🔐',24,1),

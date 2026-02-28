@@ -3,6 +3,21 @@ require_once __DIR__ . '/common.php';
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/rbac_bootstrap.php';
 
+
+function normalize_menu_row(array $menu): array
+{
+    $key = (string)($menu['menu_key'] ?? '');
+    if ($key === 'users') {
+        $menu['menu_name'] = '员工管理';
+    }
+    if ($key === 'todos') {
+        $menu['menu_name'] = '待办';
+        $menu['parent_name'] = '总览';
+        $menu['sort_no'] = 2;
+    }
+    return $menu;
+}
+
 function user_menus_get_user_columns(PDO $pdo): array
 {
     $columns = [];
@@ -41,6 +56,7 @@ try {
     $role = trim((string)($user['role'] ?? ''));
     if ($role === '超管' || $role === '老板' || stripos($role, 'admin') !== false) {
         $menus = $pdo->query('SELECT id, menu_name, menu_key, path, icon, sort_no, status, parent_name FROM oa_menu WHERE status=1 ORDER BY sort_no ASC, id ASC')->fetchAll();
+        $menus = array_map('normalize_menu_row', $menus);
         json_response(0, 'ok', $menus);
     }
 
@@ -73,6 +89,7 @@ try {
     ];
 
     $allMenus = $pdo->query('SELECT id, menu_name, menu_key, path, icon, sort_no, status, parent_name FROM oa_menu WHERE status=1 ORDER BY sort_no ASC, id ASC')->fetchAll();
+    $allMenus = array_map('normalize_menu_row', $allMenus);
     $permSet = array_fill_keys($permCodes, true);
 
     $visible = [];
@@ -89,6 +106,25 @@ try {
             }
         }
     }
+
+    // 待办作为默认入口，兜底确保菜单可见（兼容历史权限未补齐场景）。
+    if (!array_filter($visible, static fn($m) => (string)($m['menu_key'] ?? '') === 'todos')) {
+        foreach ($allMenus as $menu) {
+            if ((string)($menu['menu_key'] ?? '') === 'todos') {
+                $visible[] = $menu;
+                break;
+            }
+        }
+    }
+
+    usort($visible, static function ($a, $b) {
+        $sa = (int)($a['sort_no'] ?? 0);
+        $sb = (int)($b['sort_no'] ?? 0);
+        if ($sa === $sb) {
+            return (int)($a['id'] ?? 0) <=> (int)($b['id'] ?? 0);
+        }
+        return $sa <=> $sb;
+    });
 
     json_response(0, 'ok', $visible);
 } catch (Throwable $e) {
