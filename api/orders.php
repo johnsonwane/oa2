@@ -4,31 +4,70 @@ require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/order_referrer_bootstrap.php';
 require_once __DIR__ . '/business_bootstrap.php';
 
+function orders_get_user_columns(PDO $pdo): array
+{
+    try {
+        if (!function_exists('table_exists') || !table_exists($pdo, 'oa_user')) {
+            return [];
+        }
+        $columns = [];
+        $stmt = $pdo->query('SHOW COLUMNS FROM `oa_user`');
+        foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $name = (string)($row['Field'] ?? '');
+            if ($name !== '') {
+                $columns[$name] = true;
+            }
+        }
+        return $columns;
+    } catch (Throwable $e) {
+        return [];
+    }
+}
+
+function orders_try_bootstrap(callable $fn): void
+{
+    try {
+        $fn();
+    } catch (Throwable $e) {
+        // 生产环境可能只有只读权限，忽略补表失败，后续用兼容查询兜底。
+    }
+}
+
 try {
     $pdo = get_db_connection();
-    ensure_order_referrer_schema($pdo);
-    ensure_business_workflow_schema($pdo);
-    ensure_table_columns($pdo, 'oa_user', [
-        'real_name' => "`real_name` VARCHAR(50) DEFAULT ''",
-        'role' => "`role` VARCHAR(30) DEFAULT ''",
-    ]);
-    ensure_table_columns($pdo, 'oa_student', [
-        'name' => "`name` VARCHAR(50) DEFAULT ''",
-        'delivery_coach' => "`delivery_coach` VARCHAR(50) DEFAULT ''",
-    ]);
-    ensure_table_columns($pdo, 'oa_order', [
-        'amount' => "`amount` DECIMAL(10,2) NOT NULL DEFAULT 0",
-        'pay_status' => "`pay_status` TINYINT NOT NULL DEFAULT 0",
-        'created_at' => "`created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP",
-        'student_wechat_name' => "`student_wechat_name` VARCHAR(80) DEFAULT ''",
-        'student_mobile' => "`student_mobile` VARCHAR(20) DEFAULT ''",
-        'student_address' => "`student_address` VARCHAR(255) DEFAULT ''",
-        'payment_time' => "`payment_time` DATETIME DEFAULT NULL",
-        'receipt_time' => "`receipt_time` DATETIME DEFAULT NULL",
-        'refund_time' => "`refund_time` DATETIME DEFAULT NULL",
-        'refund_amount' => "`refund_amount` DECIMAL(10,2) NOT NULL DEFAULT 0",
-        'remark' => "`remark` VARCHAR(255) DEFAULT ''",
-    ]);
+    orders_try_bootstrap(static function () use ($pdo): void {
+        ensure_order_referrer_schema($pdo);
+    });
+    orders_try_bootstrap(static function () use ($pdo): void {
+        ensure_business_workflow_schema($pdo);
+    });
+    orders_try_bootstrap(static function () use ($pdo): void {
+        ensure_table_columns($pdo, 'oa_user', [
+            'real_name' => "`real_name` VARCHAR(50) DEFAULT ''",
+            'role' => "`role` VARCHAR(30) DEFAULT ''",
+        ]);
+    });
+    orders_try_bootstrap(static function () use ($pdo): void {
+        ensure_table_columns($pdo, 'oa_student', [
+            'name' => "`name` VARCHAR(50) DEFAULT ''",
+            'delivery_coach' => "`delivery_coach` VARCHAR(50) DEFAULT ''",
+        ]);
+    });
+    orders_try_bootstrap(static function () use ($pdo): void {
+        ensure_table_columns($pdo, 'oa_order', [
+            'amount' => "`amount` DECIMAL(10,2) NOT NULL DEFAULT 0",
+            'pay_status' => "`pay_status` TINYINT NOT NULL DEFAULT 0",
+            'created_at' => "`created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP",
+            'student_wechat_name' => "`student_wechat_name` VARCHAR(80) DEFAULT ''",
+            'student_mobile' => "`student_mobile` VARCHAR(20) DEFAULT ''",
+            'student_address' => "`student_address` VARCHAR(255) DEFAULT ''",
+            'payment_time' => "`payment_time` DATETIME DEFAULT NULL",
+            'receipt_time' => "`receipt_time` DATETIME DEFAULT NULL",
+            'refund_time' => "`refund_time` DATETIME DEFAULT NULL",
+            'refund_amount' => "`refund_amount` DECIMAL(10,2) NOT NULL DEFAULT 0",
+            'remark' => "`remark` VARCHAR(255) DEFAULT ''",
+        ]);
+    });
     $m = $_SERVER['REQUEST_METHOD'];
 
     $hasCol = function (string $table, string $column) use ($pdo): bool {
@@ -64,7 +103,10 @@ try {
         }
 
         if ($userId > 0) {
-            $uStmt = $pdo->prepare('SELECT role, real_name FROM oa_user WHERE id=? LIMIT 1');
+            $userColumns = orders_get_user_columns($pdo);
+            $roleSelect = isset($userColumns['role']) ? 'role' : "'' AS role";
+            $realNameSelect = isset($userColumns['real_name']) ? 'real_name' : "'' AS real_name";
+            $uStmt = $pdo->prepare("SELECT {$roleSelect}, {$realNameSelect} FROM oa_user WHERE id=? LIMIT 1");
             $uStmt->execute([$userId]);
             $u = $uStmt->fetch();
             if ($u) {
@@ -200,7 +242,9 @@ try {
         $sellerUserId = $sellerUserId > 0 ? $sellerUserId : null;
         $sellerRole = trim((string)($d['seller_role'] ?? ''));
         if ($sellerUserId !== null) {
-            $suStmt = $pdo->prepare('SELECT id, role FROM oa_user WHERE id=? LIMIT 1');
+            $userColumns = orders_get_user_columns($pdo);
+            $roleSelect = isset($userColumns['role']) ? 'role' : "'' AS role";
+            $suStmt = $pdo->prepare("SELECT id, {$roleSelect} FROM oa_user WHERE id=? LIMIT 1");
             $suStmt->execute([$sellerUserId]);
             $su = $suStmt->fetch();
             if (!$su) {
