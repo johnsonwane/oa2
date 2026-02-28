@@ -32,9 +32,50 @@
 - `GET /api/department_stats.php?user_id=xx` 部门经营统计（老板看全局，部门经理看本部门）
 - `GET /api/user_menus.php?user_id=xx` 按用户返回可见菜单（RBAC菜单过滤）
 - `GET /api/dashboard_summary.php` 统计汇总
+- `GET /api/health.php` 健康检查（DB连通/关键表）
 - `GET/POST/PUT/DELETE /api/rbac_groups.php` 角色 CRUD
 - `GET/POST/PUT/DELETE /api/rbac_permissions.php` 权限 CRUD
 - `GET/POST/DELETE /api/rbac_assign.php` 角色分配、角色权限分配
+
+
+## 整改方案与执行进展（分步实施）
+
+为降低线上 500 风险并提升可维护性，采用“小步快跑、每步验证通过后继续下一步”的执行方式：
+
+### Phase 1：稳定性（进行中）
+1. 将运行期高风险点前置可观测（健康检查）。
+2. 梳理并逐步替换“请求时自动改表”为“发布时迁移”。
+
+### Phase 2：数据与接口标准化（待执行）
+1. 统一日期/编码/导入导出规范。
+2. 将导入导出能力逐步后端化（保留前端入口）。
+
+### Phase 3：前端结构治理（待执行）
+1. 拆分 `index.html` 超大脚本为模块化能力。
+2. 统一新增/编辑/查看的表单 schema 与交互。
+
+### 当前已执行的小步（含验证）
+- [x] 新增 `GET /api/health.php`，用于快速检查 DB 连通与关键表存在性。
+- [x] 导入兼容斜线日期格式（`YYYY/M/D` 与 `YYYY/M/D HH:mm[:ss]`）。
+- [x] 导入兼容常见编码（UTF-8 / GB18030 回退）。
+
+### `/api/health.php` 返回示例
+```json
+{
+  "code": 0,
+  "message": "ok",
+  "data": {
+    "db_connected": true,
+    "database": "oa2",
+    "tables": {
+      "oa_user": true,
+      "oa_student": true,
+      "oa_course": true,
+      "oa_order": true
+    }
+  }
+}
+```
 
 ## 数据库配置
 
