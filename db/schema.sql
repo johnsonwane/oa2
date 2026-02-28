@@ -381,7 +381,7 @@ INSERT INTO oa_receipt (order_id, receipt_no, amount, pay_method, pay_time, veri
 
 INSERT INTO oa_delivery_log (student_id, coach_user_id, progress_stage, content, log_date) VALUES
 (1, 4, '开班', '已建群并发放课前资料', '2026-02-03'),
-(2, 4, '中期', '完成阶段测评并反馈学习建议', '2026-02-15');
+(2, 4, '中期2', '完成阶段测评并反馈学习建议', '2026-02-15');
 
 INSERT INTO oa_finance_record (record_type, item_name, amount, record_date, remark) VALUES
 ('income', '学费到账-张三', 12800, '2026-02-01', '支付宝'),
