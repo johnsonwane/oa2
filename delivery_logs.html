@@ -12,6 +12,7 @@
   <aside class="oa-sidebar" :class="{'open': sidebarOpen}">
     <div class="brand">培训公司 OA</div>
     <div class="user-box">{{ user.real_name || user.username }}（{{ user.role || '访客' }}）</div>
+    <button v-if="isMobile && sidebarOpen" class="sidebar-close" @click="sidebarOpen=false" aria-label="收起菜单">×</button>
     <template v-for="group in groupedMenus" :key="group.parent">
       <div class="group-title">{{ group.parent }}</div>
       <ul class="menu-tree simple">
