@@ -6,26 +6,30 @@ function ensure_table_columns(PDO $pdo, string $table, array $columns): void
         return;
     }
 
-    $tableStmt = $pdo->prepare('SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?');
-    $tableStmt->execute([$table]);
-    if ((int)$tableStmt->fetchColumn() === 0) {
+    if (!preg_match('/^[a-zA-Z0-9_]+$/', $table)) {
         return;
     }
 
+    $quotedTable = "`{$table}`";
+
     $exists = [];
-    $columnStmt = $pdo->prepare('SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?');
-    $columnStmt->execute([$table]);
-    foreach ($columnStmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
-        $name = (string)($row['COLUMN_NAME'] ?? '');
-        if ($name !== '') {
-            $exists[$name] = true;
+    try {
+        $stmt = $pdo->query("SHOW COLUMNS FROM {$quotedTable}");
+        foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $name = (string)($row['Field'] ?? '');
+            if ($name !== '') {
+                $exists[$name] = true;
+            }
         }
+    } catch (Throwable $e) {
+        // 表不存在或无元数据权限时直接跳过，避免接口 500。
+        return;
     }
 
     foreach ($columns as $name => $ddl) {
         if (!isset($exists[$name])) {
             try {
-                $pdo->exec("ALTER TABLE `{$table}` ADD COLUMN {$ddl}");
+                $pdo->exec("ALTER TABLE {$quotedTable} ADD COLUMN {$ddl}");
             } catch (Throwable $e) {
                 // 兼容生产环境只读账号或受限权限，忽略补列失败。
             }
