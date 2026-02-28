@@ -2,6 +2,13 @@
 require_once __DIR__ . '/common.php';
 require_once __DIR__ . '/db.php';
 
+function login_column_exists(PDO $pdo, string $table, string $column): bool
+{
+    $stmt = $pdo->prepare("SHOW COLUMNS FROM `{$table}` LIKE ?");
+    $stmt->execute([$column]);
+    return (bool)$stmt->fetchColumn();
+}
+
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     json_response(405, '仅支持 POST 请求', null, 405);
 }
@@ -14,7 +21,9 @@ try {
     $password = (string)$data['password'];
 
     $pdo = get_db_connection();
-    $stmt = $pdo->prepare('SELECT id, username, password_hash, real_name, role, department, position FROM oa_user WHERE username = ? AND status = 1 LIMIT 1');
+    $departmentSelect = login_column_exists($pdo, 'oa_user', 'department') ? 'department' : "'' AS department";
+    $positionSelect = login_column_exists($pdo, 'oa_user', 'position') ? 'position' : "'' AS position";
+    $stmt = $pdo->prepare("SELECT id, username, password_hash, real_name, role, {$departmentSelect}, {$positionSelect} FROM oa_user WHERE username = ? AND status = 1 LIMIT 1");
     $stmt->execute([$username]);
     $user = $stmt->fetch();
 
