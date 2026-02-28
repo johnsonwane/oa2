@@ -31,6 +31,21 @@ try {
     ]);
     $m = $_SERVER['REQUEST_METHOD'];
 
+    $hasCol = function (string $table, string $column) use ($pdo): bool {
+        try {
+            return function_exists('column_exists') ? column_exists($pdo, $table, $column) : true;
+        } catch (Throwable $e) {
+            return false;
+        }
+    };
+    $hasTable = function (string $table) use ($pdo): bool {
+        try {
+            return function_exists('table_exists') ? table_exists($pdo, $table) : true;
+        } catch (Throwable $e) {
+            return false;
+        }
+    };
+
     if ($m === 'GET') {
         $where = [];
         $params = [];
@@ -39,15 +54,11 @@ try {
         $paymentStage = trim((string)($_GET['payment_stage'] ?? ''));
         $userId = (int)($_GET['user_id'] ?? 0);
 
-        if ($payStatus !== '') {
+        if ($payStatus !== '' && $hasCol('oa_order', 'pay_status')) {
             $where[] = 'o.pay_status = :pay_status';
             $params[':pay_status'] = (int)$payStatus;
         }
-        if ($keyword !== '') {
-            $where[] = '(s.name LIKE :kw OR c.course_name LIKE :kw OR r.name LIKE :kw)';
-            $params[':kw'] = "%{$keyword}%";
-        }
-        if ($paymentStage !== '') {
+        if ($paymentStage !== '' && $hasCol('oa_order', 'payment_stage')) {
             $where[] = 'o.payment_stage = :payment_stage';
             $params[':payment_stage'] = $paymentStage;
         }
@@ -61,16 +72,56 @@ try {
                 $realName = trim((string)($u['real_name'] ?? ''));
                 if ($roleName === '顾问') {
                     $where[] = '1=0';
-                } elseif ($roleName === '教练') {
+                } elseif ($roleName === '教练' && $hasCol('oa_student', 'delivery_coach')) {
                     $where[] = 's.delivery_coach = :coach_name';
                     $params[':coach_name'] = $realName;
                 }
             }
         }
 
-        $baseSql = ' FROM oa_order o LEFT JOIN oa_student s ON s.id=o.student_id LEFT JOIN oa_course c ON c.id=o.course_id LEFT JOIN oa_referrer r ON r.id=o.referrer_id LEFT JOIN oa_user su ON su.id=o.seller_user_id';
+        $joinReferrer = $hasTable('oa_referrer') && $hasCol('oa_order', 'referrer_id');
+        $joinSeller = $hasTable('oa_user') && $hasCol('oa_order', 'seller_user_id');
+        if ($keyword !== '') {
+            $keywordWhere = '(s.name LIKE :kw OR c.course_name LIKE :kw';
+            if ($joinReferrer) {
+                $keywordWhere .= ' OR r.name LIKE :kw';
+            }
+            $keywordWhere .= ')';
+            $where[] = $keywordWhere;
+            $params[':kw'] = "%{$keyword}%";
+        }
+        $baseSql = ' FROM oa_order o LEFT JOIN oa_student s ON s.id=o.student_id LEFT JOIN oa_course c ON c.id=o.course_id';
+        if ($joinReferrer) {
+            $baseSql .= ' LEFT JOIN oa_referrer r ON r.id=o.referrer_id';
+        }
+        if ($joinSeller) {
+            $baseSql .= ' LEFT JOIN oa_user su ON su.id=o.seller_user_id';
+        }
         $whereSql = $where ? (' WHERE ' . implode(' AND ', $where)) : '';
-        $selectSql = 'SELECT o.id,o.student_id,s.name student_name,o.course_id,c.course_name,o.amount,o.total_amount,o.paid_amount,o.pay_status,o.payment_stage,o.sales_commission_amount,o.seller_user_id,o.seller_role,o.seller_commission_amount,su.real_name seller_name,o.referrer_id,o.referrer_commission_amount,r.name referrer_name,o.student_wechat_name,o.student_mobile,o.student_address,o.payment_time,o.receipt_time,o.refund_time,o.refund_amount,o.remark,o.created_at';
+        $selectSql = 'SELECT '
+            . 'o.id,o.student_id,' . ($hasCol('oa_student', 'name') ? 's.name' : "''") . ' student_name,o.course_id,c.course_name,'
+            . ($hasCol('oa_order', 'amount') ? 'o.amount' : '0') . ' amount,'
+            . ($hasCol('oa_order', 'total_amount') ? 'o.total_amount' : '0') . ' total_amount,'
+            . ($hasCol('oa_order', 'paid_amount') ? 'o.paid_amount' : '0') . ' paid_amount,'
+            . ($hasCol('oa_order', 'pay_status') ? 'o.pay_status' : '0') . ' pay_status,'
+            . ($hasCol('oa_order', 'payment_stage') ? 'o.payment_stage' : "'full'") . ' payment_stage,'
+            . ($hasCol('oa_order', 'sales_commission_amount') ? 'o.sales_commission_amount' : '0') . ' sales_commission_amount,'
+            . ($hasCol('oa_order', 'seller_user_id') ? 'o.seller_user_id' : 'NULL') . ' seller_user_id,'
+            . ($hasCol('oa_order', 'seller_role') ? 'o.seller_role' : "''") . ' seller_role,'
+            . ($hasCol('oa_order', 'seller_commission_amount') ? 'o.seller_commission_amount' : '0') . ' seller_commission_amount,'
+            . (($joinSeller && $hasCol('oa_user', 'real_name')) ? 'su.real_name' : "''") . ' seller_name,'
+            . ($hasCol('oa_order', 'referrer_id') ? 'o.referrer_id' : 'NULL') . ' referrer_id,'
+            . ($hasCol('oa_order', 'referrer_commission_amount') ? 'o.referrer_commission_amount' : '0') . ' referrer_commission_amount,'
+            . (($joinReferrer && $hasCol('oa_referrer', 'name')) ? 'r.name' : "''") . ' referrer_name,'
+            . ($hasCol('oa_order', 'student_wechat_name') ? 'o.student_wechat_name' : "''") . ' student_wechat_name,'
+            . ($hasCol('oa_order', 'student_mobile') ? 'o.student_mobile' : "''") . ' student_mobile,'
+            . ($hasCol('oa_order', 'student_address') ? 'o.student_address' : "''") . ' student_address,'
+            . ($hasCol('oa_order', 'payment_time') ? 'o.payment_time' : 'NULL') . ' payment_time,'
+            . ($hasCol('oa_order', 'receipt_time') ? 'o.receipt_time' : 'NULL') . ' receipt_time,'
+            . ($hasCol('oa_order', 'refund_time') ? 'o.refund_time' : 'NULL') . ' refund_time,'
+            . ($hasCol('oa_order', 'refund_amount') ? 'o.refund_amount' : '0') . ' refund_amount,'
+            . ($hasCol('oa_order', 'remark') ? 'o.remark' : "''") . ' remark,'
+            . ($hasCol('oa_order', 'created_at') ? 'o.created_at' : 'NULL') . ' created_at';
 
         if (paged_mode($_GET)) {
             $p = parse_pagination($_GET);
