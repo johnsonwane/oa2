@@ -27,6 +27,9 @@
       <h1>OA 系统管理台</h1>
       <div class="header-actions">
         <button class="btn-secondary" @click="reloadAll">刷新数据</button>
+        <button class="btn-secondary" v-if="canImportExportTab()" @click="exportCurrentTab">导出Excel(CSV)</button>
+        <button class="btn-secondary" v-if="canImportExportTab()" @click="triggerImport">导入Excel(CSV)</button>
+        <input ref="importFileRef" type="file" accept=".csv" style="display:none" @change="handleImportFile">
         <button class="btn-danger" @click="logout">退出登录</button>
       </div>
     </header>
@@ -255,6 +258,7 @@ createApp({
     const isMobile=ref(window.innerWidth<980);
     const detailDialog=reactive({open:false,title:'',content:''});
     const activeEditor=ref('');
+    const importFileRef=ref(null);
 
     const api=async(url,opt={})=>{let r;try{r=await fetch(url,{headers:{'Content-Type':'application/json'},...opt});}catch(e){throw new Error(`请求失败：网络异常（${url}）`);}const text=await r.text();let j={};try{j=text?JSON.parse(text):{};}catch(_){j={};}if(!r.ok||j.code!==0){const detail=(j&&j.message)||(text||'').slice(0,160);throw new Error(detail||`请求失败（HTTP ${r.status} ${r.statusText}）`);}if(!text)return null;return Object.prototype.hasOwnProperty.call(j,'data')?j.data:j;};
     const loadSummary=async()=>{const q=new URLSearchParams(); if(user.value?.id) q.set('user_id',String(user.value.id)); summary.value=await api(`/api/dashboard_summary.php?${q.toString()}`);};
@@ -337,6 +341,66 @@ createApp({
     const editPerm=(row)=>{openEditor('perm', true);return Object.assign(permForm,{id:Number(row.id),perm_name:row.perm_name||'',perm_code:row.perm_code||'',module_name:row.module_name||'系统管理',remark:row.remark||'',status:Number(row.status||1)});};
     const savePerm=async()=>{error.value='';try{if(permForm.id){await api('/api/rbac_permissions.php',{method:'PUT',body:JSON.stringify(permForm)});}else{await api('/api/rbac_permissions.php',{method:'POST',body:JSON.stringify(permForm)});}resetPermForm();await loadPerms();closeEditor();}catch(e){error.value=e.message;}};
 
+
+    const ioConfig={
+      students:{url:'/api/students.php',list:(d)=>d},
+      courses:{url:'/api/courses.php',list:(d)=>d},
+      orders:{url:'/api/orders.php',list:(d)=>d},
+      finance:{url:'/api/finance.php',list:(d)=>d.list||[]},
+      todos:{url:'/api/todos.php',list:(d)=>d},
+      notifications:{url:'/api/notifications.php',list:(d)=>d},
+      users:{url:'/api/users.php',list:(d)=>d},
+      departments:{url:'/api/departments.php',list:(d)=>d},
+      menus:{url:'/api/menu.php',list:(d)=>d},
+      rbac_groups:{url:'/api/rbac_groups.php',list:(d)=>d},
+      rbac_permissions:{url:'/api/rbac_permissions.php',list:(d)=>d},
+      referrers:{url:'/api/referrers.php',list:(d)=>d},
+      receipts:{url:'/api/receipts.php',list:(d)=>d},
+      delivery_logs:{url:'/api/delivery_logs.php',list:(d)=>d}
+    };
+
+    const canImportExportTab=()=>!!ioConfig[activeTab.value];
+
+    const csvEscape=(v)=>{const t=String(v??''); if(/[",\n]/.test(t)) return '"'+t.replace(/"/g,'""')+'"'; return t;};
+    const toCsv=(rows)=>{if(!rows.length) return ''; const headers=[...new Set(rows.flatMap(r=>Object.keys(r||{})))]; const lines=[headers.join(',')]; rows.forEach(r=>lines.push(headers.map(h=>csvEscape(r?.[h]??'')).join(','))); return '\uFEFF'+lines.join('\n');};
+    const parseCsvLine=(line)=>{const out=[]; let cur=''; let q=false; for(let i=0;i<line.length;i++){const ch=line[i]; if(ch==='"'){ if(q && line[i+1]==='"'){cur+='"'; i++;} else {q=!q;} } else if(ch===',' && !q){out.push(cur); cur='';} else {cur+=ch;} } out.push(cur); return out;};
+    const fromCsv=(text)=>{const lines=text.replace(/^\uFEFF/,'').split(/\r?\n/).filter(Boolean); if(!lines.length) return []; const headers=parseCsvLine(lines[0]); return lines.slice(1).map(l=>{const vals=parseCsvLine(l); const o={}; headers.forEach((h,i)=>o[h]=vals[i]??''); return o;});};
+    const cleanImportRow=(row)=>{const o={...row}; delete o.id; delete o.created_at; delete o.updated_at; if('enrolled_courses' in o && typeof o.enrolled_courses==='string' && o.enrolled_courses.trim().startsWith('[')){ try{o.enrolled_courses=JSON.parse(o.enrolled_courses);}catch(_){}}; return o;};
+
+    const exportCurrentTab=async()=>{
+      if(!canImportExportTab()) return;
+      error.value='';
+      try{
+        const conf=ioConfig[activeTab.value];
+        const data=await api(conf.url);
+        const rows=conf.list(data)||[];
+        const blob=new Blob([toCsv(rows)],{type:'text/csv;charset=utf-8;'});
+        const a=document.createElement('a');
+        a.href=URL.createObjectURL(blob);
+        a.download=`${activeTab.value}_all.csv`;
+        document.body.appendChild(a); a.click(); a.remove();
+      }catch(e){error.value=e.message;}
+    };
+
+    const triggerImport=()=>{ if(!canImportExportTab()||!importFileRef.value) return; importFileRef.value.value=''; importFileRef.value.click(); };
+
+    const handleImportFile=async(ev)=>{
+      const f=ev.target.files&&ev.target.files[0];
+      if(!f) return;
+      if(!confirm('导入会先删除当前页面全部旧数据，再导入新数据，是否继续？')) return;
+      error.value='';
+      try{
+        const conf=ioConfig[activeTab.value];
+        const text=await f.text();
+        const rows=fromCsv(text);
+        const oldData=await api(conf.url);
+        const oldRows=conf.list(oldData)||[];
+        for(const r of oldRows){ if(r&&r.id!==undefined&&r.id!==null){ await api(`${conf.url}?id=${encodeURIComponent(r.id)}`,{method:'DELETE'}); } }
+        for(const r of rows){ await api(conf.url,{method:'POST',body:JSON.stringify(cleanImportRow(r))}); }
+        await reloadAll();
+      }catch(e){error.value=e.message;}
+    };
+
     const assignUserGroup=()=>createHelper('/api/rbac_assign.php',{type:'user_group',...assignForm},loadAssign);
     const assignGroupPerm=()=>createHelper('/api/rbac_assign.php',{type:'group_perm',...assignForm2},loadAssign);
     const delAssign=async(type,id)=>{try{await api(`/api/rbac_assign.php?type=${type}&id=${id}`,{method:'DELETE'}); await loadAssign();}catch(e){error.value=e.message;}};
@@ -354,7 +418,7 @@ createApp({
     onMounted(async()=>{window.addEventListener('resize',onResize);const t=localStorage.getItem('oa_token');const u=localStorage.getItem('oa_user');if(!t||!u){location.href='./login.html';return;}user.value=JSON.parse(u||'{}');await reloadAll();});
     onBeforeUnmount(()=>window.removeEventListener('resize',onResize));
 
-    return {activeTab,error,user,summary,students,courses,orders,referrers,receipts,deliveryLogs,departmentStats,finance,todos,notifications,users,departments,menus,groups,perms,assignData,groupedMenus,departmentOptions,positionOptions,roleOptions,receiptChannelOptions,studentKeyword,studentCategory,orderKeyword,referrerKeyword,userKeyword,sidebarOpen,isMobile,detailDialog,activeEditor,toggleSidebar,selectMenu,viewRecord,closeDetailDialog,openEditor,closeEditor,
+    return {activeTab,error,user,summary,students,courses,orders,referrers,receipts,deliveryLogs,departmentStats,finance,todos,notifications,users,departments,menus,groups,perms,assignData,groupedMenus,departmentOptions,positionOptions,roleOptions,receiptChannelOptions,studentKeyword,studentCategory,orderKeyword,referrerKeyword,userKeyword,sidebarOpen,isMobile,detailDialog,activeEditor,importFileRef,toggleSidebar,selectMenu,viewRecord,closeDetailDialog,openEditor,closeEditor,canImportExportTab,exportCurrentTab,triggerImport,handleImportFile,
       studentForm,courseForm,orderForm,financeForm,referrerForm,receiptForm,deliveryLogForm,todoForm,notificationForm,userForm,departmentForm,menuForm,groupForm,permForm,assignForm,assignForm2,
       formatCourses,paymentStageLabel,saveStudent,editStudent,resetStudentForm,saveCourse,editCourse,resetCourseForm,saveOrder,editOrder,resetOrderForm,saveFinance,editFinance,resetFinanceForm,resetReferrerForm,editReferrer,saveReferrer,resetReceiptForm,editReceipt,saveReceipt,resetDeliveryLogForm,editDeliveryLog,saveDeliveryLog,saveTodo,editTodo,resetTodoForm,saveNotification,editNotification,resetNotificationForm,saveDepartment,editDepartment,resetDepartmentForm,saveUser,editUser,resetUserForm,saveMenu,editMenu,resetMenuForm,saveGroup,editGroup,resetGroupForm,savePerm,editPerm,resetPermForm,assignUserGroup,assignGroupPerm,delAssign,reloadAll,logout};
   }
