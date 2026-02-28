@@ -144,11 +144,16 @@
       <h2>员工管理（RBAC）</h2>
       <form class="inline-form" @submit.prevent="loadUsers"><input v-model.trim="userKeyword" placeholder="搜索用户名/姓名/手机"><button type="submit" class="btn-secondary">查询</button></form>
       <div class="section-actions"><button type="button" @click="openEditor('user', false)">新增员工</button></div><form :class="['inline-form','editor-form',{show:activeEditor==='user'}]" @submit.prevent="saveUser">
-        <input v-model.trim="userForm.username" placeholder="登录账号" :disabled="!!userForm.id" required>
+        <div class="form-section-title">系统相关信息</div>
+        <input v-model.trim="userForm.username" placeholder="登录账号（可编辑）" required>
+        <input v-model="userForm.password" type="password" :placeholder="userForm.id ? '新密码（不填则不修改）' : '初始密码'" :required="!userForm.id">
+        <select v-model="userForm.role" required><option value="">角色</option><option v-for="x in roleOptions" :key="'r'+x" :value="x">{{x}}</option></select>
+        <select v-model.number="userForm.status"><option :value="1">启用</option><option :value="0">禁用</option></select>
+
+        <div class="form-section-title">员工个人详细信息</div>
         <input v-model.trim="userForm.employee_no" placeholder="员工编号">
         <input v-model.trim="userForm.company_name" placeholder="所在公司">
         <input v-model.trim="userForm.real_name" placeholder="姓名" required>
-        <select v-model="userForm.role" required><option value="">角色</option><option v-for="x in roleOptions" :key="'r'+x" :value="x">{{x}}</option></select>
         <select v-model="userForm.department"><option value="">部门</option><option v-for="x in departmentOptions" :key="'d'+x" :value="x">{{x}}</option></select>
         <select v-model="userForm.position"><option value="">职位</option><option v-for="x in positionOptions" :key="'p'+x" :value="x">{{x}}</option></select>
         <input v-model.trim="userForm.mobile" placeholder="手机号">
@@ -171,7 +176,6 @@
         <input v-model.trim="userForm.salary_adjust_records" placeholder="调薪记录">
         <select v-model="userForm.employment_status"><option>在职</option><option>离职</option></select><input v-model="userForm.leave_date" type="date" placeholder="离职时间">
         <input v-model.trim="userForm.remark" placeholder="备注">
-        <input v-if="!userForm.id" v-model="userForm.password" type="password" placeholder="初始密码" required>
         <button>{{ userForm.id ? '保存员工' : '新增员工' }}</button>
         <button type="button" class="btn-secondary" @click="closeEditor">取消</button>
       </form>

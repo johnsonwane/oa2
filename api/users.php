@@ -110,10 +110,16 @@ try {
         $d = request_body();
         $id = (int)($d['id'] ?? 0);
         if ($id <= 0) json_response(400, 'id非法', null, 400);
-        require_fields($d, ['real_name', 'role']);
+        require_fields($d, ['username', 'real_name', 'role']);
 
-        $stmt = $pdo->prepare('UPDATE oa_user SET employee_no=?,company_name=?,real_name=?,role=?,gender=?,mobile=?,email=?,id_no=?,department=?,position=?,birthday=?,birth_date=?,age=?,social_city=?,hukou_place=?,hukou_type=?,native_place=?,ethnicity=?,marital_status=?,home_address=?,emergency_contact=?,education=?,graduation_school=?,major=?,hire_date=?,contract_years=?,working_days=?,contract_end_date=?,is_probation=?,probation_salary=?,regular_date=?,regular_salary=?,bank_name=?,bank_card_no=?,salary_adjust_records=?,employment_status=?,leave_date=?,remark=?,status=? WHERE id=?');
+        $username = trim((string)$d['username']);
+        $dupStmt = $pdo->prepare('SELECT id FROM oa_user WHERE username=? AND id<>? LIMIT 1');
+        $dupStmt->execute([$username, $id]);
+        if ($dupStmt->fetchColumn()) json_response(409, '用户名已存在', null, 409);
+
+        $stmt = $pdo->prepare('UPDATE oa_user SET username=?,employee_no=?,company_name=?,real_name=?,role=?,gender=?,mobile=?,email=?,id_no=?,department=?,position=?,birthday=?,birth_date=?,age=?,social_city=?,hukou_place=?,hukou_type=?,native_place=?,ethnicity=?,marital_status=?,home_address=?,emergency_contact=?,education=?,graduation_school=?,major=?,hire_date=?,contract_years=?,working_days=?,contract_end_date=?,is_probation=?,probation_salary=?,regular_date=?,regular_salary=?,bank_name=?,bank_card_no=?,salary_adjust_records=?,employment_status=?,leave_date=?,remark=?,status=? WHERE id=?');
         $stmt->execute([
+            $username,
             trim((string)($d['employee_no'] ?? '')),
             trim((string)($d['company_name'] ?? '')),
             trim((string)$d['real_name']),
@@ -155,6 +161,13 @@ try {
             (int)($d['status'] ?? 1),
             $id
         ]);
+
+        $newPassword = trim((string)($d['password'] ?? ''));
+        if ($newPassword !== '') {
+            $pwdStmt = $pdo->prepare('UPDATE oa_user SET password_hash=? WHERE id=?');
+            $pwdStmt->execute([password_hash($newPassword, PASSWORD_BCRYPT), $id]);
+        }
+
         json_response(0, 'updated');
     }
 

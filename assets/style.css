@@ -43,3 +43,5 @@ button:disabled{opacity:.65}.btn-secondary{background:#6b7280}.btn-danger{backgr
 .editor-overlay{position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:70}
 .editor-form{display:none!important}
 .editor-form.show{display:grid!important;position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:80;background:#fff;border-radius:12px;padding:14px;box-shadow:0 18px 45px rgba(15,23,42,.25);width:min(980px,92vw);max-height:82vh;overflow:auto}
+
+.form-section-title{grid-column:1/-1;font-weight:700;padding:6px 2px;color:#111827;border-bottom:1px dashed #d1d5db;margin-top:2px}
