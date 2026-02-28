@@ -3,6 +3,19 @@ require_once __DIR__ . '/common.php';
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/rbac_bootstrap.php';
 
+function user_menus_get_user_columns(PDO $pdo): array
+{
+    $columns = [];
+    $stmt = $pdo->query('SHOW COLUMNS FROM `oa_user`');
+    foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+        $name = (string)($row['Field'] ?? '');
+        if ($name !== '') {
+            $columns[$name] = true;
+        }
+    }
+    return $columns;
+}
+
 try {
     if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
         json_response(405, 'method not allowed', null, 405);
@@ -16,7 +29,9 @@ try {
         json_response(400, 'user_id 非法', null, 400);
     }
 
-    $userStmt = $pdo->prepare('SELECT id, role FROM oa_user WHERE id=? LIMIT 1');
+    $userColumns = user_menus_get_user_columns($pdo);
+    $roleSelect = isset($userColumns['role']) ? 'role' : "'' AS role";
+    $userStmt = $pdo->prepare("SELECT id, {$roleSelect} FROM oa_user WHERE id=? LIMIT 1");
     $userStmt->execute([$userId]);
     $user = $userStmt->fetch();
     if (!$user) {
