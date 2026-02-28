@@ -119,6 +119,7 @@ CREATE TABLE IF NOT EXISTS oa_student (
   gender VARCHAR(10) DEFAULT '',
   birthday DATE DEFAULT NULL,
   phone VARCHAR(20) NOT NULL,
+  wechat_name VARCHAR(80) DEFAULT '',
   wechat VARCHAR(50) DEFAULT '',
   id_no VARCHAR(30) DEFAULT '',
   level VARCHAR(30) DEFAULT '',
@@ -137,8 +138,6 @@ CREATE TABLE IF NOT EXISTS oa_student (
   enrolled_courses JSON DEFAULT NULL,
   consultant VARCHAR(50) DEFAULT '',
   delivery_coach VARCHAR(50) DEFAULT '',
-  guardian_name VARCHAR(50) DEFAULT '',
-  guardian_phone VARCHAR(20) DEFAULT '',
   address VARCHAR(255) DEFAULT '',
   remark VARCHAR(255) DEFAULT '',
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -356,10 +355,10 @@ INSERT INTO oa_menu (parent_name, menu_name, menu_key, path, icon, sort_no, stat
 ('经营分析','部门统计','department_stats','/department_stats','📊',30,1)
 ON DUPLICATE KEY UPDATE menu_name=VALUES(menu_name), parent_name=VALUES(parent_name), path=VALUES(path), icon=VALUES(icon), sort_no=VALUES(sort_no), status=VALUES(status);
 
-INSERT INTO oa_student (name, gender, birthday, phone, wechat, id_no, level, intention_level, follow_status, source, enrolled_courses, consultant, delivery_coach, guardian_name, guardian_phone, address, remark) VALUES
-('张三', '男', '2003-03-12', '13800000001', 'zhangsan001', '310101200303120011', 'A1', '高意向', '已报名', '抖音', JSON_ARRAY('Python全栈训练营','就业辅导课'), '顾问A', '教练甲', '张父', '13900000001', '上海市徐汇区XX路1号', '基础好，目标就业'),
-('李四', '女', '2001-08-08', '13800000002', 'lisi002', '310101200108080022', 'B2', '中意向', '跟进中', '小红书', JSON_ARRAY('新媒体运营实战班'), '顾问A', '教练乙', '李母', '13900000002', '上海市浦东新区XX路2号', '对运营课程感兴趣'),
-('王五', '男', '1999-12-20', '13800000003', 'wangwu003', '310101199912200033', 'A2', '高意向', '已报名', '转介绍', JSON_ARRAY('AI 应用办公提效课'), '顾问B', '教练丙', '王父', '13900000003', '上海市闵行区XX路3号', '希望转行AI办公');
+INSERT INTO oa_student (name, gender, birthday, phone, wechat_name, wechat, id_no, level, intention_level, follow_status, source, enrolled_courses, consultant, delivery_coach, address, remark) VALUES
+('张三', '男', '2003-03-12', '13800000001', '张三同学', 'zhangsan001', '310101200303120011', 'A1', '高意向', '已报名', '抖音', JSON_ARRAY('Python全栈训练营','就业辅导课'), '顾问A', '教练甲', '上海市徐汇区XX路1号', '基础好，目标就业'),
+('李四', '女', '2001-08-08', '13800000002', '李四同学', 'lisi002', '310101200108080022', 'B2', '中意向', '跟进中', '小红书', JSON_ARRAY('新媒体运营实战班'), '顾问A', '教练乙', '上海市浦东新区XX路2号', '对运营课程感兴趣'),
+('王五', '男', '1999-12-20', '13800000003', '王五同学', 'wangwu003', '310101199912200033', 'A2', '高意向', '已报名', '转介绍', JSON_ARRAY('AI 应用办公提效课'), '顾问B', '教练丙', '上海市闵行区XX路3号', '希望转行AI办公');
 
 INSERT INTO oa_course (course_name, coach_name, period_weeks, price, status) VALUES
 ('Python 全栈训练营', '讲师赵', 12, 12800, 1),

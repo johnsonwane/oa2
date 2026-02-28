@@ -44,6 +44,7 @@ function ensure_student_user_profile_columns(PDO $pdo): void
     ensure_table_columns($pdo, 'oa_student', [
         'gender' => "`gender` VARCHAR(10) DEFAULT ''",
         'birthday' => "`birthday` DATE DEFAULT NULL",
+        'wechat_name' => "`wechat_name` VARCHAR(80) DEFAULT ''",
         'wechat' => "`wechat` VARCHAR(50) DEFAULT ''",
         'id_no' => "`id_no` VARCHAR(30) DEFAULT ''",
         'intention_level' => "`intention_level` VARCHAR(30) DEFAULT ''",
@@ -51,8 +52,6 @@ function ensure_student_user_profile_columns(PDO $pdo): void
         'source' => "`source` VARCHAR(50) DEFAULT ''",
         'enrolled_courses' => "`enrolled_courses` JSON DEFAULT NULL",
         'delivery_coach' => "`delivery_coach` VARCHAR(50) DEFAULT ''",
-        'guardian_name' => "`guardian_name` VARCHAR(50) DEFAULT ''",
-        'guardian_phone' => "`guardian_phone` VARCHAR(20) DEFAULT ''",
         'address' => "`address` VARCHAR(255) DEFAULT ''",
         'remark' => "`remark` VARCHAR(255) DEFAULT ''",
     ]);
