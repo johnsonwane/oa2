@@ -12,10 +12,12 @@
   <aside class="oa-sidebar" :class="{'open': sidebarOpen}">
     <div class="brand">培训公司 OA</div>
     <div class="user-box">{{ user.real_name || user.username }}（{{ user.role || '访客' }}）</div>
-    <div class="group-title">功能菜单</div>
+    <template v-for="group in groupedMenus" :key="group.parent">
+      <div class="group-title">{{ group.parent }}</div>
       <ul class="menu-tree simple">
-        <li class="active">员工管理</li>
+        <li v-for="m in group.children" :key="m.id" :class="{active:activeTab===m.menu_key}" @click="selectMenu(m.menu_key)">{{ m.menu_name }}</li>
       </ul>
+    </template>
   </aside>
   <div v-if="isMobile && sidebarOpen" class="sidebar-overlay" @click="sidebarOpen=false"></div>
 
@@ -264,9 +266,10 @@ createApp({
     const assignGroupPerm=()=>createHelper('/api/rbac_assign.php',{type:'group_perm',...assignForm2},loadAssign);
     const delAssign=async(type,id)=>{try{await api(`/api/rbac_assign.php?type=${type}&id=${id}`,{method:'DELETE'}); await loadAssign();}catch(e){error.value=e.message;}};
 
-    const reloadAll=async()=>{error.value=''; try{await Promise.all([loadUsers(), loadDepartments(), loadMetaOptions()]);}catch(e){error.value=e.message;}};
+    const reloadAll=async()=>{error.value=''; try{await Promise.all([loadUsers(), loadDepartments(), loadMetaOptions(), loadMenus()]);}catch(e){error.value=e.message;}};
     const toggleSidebar=()=>{sidebarOpen.value=!sidebarOpen.value;};
-    const selectMenu=(menuKey)=>{if(activeTab.value!==menuKey){activeTab.value=menuKey;} if(isMobile.value) sidebarOpen.value=false;};
+    const menuPageMap={overview:'overview.html',students:'students.html',courses:'courses.html',orders:'orders.html',referrers:'referrers.html',receipts:'receipts.html',delivery_logs:'delivery_logs.html',department_stats:'department_stats.html',finance:'finance.html',todos:'todos.html',notifications:'notifications.html',users:'users.html',departments:'departments.html',menus:'menus.html',rbac_groups:'rbac_groups.html',rbac_permissions:'rbac_permissions.html',rbac_assign:'rbac_assign.html'};
+    const selectMenu=(menuKey)=>{const target=menuPageMap[menuKey]; if(target){if(isMobile.value) sidebarOpen.value=false; if(!location.pathname.endsWith('/'+target)){location.href='./'+target; return;}} if(activeTab.value!==menuKey){activeTab.value=menuKey;} if(isMobile.value) sidebarOpen.value=false;};
     const viewRecord=(title,row)=>{detailDialog.open=true;detailDialog.title=title;detailDialog.content=JSON.stringify(row,null,2);};
     const closeDetailDialog=()=>{detailDialog.open=false;};
     const openEditor=(key,isEdit=true)=>{if(!isEdit){const resetMap={student:resetStudentForm,course:resetCourseForm,order:resetOrderForm,referrer:resetReferrerForm,receipt:resetReceiptForm,delivery:resetDeliveryLogForm,finance:resetFinanceForm,todo:resetTodoForm,notification:resetNotificationForm,user:resetUserForm,department:resetDepartmentForm,menu:resetMenuForm,perm:resetPermForm,group:resetGroupForm};if(resetMap[key])resetMap[key]();}activeEditor.value=key;};
