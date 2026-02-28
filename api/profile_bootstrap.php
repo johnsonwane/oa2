@@ -1,37 +1,39 @@
 <?php
 
-function ensure_table_columns(PDO $pdo, string $table, array $columns): void
-{
-    if ($table === '' || empty($columns)) {
-        return;
-    }
-
-    if (!preg_match('/^[a-zA-Z0-9_]+$/', $table)) {
-        return;
-    }
-
-    $quotedTable = "`{$table}`";
-
-    $exists = [];
-    try {
-        $stmt = $pdo->query("SHOW COLUMNS FROM {$quotedTable}");
-        foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
-            $name = (string)($row['Field'] ?? '');
-            if ($name !== '') {
-                $exists[$name] = true;
-            }
+if (!function_exists('ensure_table_columns')) {
+    function ensure_table_columns(PDO $pdo, string $table, array $columns): void
+    {
+        if ($table === '' || empty($columns)) {
+            return;
         }
-    } catch (Throwable $e) {
-        // 表不存在或无元数据权限时直接跳过，避免接口 500。
-        return;
-    }
 
-    foreach ($columns as $name => $ddl) {
-        if (!isset($exists[$name])) {
-            try {
-                $pdo->exec("ALTER TABLE {$quotedTable} ADD COLUMN {$ddl}");
-            } catch (Throwable $e) {
-                // 兼容生产环境只读账号或受限权限，忽略补列失败。
+        if (!preg_match('/^[a-zA-Z0-9_]+$/', $table)) {
+            return;
+        }
+
+        $quotedTable = "`{$table}`";
+
+        $exists = [];
+        try {
+            $stmt = $pdo->query("SHOW COLUMNS FROM {$quotedTable}");
+            foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+                $name = (string)($row['Field'] ?? '');
+                if ($name !== '') {
+                    $exists[$name] = true;
+                }
+            }
+        } catch (Throwable $e) {
+            // 表不存在或无元数据权限时直接跳过，避免接口 500。
+            return;
+        }
+
+        foreach ($columns as $name => $ddl) {
+            if (!isset($exists[$name])) {
+                try {
+                    $pdo->exec("ALTER TABLE {$quotedTable} ADD COLUMN {$ddl}");
+                } catch (Throwable $e) {
+                    // 兼容生产环境只读账号或受限权限，忽略补列失败。
+                }
             }
         }
     }
