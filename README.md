@@ -38,6 +38,21 @@
 - `GET/POST/PUT/DELETE /api/rbac_permissions.php` 权限 CRUD
 - `GET/POST/DELETE /api/rbac_assign.php` 角色分配、角色权限分配
 
+- `GET/POST/PUT/DELETE /api/materials.php` 资料库
+- `GET/POST/PUT/DELETE /api/material_campaigns.php` 引流活动
+- `GET/POST/PUT/DELETE /api/material_claims.php` 资料领取记录
+- `GET/POST/PUT/DELETE /api/contracts.php` 合同管理
+- `GET/POST/PUT/DELETE /api/invoice_profiles.php` 开票资料
+- `GET/POST/PUT/DELETE /api/invoices.php` 发票管理
+- `GET/POST/PUT/DELETE /api/class_terms.php` 课程期次
+- `GET/POST/PUT/DELETE /api/student_terms.php` 学员-期次关系
+- `GET/POST/PUT/DELETE /api/shipments.php` 实体资料邮寄
+- `GET/POST/PUT/DELETE /api/commission_rules.php` 分成规则
+- `GET/POST/PUT/DELETE /api/commission_adjustments.php` 分成调节
+- `GET/POST/PUT/DELETE /api/payroll_periods.php` 薪资期间
+- `GET/POST/PUT/DELETE /api/payroll_slips.php` 工资条
+- `GET/POST/PUT/DELETE /api/expense_vouchers.php` 支出单
+
 
 ## 整改方案与执行进展（分步实施）
 
@@ -140,3 +155,9 @@ mysql -uroot -p < db/schema.sql
 - 角色边界进一步明确：班主任负责学员服务与排课/教练安排，财务负责收款数据上报与统计核对，两者已拆分为独立角色。
 - 学员分类建议与落地：`lead`（线索）、`pending_payment`（待缴费学员）、`active`（正式在读学员），`students.php` 支持 `student_category` 参数分类管理。
 - 订单支持记录“销售归属人/销售角色”（顾问、教练、班主任）与销售分成，支持教练卖课后的业绩核算。
+
+
+## Sprint 规划文档
+
+- 业务与技术分期设计：`docs/sprint123_roadmap.md`
+- 扩展建表脚本：`db/sprint123_extension.sql`
