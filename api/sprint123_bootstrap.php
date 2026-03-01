@@ -292,4 +292,45 @@ function ensure_sprint123_tables(PDO $pdo): void
             // 兼容受限账号，忽略建表失败，交由部署期建表。
         }
     }
+
+    ensure_sprint123_menus($pdo);
+}
+
+function ensure_sprint123_menus(PDO $pdo): void
+{
+    if (!table_exists($pdo, 'oa_menu')) {
+        return;
+    }
+
+    $menus = [
+        ['Sprint123', '资料库', 'materials', '/materials', '📚', 41],
+        ['Sprint123', '资料投放', 'material_campaigns', '/material_campaigns', '📣', 42],
+        ['Sprint123', '资料领取', 'material_claims', '/material_claims', '📝', 43],
+        ['Sprint123', '合同管理', 'contracts', '/contracts', '📄', 44],
+        ['Sprint123', '开票档案', 'invoice_profiles', '/invoice_profiles', '🧾', 45],
+        ['Sprint123', '发票管理', 'invoices', '/invoices', '🧮', 46],
+        ['Sprint123', '班期管理', 'class_terms', '/class_terms', '📆', 47],
+        ['Sprint123', '学员班期', 'student_terms', '/student_terms', '👨‍🎓', 48],
+        ['Sprint123', '寄送管理', 'shipments', '/shipments', '🚚', 49],
+        ['Sprint123', '证书模板', 'certificate_templates', '/certificate_templates', '🏅', 50],
+        ['Sprint123', '证书发放', 'certificate_issues', '/certificate_issues', '🎖️', 51],
+        ['Sprint123', '分成范围', 'commission_scopes', '/commission_scopes', '🧭', 52],
+        ['Sprint123', '分成规则', 'commission_rules', '/commission_rules', '📐', 53],
+        ['Sprint123', '分成结算', 'commission_calcs', '/commission_calcs', '🧮', 54],
+        ['Sprint123', '分成调整', 'commission_adjustments', '/commission_adjustments', '✏️', 55],
+        ['Sprint123', '工资期次', 'payroll_periods', '/payroll_periods', '🗓️', 56],
+        ['Sprint123', '工资单', 'payroll_slips', '/payroll_slips', '💵', 57],
+    ];
+
+    $stmt = $pdo->prepare("INSERT INTO oa_menu (parent_name, menu_name, menu_key, path, icon, sort_no, status)
+        SELECT ?, ?, ?, ?, ?, ?, 1 FROM DUAL
+        WHERE NOT EXISTS (SELECT 1 FROM oa_menu WHERE menu_key = ?)");
+
+    foreach ($menus as $menu) {
+        try {
+            $stmt->execute([$menu[0], $menu[1], $menu[2], $menu[3], $menu[4], $menu[5], $menu[2]]);
+        } catch (Throwable $e) {
+            // 菜单插入失败不影响业务接口。
+        }
+    }
 }

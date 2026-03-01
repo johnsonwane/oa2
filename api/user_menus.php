@@ -86,6 +86,23 @@ try {
         'receipts' => ['menu_receipts','menu_finance'],
         'delivery_logs' => ['menu_delivery_logs'],
         'department_stats' => ['menu_department_stats'],
+        'materials' => ['menu_overview', 'menu_todos', 'menu_manage'],
+        'material_campaigns' => ['menu_overview', 'menu_todos', 'menu_manage'],
+        'material_claims' => ['menu_overview', 'menu_todos', 'menu_manage'],
+        'contracts' => ['menu_overview', 'menu_todos', 'menu_manage'],
+        'invoice_profiles' => ['menu_overview', 'menu_todos', 'menu_manage'],
+        'invoices' => ['menu_overview', 'menu_todos', 'menu_manage'],
+        'class_terms' => ['menu_overview', 'menu_todos', 'menu_manage'],
+        'student_terms' => ['menu_overview', 'menu_todos', 'menu_manage'],
+        'shipments' => ['menu_overview', 'menu_todos', 'menu_manage'],
+        'certificate_templates' => ['menu_overview', 'menu_todos', 'menu_manage'],
+        'certificate_issues' => ['menu_overview', 'menu_todos', 'menu_manage'],
+        'commission_scopes' => ['menu_overview', 'menu_todos', 'menu_manage'],
+        'commission_rules' => ['menu_overview', 'menu_todos', 'menu_manage'],
+        'commission_calcs' => ['menu_overview', 'menu_todos', 'menu_manage'],
+        'commission_adjustments' => ['menu_overview', 'menu_todos', 'menu_manage'],
+        'payroll_periods' => ['menu_overview', 'menu_todos', 'menu_manage'],
+        'payroll_slips' => ['menu_overview', 'menu_todos', 'menu_manage'],
     ];
 
     $allMenus = $pdo->query('SELECT id, menu_name, menu_key, path, icon, sort_no, status, parent_name FROM oa_menu WHERE status=1 ORDER BY sort_no ASC, id ASC')->fetchAll();
