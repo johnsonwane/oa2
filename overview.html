@@ -37,6 +37,7 @@
 
     <section class="content-card" v-if="activeTab==='overview'">
       <h2>数据总览</h2>
+      <p class="role-tip"><strong>岗位引导：</strong>老板/财务/部门负责人先看总览与待办，确认今日关键指标（订单、收款、待办、通知），再进入对应模块处理。</p>
       <div class="cards">
         <div class="stat"><span>学员数</span><strong>{{ summary.students }}</strong></div><div class="stat"><span>线索数</span><strong>{{ summary.leads || 0 }}</strong></div>
         <div class="stat"><span>课程数</span><strong>{{ summary.courses }}</strong></div>

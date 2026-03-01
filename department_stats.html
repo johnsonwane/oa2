@@ -37,6 +37,7 @@
 
     <section class="content-card" v-if="activeTab==='department_stats'">
       <h2>部门统计</h2>
+      <p class="role-tip"><strong>岗位引导：</strong>老板看全局，顾问/交付组长看本组，重点关注营收、提成、回款与在读交付风险。</p>
       <table class="table"><thead><tr><th>部门</th><th>人员</th><th>学员</th><th>订单</th><th>实收</th><th>销售分成</th><th>教练销售分成</th><th>推荐分成</th></tr></thead><tbody><tr v-for="d in departmentStats" :key="d.department"><td>{{d.department||'未分配'}}</td><td>{{d.user_count}}</td><td>{{d.student_count}}</td><td>{{d.order_count}}</td><td>¥{{d.paid_amount}}</td><td>¥{{d.sales_commission}}</td><td>¥{{d.coach_sales_commission||0}}</td><td>¥{{d.referrer_commission}}</td></tr></tbody></table>
     </section>
 

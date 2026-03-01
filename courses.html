@@ -37,6 +37,7 @@
 
     <section class="content-card" v-if="activeTab==='courses'">
       <h2>课程管理</h2>
+      <p class="role-tip"><strong>岗位引导：</strong>运营与教学负责人维护课程与价格；顾问/教练下单前先核对课程状态与标准价格。</p>
       <div class="section-actions"><button type="button" @click="openEditor('course', false)">新增课程</button></div><form :class="['inline-form','editor-form',{show:activeEditor==='course'}]" @submit.prevent="saveCourse"><input v-model.trim="courseForm.course_name" placeholder="课程名" required><input v-model.trim="courseForm.coach_name" placeholder="讲师" required><input v-model.number="courseForm.period_weeks" type="number" placeholder="周期周数"><input v-model.number="courseForm.price" type="number" step="0.01" placeholder="价格"><button>{{courseForm.id?'保存课程':'新增课程'}}</button><button type="button" class="btn-secondary" @click="closeEditor">取消</button></form>
       <table class="table"><thead><tr><th>ID</th><th>课程</th><th>讲师</th><th>周期</th><th>价格</th><th>操作</th></tr></thead><tbody><tr v-for="c in courses" :key="c.id"><td>{{c.id}}</td><td>{{c.course_name}}</td><td>{{c.coach_name}}</td><td>{{c.period_weeks}}周</td><td>¥{{c.price}}</td><td><button class="btn-mini btn-secondary" @click="viewRecord('课程详情',c)">查看</button><button class="btn-mini" @click="editCourse(c)">编辑</button></td></tr></tbody></table>
     </section>

@@ -37,6 +37,7 @@
 
     <section class="content-card" v-if="activeTab==='orders'">
       <h2>订单管理</h2>
+      <p class="role-tip"><strong>岗位引导：</strong>顾问/教练录入订单时必须确认付款阶段（定金/中款/尾款/全款）、合同状态与分成归属，避免财务对账异常。</p>
       <form class="inline-form" @submit.prevent="loadOrders"><input v-model.trim="orderKeyword" placeholder="搜索学员/课程/推荐者"><button type="submit" class="btn-secondary">查询</button></form>
       <div class="section-actions"><button type="button" @click="openEditor('order', false)">新增订单</button></div><form :class="['inline-form','editor-form',{show:activeEditor==='order'}]" @submit.prevent="saveOrder">
         <select v-model.number="orderForm.student_id" required><option value="">选择学员</option><option v-for="s in students" :value="Number(s.id)">{{s.name}}</option></select>

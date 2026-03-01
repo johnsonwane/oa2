@@ -37,6 +37,7 @@
 
     <section class="content-card" v-if="activeTab==='menus'">
       <h2>菜单管理（与左侧菜单对应）</h2>
+      <p class="role-tip"><strong>岗位引导：</strong>管理员统一维护菜单与导航顺序；改动前确认角色可见性，避免关键岗位找不到功能入口。</p>
       <div class="section-actions"><button type="button" @click="openEditor('menu', false)">新增菜单</button></div><form :class="['inline-form','editor-form',{show:activeEditor==='menu'}]" @submit.prevent="saveMenu"><input v-model.trim="menuForm.parent_name" placeholder="一级菜单" required><input v-model.trim="menuForm.menu_name" placeholder="二级菜单名" required><input v-model.trim="menuForm.menu_key" placeholder="菜单key" required><input v-model.trim="menuForm.path" placeholder="路径" required><button>{{menuForm.id?'保存菜单':'新增菜单'}}</button><button type="button" class="btn-secondary" @click="closeEditor">取消</button></form>
       <table class="table"><thead><tr><th>一级</th><th>二级</th><th>KEY</th><th>PATH</th><th>操作</th></tr></thead><tbody><tr v-for="m in menus" :key="m.id"><td>{{m.parent_name}}</td><td>{{m.menu_name}}</td><td>{{m.menu_key}}</td><td>{{m.path}}</td><td><button class="btn-mini btn-secondary" @click="viewRecord('菜单详情',m)">查看</button><button class="btn-mini" @click="editMenu(m)">编辑</button></td></tr></tbody></table>
     </section>

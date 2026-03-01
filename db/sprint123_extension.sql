@@ -278,3 +278,90 @@ CREATE TABLE IF NOT EXISTS oa_expense_voucher (
   PRIMARY KEY (id),
   UNIQUE KEY uk_expense_no (expense_no)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+
+-- Sprint123 sample seeds
+INSERT INTO oa_material (title, material_type, category, tags, cover_url, content_url, description, owner_user_id, status) VALUES
+('抖音引流学习资料包', 'pdf', '引流资料', '抖音,入门', '', 'https://example.com/materials/douyin-pack.pdf', '用于顾问引导领取', 2, 1),
+('小红书学习路线图', 'article', '引流资料', '小红书,路线图', '', 'https://example.com/materials/xhs-roadmap', '用于初次咨询转化', 2, 1)
+ON DUPLICATE KEY UPDATE title=VALUES(title), category=VALUES(category), tags=VALUES(tags), content_url=VALUES(content_url), description=VALUES(description), status=VALUES(status);
+
+INSERT INTO oa_material_campaign (material_id, channel, campaign_name, consultant_user_id, landing_url, qr_code_url, status) VALUES
+(1, 'douyin', '抖音2月投放-资料领取', 2, 'https://example.com/campaign/dy2026', '', 1),
+(2, 'xiaohongshu', '小红书3月投放-路线图', 2, 'https://example.com/campaign/xhs2026', '', 1)
+ON DUPLICATE KEY UPDATE campaign_name=VALUES(campaign_name), consultant_user_id=VALUES(consultant_user_id), landing_url=VALUES(landing_url), status=VALUES(status);
+
+INSERT INTO oa_material_claim (campaign_id, material_id, consultant_user_id, wechat_name, avatar_url, mobile, miniapp_openid, source_channel, claim_time) VALUES
+(1, 1, 2, '学习用户A', '', '13911110001', 'openid_demo_a', 'douyin', NOW()),
+(2, 2, 2, '学习用户B', '', '13911110002', 'openid_demo_b', 'xiaohongshu', NOW())
+ON DUPLICATE KEY UPDATE wechat_name=VALUES(wechat_name), mobile=VALUES(mobile), source_channel=VALUES(source_channel), claim_time=VALUES(claim_time);
+
+INSERT INTO oa_class_term (course_id, term_name, start_date, end_date, headteacher_user_id, status) VALUES
+(1, 'Python全栈-2026春季1期', '2026-03-10', '2026-06-10', 3, 'running')
+ON DUPLICATE KEY UPDATE start_date=VALUES(start_date), end_date=VALUES(end_date), headteacher_user_id=VALUES(headteacher_user_id), status=VALUES(status);
+
+INSERT INTO oa_student_term_rel (student_id, term_id, joined_at, status) VALUES
+(1, 1, NOW(), 'learning')
+ON DUPLICATE KEY UPDATE joined_at=VALUES(joined_at), status=VALUES(status);
+
+INSERT INTO oa_shipment (student_id, order_id, receiver_name, receiver_mobile, receiver_address, courier_company, tracking_no, shipped_at, status, remark) VALUES
+(1, 1, '张三', '13800000001', '上海市徐汇区XX路1号', '顺丰', 'SF1234567890', NOW(), 'shipped', '已发放实体资料')
+ON DUPLICATE KEY UPDATE courier_company=VALUES(courier_company), tracking_no=VALUES(tracking_no), shipped_at=VALUES(shipped_at), status=VALUES(status), remark=VALUES(remark);
+
+INSERT INTO oa_contract (contract_no, order_id, student_id, seller_user_id, sign_time, contract_url, status, remark) VALUES
+('HT-2026-0001', 1, 1, 2, NOW(), 'https://example.com/contracts/HT-2026-0001.pdf', 'signed', '首单合同')
+ON DUPLICATE KEY UPDATE sign_time=VALUES(sign_time), contract_url=VALUES(contract_url), status=VALUES(status), remark=VALUES(remark);
+
+INSERT INTO oa_invoice_profile (student_id, company_name, tax_no, address, bank_name, bank_account, contact_name, contact_mobile) VALUES
+(1, '上海示例科技有限公司', '91310000MA1K000001', '上海市浦东新区XX路88号', '中国银行上海分行', '6222000000000001', '张三', '13800000001')
+ON DUPLICATE KEY UPDATE tax_no=VALUES(tax_no), address=VALUES(address), bank_name=VALUES(bank_name), bank_account=VALUES(bank_account), contact_name=VALUES(contact_name), contact_mobile=VALUES(contact_mobile);
+
+INSERT INTO oa_invoice (order_id, receipt_id, invoice_profile_id, invoice_no, amount, invoice_type, status, issued_at, remark) VALUES
+(1, 1, 1, 'FP-2026-0001', 5000.00, 'normal', 'issued', NOW(), '课程费发票')
+ON DUPLICATE KEY UPDATE amount=VALUES(amount), status=VALUES(status), issued_at=VALUES(issued_at), remark=VALUES(remark);
+
+INSERT INTO oa_payment_callback_log (channel, biz_type, biz_id, callback_payload, verify_status, callback_time) VALUES
+('wechat_work', 'receipt', 1, '{"trade_no":"wx_demo_001","status":"SUCCESS"}', 1, NOW()),
+('alipay_enterprise', 'receipt', 1, '{"trade_no":"ali_demo_001","status":"SUCCESS"}', 1, NOW());
+
+INSERT INTO oa_commission_rule (rule_name, role_type, calc_base, commission_type, rate, fixed_amount, priority_no, start_date, end_date, status) VALUES
+('顾问标准分成', 'consultant', 'order', 'rate', 0.0800, 0, 10, '2026-01-01', NULL, 1),
+('教练续费分成', 'coach', 'order', 'rate', 0.0500, 0, 20, '2026-01-01', NULL, 1)
+ON DUPLICATE KEY UPDATE rate=VALUES(rate), priority_no=VALUES(priority_no), start_date=VALUES(start_date), end_date=VALUES(end_date), status=VALUES(status);
+
+INSERT INTO oa_commission_scope (rule_id, scope_type, scope_value) VALUES
+(1, 'department', 'consulting_dept'),
+(2, 'department', 'delivery_dept');
+
+INSERT INTO oa_commission_calc (order_id, rule_id, user_id, role_type, base_amount, commission_amount, calc_time, status) VALUES
+(1, 1, 2, 'consultant', 5000.00, 400.00, NOW(), 'auto');
+
+INSERT INTO oa_commission_adjustment (calc_id, user_id, adjust_amount, reason, operator_user_id) VALUES
+(1, 2, 50.00, '活动奖励加成', 1);
+
+INSERT INTO oa_certificate_template (template_name, cert_type, template_url, status) VALUES
+('线上结业证模板A', 'online', 'https://example.com/cert/template-online-a', 1),
+('线下结业证模板B', 'offline', 'https://example.com/cert/template-offline-b', 1)
+ON DUPLICATE KEY UPDATE template_url=VALUES(template_url), status=VALUES(status);
+
+INSERT INTO oa_certificate_issue (student_id, course_id, template_id, cert_no, cert_type, issued_by_user_id, issued_at, cert_url, remark) VALUES
+(1, 1, 1, 'CERT-2026-0001', 'online', 3, NOW(), 'https://example.com/cert/CERT-2026-0001', '首期结业证');
+
+INSERT INTO oa_payroll_period (period_name, period_month, start_date, end_date, status) VALUES
+('2026年3月薪资', '2026-03', '2026-03-01', '2026-03-31', 'confirmed')
+ON DUPLICATE KEY UPDATE start_date=VALUES(start_date), end_date=VALUES(end_date), status=VALUES(status);
+
+INSERT INTO oa_payroll_slip (period_id, user_id, gross_amount, tax_amount, social_amount, housing_amount, special_deduction, net_amount, status) VALUES
+(1, 2, 12000.00, 600.00, 800.00, 600.00, 500.00, 9500.00, 'paid')
+ON DUPLICATE KEY UPDATE gross_amount=VALUES(gross_amount), tax_amount=VALUES(tax_amount), social_amount=VALUES(social_amount), housing_amount=VALUES(housing_amount), special_deduction=VALUES(special_deduction), net_amount=VALUES(net_amount), status=VALUES(status);
+
+INSERT INTO oa_payroll_item (slip_id, item_type, item_name, amount, remark) VALUES
+(1, 'base', '基本工资', 8000.00, ''),
+(1, 'commission', '订单提成', 1500.00, '含手工调节'),
+(1, 'deduction', '个税', -600.00, '按月扣缴');
+
+INSERT INTO oa_salary_payment_log (period_id, user_id, paid_amount, paid_at, channel, voucher_no, remark) VALUES
+(1, 2, 9500.00, NOW(), 'bank_transfer', 'PAY-2026-03-0001', '3月工资发放');
+
+INSERT INTO oa_expense_voucher (expense_no, item_name, amount, dept_name, expense_date, payer_user_id, pay_channel, invoice_no, remark) VALUES
+('EXP-2026-0001', '投流成本-抖音', 3000.00, '运营部', CURDATE(), 4, 'corporate_alipay', 'INV-EXP-0001', '3月首周投流');

@@ -37,6 +37,7 @@
 
     <section class="content-card" v-if="activeTab==='rbac_groups'">
       <h2>系统管理 / 角色管理</h2>
+      <p class="role-tip"><strong>岗位引导：</strong>按岗位建立角色模板（顾问/班主任/教练/财务/人事/老板），避免直接给个人配置过多权限。</p>
       <div class="section-actions"><button type="button" @click="openEditor('group', false)">新增角色</button></div><form :class="['inline-form','editor-form',{show:activeEditor==='group'}]" @submit.prevent="saveGroup"><input v-model.trim="groupForm.group_name" placeholder="角色名" required><input v-model.trim="groupForm.group_code" placeholder="组编码" required><input v-model.trim="groupForm.remark" placeholder="备注"><button>{{groupForm.id?'保存角色':'新增角色'}}</button><button type="button" class="btn-secondary" @click="closeEditor">取消</button></form>
       <table class="table"><thead><tr><th>ID</th><th>角色名</th><th>编码</th><th>备注</th><th>操作</th></tr></thead><tbody><tr v-for="g in groups" :key="g.id"><td>{{g.id}}</td><td>{{g.group_name}}</td><td>{{g.group_code}}</td><td>{{g.remark}}</td><td><button class="btn-mini" @click="editGroup(g)">编辑</button></td></tr></tbody></table>
     </section>

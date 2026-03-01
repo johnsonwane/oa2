@@ -37,6 +37,7 @@
 
     <section class="content-card" v-if="activeTab==='notifications'">
       <h2>通知管理</h2>
+      <p class="role-tip"><strong>岗位引导：</strong>管理层发布制度、排课、结算、预警通知；员工按通知执行并在待办中落地动作。</p>
       <div class="section-actions"><button type="button" @click="openEditor('notification', false)">发送通知</button></div><form :class="['inline-form','editor-form',{show:activeEditor==='notification'}]" @submit.prevent="saveNotification"><input v-model.trim="notificationForm.title" placeholder="标题" required><input v-model.trim="notificationForm.content" placeholder="内容" required><select v-model.number="notificationForm.is_read"><option :value="0">未读</option><option :value="1">已读</option></select><button>{{notificationForm.id?'保存通知':'发送通知'}}</button><button type="button" class="btn-secondary" @click="closeEditor">取消</button></form>
       <table class="table"><thead><tr><th>标题</th><th>内容</th><th>状态</th><th>操作</th></tr></thead><tbody><tr v-for="n in notifications" :key="n.id"><td>{{n.title}}</td><td>{{n.content}}</td><td>{{Number(n.is_read)===1?'已读':'未读'}}</td><td><button class="btn-mini btn-secondary" @click="viewRecord('通知详情',n)">查看</button><button class="btn-mini" @click="editNotification(n)">编辑</button></td></tr></tbody></table>
     </section>

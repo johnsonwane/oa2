@@ -37,6 +37,7 @@
 
     <section class="content-card" v-if="activeTab==='rbac_permissions'">
       <h2>系统管理 / 权限管理</h2>
+      <p class="role-tip"><strong>岗位引导：</strong>权限按“查看/编辑/审批/导出”分层设计，新增权限需注明业务场景和风险边界。</p>
       <div class="section-actions"><button type="button" @click="openEditor('perm', false)">新增权限</button></div><form :class="['inline-form','editor-form',{show:activeEditor==='perm'}]" @submit.prevent="savePerm"><input v-model.trim="permForm.perm_name" placeholder="权限名称" required><input v-model.trim="permForm.perm_code" placeholder="权限编码" required><input v-model.trim="permForm.module_name" placeholder="模块名"><button>{{permForm.id?'保存权限':'新增权限'}}</button><button type="button" class="btn-secondary" @click="closeEditor">取消</button></form>
       <table class="table"><thead><tr><th>ID</th><th>权限名</th><th>编码</th><th>模块</th><th>操作</th></tr></thead><tbody><tr v-for="p in perms" :key="p.id"><td>{{p.id}}</td><td>{{p.perm_name}}</td><td>{{p.perm_code}}</td><td>{{p.module_name}}</td><td><button class="btn-mini btn-secondary" @click="viewRecord('权限详情',p)">查看</button><button class="btn-mini" @click="editPerm(p)">编辑</button></td></tr></tbody></table>
     </section>

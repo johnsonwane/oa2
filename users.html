@@ -37,6 +37,7 @@
 
     <section class="content-card" v-if="activeTab==='users'">
       <h2>员工管理（RBAC）</h2>
+      <p class="role-tip"><strong>岗位引导：</strong>人事维护员工个人资料；系统账号、角色和权限由管理员/超管处理，遵循最小权限原则。</p>
       <form class="inline-form" @submit.prevent="loadUsers"><input v-model.trim="userKeyword" placeholder="搜索用户名/姓名/手机"><button type="submit" class="btn-secondary">查询</button></form>
       <div class="section-actions"><button type="button" @click="openEditor('user', false)">新增员工</button></div><form :class="['inline-form','editor-form',{show:activeEditor==='user'}]" @submit.prevent="saveUser">
         <div class="form-section-title">系统相关信息</div>

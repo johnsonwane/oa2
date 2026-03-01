@@ -37,6 +37,7 @@
 
     <section class="content-card" v-if="activeTab==='students'">
       <h2>学员管理</h2>
+      <p class="role-tip"><strong>岗位引导：</strong>顾问先建线索并完善学员信息；班主任补充期次与服务信息；教练只维护自己负责学员的交付相关信息。</p>
       <form class="inline-form" @submit.prevent="loadStudents"><input v-model.trim="studentKeyword" placeholder="搜索姓名/手机/顾问"><select v-model="studentCategory"><option value="">全部</option><option value="lead">线索</option><option value="pending_payment">待缴费学员</option><option value="active">正式学员</option></select><button type="submit" class="btn-secondary">查询</button></form>
       <div class="section-actions"><button type="button" @click="openEditor('student', false)">新增学员</button></div><form :class="['inline-form','editor-form',{show:activeEditor==='student'}]" @submit.prevent="saveStudent">
         <label>姓名（选填）<input v-model.trim="studentForm.name" placeholder="例如：张三"></label>

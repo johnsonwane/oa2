@@ -37,6 +37,7 @@
 
     <section class="content-card" v-if="activeTab==='todos'">
       <h2>待办管理</h2>
+      <p class="role-tip"><strong>岗位引导：</strong>这是默认入口。所有岗位先在待办确认“今天要做什么”，处理后及时更新状态，保证协同可追踪。</p>
       <div class="section-actions"><button type="button" @click="openEditor('todo', false)">新增待办</button></div><form :class="['inline-form','editor-form',{show:activeEditor==='todo'}]" @submit.prevent="saveTodo"><input v-model.trim="todoForm.title" placeholder="待办事项" required><select v-model="todoForm.priority"><option>高</option><option>中</option><option>低</option></select><select v-model="todoForm.status"><option value="todo">todo</option><option value="doing">doing</option><option value="done">done</option></select><input v-model="todoForm.due_date" type="date"><button>{{todoForm.id?'保存待办':'新增待办'}}</button><button type="button" class="btn-secondary" @click="closeEditor">取消</button></form>
       <table class="table"><thead><tr><th>事项</th><th>优先级</th><th>状态</th><th>截止日</th><th>操作</th></tr></thead><tbody><tr v-for="t in todos" :key="t.id"><td>{{t.title}}</td><td>{{t.priority}}</td><td>{{t.status}}</td><td>{{t.due_date}}</td><td><button class="btn-mini btn-secondary" @click="viewRecord('待办详情',t)">查看</button><button class="btn-mini" @click="editTodo(t)">编辑</button></td></tr></tbody></table>
     </section>

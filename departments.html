@@ -37,6 +37,7 @@
 
     <section class="content-card" v-if="activeTab==='departments'">
       <h2>部门管理</h2>
+      <p class="role-tip"><strong>岗位引导：</strong>组织架构变化先更新部门，再调整岗位与可见范围，确保统计口径和分成归属正确。</p>
       <div class="section-actions"><button type="button" @click="openEditor('department', false)">新增部门</button></div><form :class="['inline-form','editor-form',{show:activeEditor==='department'}]" @submit.prevent="saveDepartment"><input v-model.trim="departmentForm.dept_name" placeholder="部门名称" required><input v-model.trim="departmentForm.dept_code" placeholder="部门编码" required><input v-model.trim="departmentForm.parent_name" placeholder="上级部门"><input v-model.number="departmentForm.sort_no" type="number" placeholder="排序"><button>{{departmentForm.id?'保存部门':'新增部门'}}</button><button type="button" class="btn-secondary" @click="closeEditor">取消</button></form>
       <table class="table"><thead><tr><th>ID</th><th>部门</th><th>编码</th><th>上级</th><th>操作</th></tr></thead><tbody><tr v-for="d in departments" :key="d.id"><td>{{d.id}}</td><td>{{d.dept_name}}</td><td>{{d.dept_code}}</td><td>{{d.parent_name}}</td><td><button class="btn-mini btn-secondary" @click="viewRecord('部门详情',d)">查看</button><button class="btn-mini" @click="editDepartment(d)">编辑</button></td></tr></tbody></table>
     </section>

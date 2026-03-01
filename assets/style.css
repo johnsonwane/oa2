@@ -52,3 +52,6 @@ button:disabled{opacity:.65}.btn-secondary{background:#6b7280}.btn-danger{backgr
 
 .editor-form.show label{margin-right:8px}
 @media(max-width:760px){.editor-form.show{grid-template-columns:1fr;width:min(96vw,680px);padding:16px}}
+
+.role-tip{margin:8px 0 12px;padding:10px 12px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;color:#1e3a8a;font-size:13px;line-height:1.6}
+.role-tip strong{margin-right:6px}
