@@ -56,4 +56,4 @@ button:disabled{opacity:.65}.btn-secondary{background:#6b7280}.btn-danger{backgr
 .role-tip{margin:8px 0 12px;padding:10px 12px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;color:#1e3a8a;font-size:13px;line-height:1.6}
 .role-tip strong{margin-right:6px}
 
-.quick-nav{margin-top:12px}.quick-nav h3{margin:0 0 10px}.quick-nav-links{display:flex;flex-wrap:wrap;gap:8px}.quick-nav-links a{display:inline-block;padding:6px 10px;border:1px solid #d1d5db;border-radius:999px;color:#1f2937;text-decoration:none;background:#f9fafb;font-size:13px}.quick-nav-links a:hover{background:#e5edff;border-color:#93c5fd;color:#1d4ed8}
+.quick-nav{margin-top:12px}.quick-nav h3{margin:0 0 10px}.quick-menu{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:6px 10px;margin:4px 0 10px}.quick-menu li{list-style:none;padding:8px 10px;border:1px solid #e5e7eb;background:#f9fafb}.quick-menu li a{display:block;color:#1f2937;text-decoration:none}.quick-menu li:hover{background:#e5edff;border-color:#93c5fd}.quick-menu li:hover a{color:#1d4ed8}
