@@ -12,6 +12,7 @@
 - `assets/style.css`：样式文件
 
 - 独立菜单页面（按模块拆分）：`overview.html`、`students.html`、`courses.html`、`orders.html`、`referrers.html`、`receipts.html`、`delivery_logs.html`、`department_stats.html`、`finance.html`、`todos.html`、`notifications.html`、`users.html`、`departments.html`、`menus.html`、`rbac_groups.html`、`rbac_permissions.html`、`rbac_assign.html`
+- Sprint123 扩展页面（本轮新增 17 个）：`materials.html`、`material_campaigns.html`、`material_claims.html`、`contracts.html`、`invoice_profiles.html`、`invoices.html`、`class_terms.html`、`student_terms.html`、`shipments.html`、`certificate_templates.html`、`certificate_issues.html`、`commission_rules.html`、`commission_scopes.html`、`commission_calcs.html`、`commission_adjustments.html`、`payroll_periods.html`、`payroll_slips.html`
 
 ## API 接口
 

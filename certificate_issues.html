@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>证书发放</title><link rel="stylesheet" href="./assets/style.css"/><script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script></head>
+<body><div id="app" class="oa-main" v-cloak>
+  <header class="oa-header"><h1>证书发放</h1><div class="header-actions"><a class="btn-secondary" href="./todos.html">返回主入口</a><button @click="load">刷新</button></div></header>
+  <section class="content-card"><p class="role-tip"><strong>模块说明：</strong>证书发放模块（Sprint123）已补齐，可直接新增、编辑、删除、查询。</p>
+    <form class="inline-form" @submit.prevent="save">
+        <label>student_id<input v-model="form.student_id" type="text"/></label>
+        <label>course_id<input v-model="form.course_id" type="text"/></label>
+        <label>template_id<input v-model="form.template_id" type="text"/></label>
+        <label>cert_no<input v-model="form.cert_no" type="text"/></label>
+        <label>cert_type<input v-model="form.cert_type" type="text"/></label>
+        <label>issued_by_user_id<input v-model="form.issued_by_user_id" type="text"/></label>
+        <label>issued_at<input v-model="form.issued_at" type="datetime-local"/></label>
+        <label>cert_url<input v-model="form.cert_url" type="text"/></label>
+        <button>{{form.id?'保存':'新增'}}</button><button type="button" class="btn-secondary" @click="reset">重置</button>
+    </form>
+    <table class="table"><thead><tr><th>id</th><th>student_id</th><th>course_id</th><th>template_id</th><th>cert_no</th><th>cert_type</th><th>issued_by_user_id</th><th>issued_at</th><th>cert_url</th><th>操作</th></tr></thead><tbody><tr v-for="row in list" :key="row.id"><td>{{row.id||"-"}}</td><td>{{row.student_id||"-"}}</td><td>{{row.course_id||"-"}}</td><td>{{row.template_id||"-"}}</td><td>{{row.cert_no||"-"}}</td><td>{{row.cert_type||"-"}}</td><td>{{row.issued_by_user_id||"-"}}</td><td>{{row.issued_at||"-"}}</td><td>{{row.cert_url||"-"}}</td><td><button class="btn-mini" @click="edit(row)">编辑</button><button class="btn-mini btn-danger" @click="delRow(row.id)">删除</button></td></tr></tbody></table>
+    <p v-if="error" class="error">{{error}}</p>
+  </section></div>
+<script>
+const {createApp,ref,reactive,onMounted} = Vue;
+createApp({setup(){
+  const list=ref([]),error=ref('');
+  const form=reactive({id:0,student_id:'',course_id:'',template_id:'',cert_no:'',cert_type:'',issued_by_user_id:'',issued_at:'',cert_url:''});
+  const api='/api/certificate_issues.php';
+  const req=async(url,opt={})=>{const r=await fetch(url,{headers:{'Content-Type':'application/json'},...opt});const t=await r.text();let j={};try{j=t?JSON.parse(t):{}}catch(_ ){}if(!r.ok||j.code!==0) throw new Error(j.message||'请求失败');return j.data;};
+  const load=async()=>{try{error.value='';list.value=await req(api)}catch(e){error.value=e.message}};
+  const reset=()=>{form.student_id='';form.course_id='';form.template_id='';form.cert_no='';form.cert_type='';form.issued_by_user_id='';form.issued_at='';form.cert_url='';form.id=0;};
+  const save=async()=>{try{error.value='';if(form.id){await req(api,{method:'PUT',body:JSON.stringify(form)})}else{await req(api,{method:'POST',body:JSON.stringify(form)})}reset();await load();}catch(e){error.value=e.message}};
+  const edit=(row)=>{form.id=Number(row.id)||0;Object.assign(form,{student_id: row.student_id ?? '' ,
+      course_id: row.course_id ?? '' ,
+      template_id: row.template_id ?? '' ,
+      cert_no: row.cert_no ?? '' ,
+      cert_type: row.cert_type ?? '' ,
+      issued_by_user_id: row.issued_by_user_id ?? '' ,
+      issued_at: row.issued_at ?? '' ,
+      cert_url: row.cert_url ?? '' ,});};
+  const delRow=async(id)=>{if(!confirm('确认删除?'))return;try{await req(api+'?id='+id,{method:'DELETE'});await load();}catch(e){error.value=e.message}};
+  onMounted(load); return {list,error,form,load,reset,save,edit,delRow};
+}}).mount('#app');
+</script></body></html>

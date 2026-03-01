@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>资料领取记录</title><link rel="stylesheet" href="./assets/style.css"/><script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script></head>
+<body><div id="app" class="oa-main" v-cloak>
+  <header class="oa-header"><h1>资料领取记录</h1><div class="header-actions"><a class="btn-secondary" href="./todos.html">返回主入口</a><button @click="load">刷新</button></div></header>
+  <section class="content-card"><p class="role-tip"><strong>模块说明：</strong>资料领取记录模块（Sprint123）已补齐，可直接新增、编辑、删除、查询。</p>
+    <form class="inline-form" @submit.prevent="save">
+        <label>campaign_id<input v-model="form.campaign_id" type="text"/></label>
+        <label>material_id<input v-model="form.material_id" type="text"/></label>
+        <label>consultant_user_id<input v-model="form.consultant_user_id" type="text"/></label>
+        <label>wechat_name<input v-model="form.wechat_name" type="text"/></label>
+        <label>mobile<input v-model="form.mobile" type="text"/></label>
+        <label>source_channel<input v-model="form.source_channel" type="text"/></label>
+        <label>claim_time<input v-model="form.claim_time" type="datetime-local"/></label>
+        <button>{{form.id?'保存':'新增'}}</button><button type="button" class="btn-secondary" @click="reset">重置</button>
+    </form>
+    <table class="table"><thead><tr><th>id</th><th>campaign_id</th><th>material_id</th><th>consultant_user_id</th><th>wechat_name</th><th>mobile</th><th>source_channel</th><th>claim_time</th><th>操作</th></tr></thead><tbody><tr v-for="row in list" :key="row.id"><td>{{row.id||"-"}}</td><td>{{row.campaign_id||"-"}}</td><td>{{row.material_id||"-"}}</td><td>{{row.consultant_user_id||"-"}}</td><td>{{row.wechat_name||"-"}}</td><td>{{row.mobile||"-"}}</td><td>{{row.source_channel||"-"}}</td><td>{{row.claim_time||"-"}}</td><td><button class="btn-mini" @click="edit(row)">编辑</button><button class="btn-mini btn-danger" @click="delRow(row.id)">删除</button></td></tr></tbody></table>
+    <p v-if="error" class="error">{{error}}</p>
+  </section></div>
+<script>
+const {createApp,ref,reactive,onMounted} = Vue;
+createApp({setup(){
+  const list=ref([]),error=ref('');
+  const form=reactive({id:0,campaign_id:'',material_id:'',consultant_user_id:'',wechat_name:'',mobile:'',source_channel:'',claim_time:''});
+  const api='/api/material_claims.php';
+  const req=async(url,opt={})=>{const r=await fetch(url,{headers:{'Content-Type':'application/json'},...opt});const t=await r.text();let j={};try{j=t?JSON.parse(t):{}}catch(_ ){}if(!r.ok||j.code!==0) throw new Error(j.message||'请求失败');return j.data;};
+  const load=async()=>{try{error.value='';list.value=await req(api)}catch(e){error.value=e.message}};
+  const reset=()=>{form.campaign_id='';form.material_id='';form.consultant_user_id='';form.wechat_name='';form.mobile='';form.source_channel='';form.claim_time='';form.id=0;};
+  const save=async()=>{try{error.value='';if(form.id){await req(api,{method:'PUT',body:JSON.stringify(form)})}else{await req(api,{method:'POST',body:JSON.stringify(form)})}reset();await load();}catch(e){error.value=e.message}};
+  const edit=(row)=>{form.id=Number(row.id)||0;Object.assign(form,{campaign_id: row.campaign_id ?? '' ,
+      material_id: row.material_id ?? '' ,
+      consultant_user_id: row.consultant_user_id ?? '' ,
+      wechat_name: row.wechat_name ?? '' ,
+      mobile: row.mobile ?? '' ,
+      source_channel: row.source_channel ?? '' ,
+      claim_time: row.claim_time ?? '' ,});};
+  const delRow=async(id)=>{if(!confirm('确认删除?'))return;try{await req(api+'?id='+id,{method:'DELETE'});await load();}catch(e){error.value=e.message}};
+  onMounted(load); return {list,error,form,load,reset,save,edit,delRow};
+}}).mount('#app');
+</script></body></html>

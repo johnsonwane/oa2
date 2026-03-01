@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>工资条</title><link rel="stylesheet" href="./assets/style.css"/><script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script></head>
+<body><div id="app" class="oa-main" v-cloak>
+  <header class="oa-header"><h1>工资条</h1><div class="header-actions"><a class="btn-secondary" href="./todos.html">返回主入口</a><button @click="load">刷新</button></div></header>
+  <section class="content-card"><p class="role-tip"><strong>模块说明：</strong>工资条模块（Sprint123）已补齐，可直接新增、编辑、删除、查询。</p>
+    <form class="inline-form" @submit.prevent="save">
+        <label>period_id<input v-model="form.period_id" type="text"/></label>
+        <label>user_id<input v-model="form.user_id" type="text"/></label>
+        <label>gross_amount<input v-model="form.gross_amount" type="number"/></label>
+        <label>tax_amount<input v-model="form.tax_amount" type="number"/></label>
+        <label>social_amount<input v-model="form.social_amount" type="number"/></label>
+        <label>housing_amount<input v-model="form.housing_amount" type="number"/></label>
+        <label>special_deduction<input v-model="form.special_deduction" type="text"/></label>
+        <label>net_amount<input v-model="form.net_amount" type="number"/></label>
+        <label>status<input v-model="form.status" type="text"/></label>
+        <button>{{form.id?'保存':'新增'}}</button><button type="button" class="btn-secondary" @click="reset">重置</button>
+    </form>
+    <table class="table"><thead><tr><th>id</th><th>period_id</th><th>user_id</th><th>gross_amount</th><th>tax_amount</th><th>social_amount</th><th>housing_amount</th><th>special_deduction</th><th>net_amount</th><th>status</th><th>操作</th></tr></thead><tbody><tr v-for="row in list" :key="row.id"><td>{{row.id||"-"}}</td><td>{{row.period_id||"-"}}</td><td>{{row.user_id||"-"}}</td><td>{{row.gross_amount||"-"}}</td><td>{{row.tax_amount||"-"}}</td><td>{{row.social_amount||"-"}}</td><td>{{row.housing_amount||"-"}}</td><td>{{row.special_deduction||"-"}}</td><td>{{row.net_amount||"-"}}</td><td>{{row.status||"-"}}</td><td><button class="btn-mini" @click="edit(row)">编辑</button><button class="btn-mini btn-danger" @click="delRow(row.id)">删除</button></td></tr></tbody></table>
+    <p v-if="error" class="error">{{error}}</p>
+  </section></div>
+<script>
+const {createApp,ref,reactive,onMounted} = Vue;
+createApp({setup(){
+  const list=ref([]),error=ref('');
+  const form=reactive({id:0,period_id:'',user_id:'',gross_amount:'',tax_amount:'',social_amount:'',housing_amount:'',special_deduction:'',net_amount:'',status:''});
+  const api='/api/payroll_slips.php';
+  const req=async(url,opt={})=>{const r=await fetch(url,{headers:{'Content-Type':'application/json'},...opt});const t=await r.text();let j={};try{j=t?JSON.parse(t):{}}catch(_ ){}if(!r.ok||j.code!==0) throw new Error(j.message||'请求失败');return j.data;};
+  const load=async()=>{try{error.value='';list.value=await req(api)}catch(e){error.value=e.message}};
+  const reset=()=>{form.period_id='';form.user_id='';form.gross_amount='';form.tax_amount='';form.social_amount='';form.housing_amount='';form.special_deduction='';form.net_amount='';form.status='';form.id=0;};
+  const save=async()=>{try{error.value='';if(form.id){await req(api,{method:'PUT',body:JSON.stringify(form)})}else{await req(api,{method:'POST',body:JSON.stringify(form)})}reset();await load();}catch(e){error.value=e.message}};
+  const edit=(row)=>{form.id=Number(row.id)||0;Object.assign(form,{period_id: row.period_id ?? '' ,
+      user_id: row.user_id ?? '' ,
+      gross_amount: row.gross_amount ?? '' ,
+      tax_amount: row.tax_amount ?? '' ,
+      social_amount: row.social_amount ?? '' ,
+      housing_amount: row.housing_amount ?? '' ,
+      special_deduction: row.special_deduction ?? '' ,
+      net_amount: row.net_amount ?? '' ,
+      status: row.status ?? '' ,});};
+  const delRow=async(id)=>{if(!confirm('确认删除?'))return;try{await req(api+'?id='+id,{method:'DELETE'});await load();}catch(e){error.value=e.message}};
+  onMounted(load); return {list,error,form,load,reset,save,edit,delRow};
+}}).mount('#app');
+</script></body></html>

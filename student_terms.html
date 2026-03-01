@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>学员-期次关系</title><link rel="stylesheet" href="./assets/style.css"/><script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script></head>
+<body><div id="app" class="oa-main" v-cloak>
+  <header class="oa-header"><h1>学员-期次关系</h1><div class="header-actions"><a class="btn-secondary" href="./todos.html">返回主入口</a><button @click="load">刷新</button></div></header>
+  <section class="content-card"><p class="role-tip"><strong>模块说明：</strong>学员-期次关系模块（Sprint123）已补齐，可直接新增、编辑、删除、查询。</p>
+    <form class="inline-form" @submit.prevent="save">
+        <label>student_id<input v-model="form.student_id" type="text"/></label>
+        <label>term_id<input v-model="form.term_id" type="text"/></label>
+        <label>joined_at<input v-model="form.joined_at" type="datetime-local"/></label>
+        <label>status<input v-model="form.status" type="text"/></label>
+        <button>{{form.id?'保存':'新增'}}</button><button type="button" class="btn-secondary" @click="reset">重置</button>
+    </form>
+    <table class="table"><thead><tr><th>id</th><th>student_id</th><th>term_id</th><th>joined_at</th><th>status</th><th>操作</th></tr></thead><tbody><tr v-for="row in list" :key="row.id"><td>{{row.id||"-"}}</td><td>{{row.student_id||"-"}}</td><td>{{row.term_id||"-"}}</td><td>{{row.joined_at||"-"}}</td><td>{{row.status||"-"}}</td><td><button class="btn-mini" @click="edit(row)">编辑</button><button class="btn-mini btn-danger" @click="delRow(row.id)">删除</button></td></tr></tbody></table>
+    <p v-if="error" class="error">{{error}}</p>
+  </section></div>
+<script>
+const {createApp,ref,reactive,onMounted} = Vue;
+createApp({setup(){
+  const list=ref([]),error=ref('');
+  const form=reactive({id:0,student_id:'',term_id:'',joined_at:'',status:''});
+  const api='/api/student_terms.php';
+  const req=async(url,opt={})=>{const r=await fetch(url,{headers:{'Content-Type':'application/json'},...opt});const t=await r.text();let j={};try{j=t?JSON.parse(t):{}}catch(_ ){}if(!r.ok||j.code!==0) throw new Error(j.message||'请求失败');return j.data;};
+  const load=async()=>{try{error.value='';list.value=await req(api)}catch(e){error.value=e.message}};
+  const reset=()=>{form.student_id='';form.term_id='';form.joined_at='';form.status='';form.id=0;};
+  const save=async()=>{try{error.value='';if(form.id){await req(api,{method:'PUT',body:JSON.stringify(form)})}else{await req(api,{method:'POST',body:JSON.stringify(form)})}reset();await load();}catch(e){error.value=e.message}};
+  const edit=(row)=>{form.id=Number(row.id)||0;Object.assign(form,{student_id: row.student_id ?? '' ,
+      term_id: row.term_id ?? '' ,
+      joined_at: row.joined_at ?? '' ,
+      status: row.status ?? '' ,});};
+  const delRow=async(id)=>{if(!confirm('确认删除?'))return;try{await req(api+'?id='+id,{method:'DELETE'});await load();}catch(e){error.value=e.message}};
+  onMounted(load); return {list,error,form,load,reset,save,edit,delRow};
+}}).mount('#app');
+</script></body></html>
