@@ -52,6 +52,13 @@
 - `GET/POST/PUT/DELETE /api/payroll_periods.php` 薪资期间
 - `GET/POST/PUT/DELETE /api/payroll_slips.php` 工资条
 - `GET/POST/PUT/DELETE /api/expense_vouchers.php` 支出单
+- `GET/POST/PUT/DELETE /api/payment_callback_logs.php` 支付回调日志
+- `GET/POST/PUT/DELETE /api/certificate_templates.php` 证书模板
+- `GET/POST/PUT/DELETE /api/certificate_issues.php` 证书发放
+- `GET/POST/PUT/DELETE /api/commission_scopes.php` 分成规则作用范围
+- `GET/POST/PUT/DELETE /api/commission_calcs.php` 分成计算明细
+- `GET/POST/PUT/DELETE /api/payroll_items.php` 工资条明细
+- `GET/POST/PUT/DELETE /api/salary_payment_logs.php` 工资发放记录
 
 
 ## 整改方案与执行进展（分步实施）

@@ -145,6 +145,90 @@ function ensure_sprint123_tables(PDO $pdo): void
           PRIMARY KEY (id)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4",
 
+
+
+        "CREATE TABLE IF NOT EXISTS oa_payment_callback_log (
+          id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+          channel VARCHAR(30) NOT NULL,
+          biz_type VARCHAR(30) DEFAULT 'receipt',
+          biz_id INT UNSIGNED DEFAULT NULL,
+          callback_payload LONGTEXT,
+          verify_status TINYINT NOT NULL DEFAULT 0,
+          callback_time DATETIME NOT NULL,
+          created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          PRIMARY KEY (id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4",
+
+        "CREATE TABLE IF NOT EXISTS oa_certificate_template (
+          id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+          template_name VARCHAR(100) NOT NULL,
+          cert_type VARCHAR(20) NOT NULL,
+          template_url VARCHAR(255) DEFAULT '',
+          status TINYINT NOT NULL DEFAULT 1,
+          created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          PRIMARY KEY (id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4",
+
+        "CREATE TABLE IF NOT EXISTS oa_certificate_issue (
+          id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+          student_id INT UNSIGNED NOT NULL,
+          course_id INT UNSIGNED DEFAULT NULL,
+          template_id INT UNSIGNED DEFAULT NULL,
+          cert_no VARCHAR(80) NOT NULL,
+          cert_type VARCHAR(20) NOT NULL,
+          issued_by_user_id INT UNSIGNED DEFAULT NULL,
+          issued_at DATETIME NOT NULL,
+          cert_url VARCHAR(255) DEFAULT '',
+          remark VARCHAR(255) DEFAULT '',
+          created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          PRIMARY KEY (id),
+          UNIQUE KEY uk_cert_no (cert_no)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4",
+
+        "CREATE TABLE IF NOT EXISTS oa_commission_scope (
+          id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+          rule_id INT UNSIGNED NOT NULL,
+          scope_type VARCHAR(20) NOT NULL,
+          scope_value VARCHAR(80) NOT NULL,
+          PRIMARY KEY (id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4",
+
+        "CREATE TABLE IF NOT EXISTS oa_commission_calc (
+          id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+          order_id INT UNSIGNED NOT NULL,
+          rule_id INT UNSIGNED DEFAULT NULL,
+          user_id INT UNSIGNED DEFAULT NULL,
+          role_type VARCHAR(30) DEFAULT '',
+          base_amount DECIMAL(10,2) NOT NULL DEFAULT 0,
+          commission_amount DECIMAL(10,2) NOT NULL DEFAULT 0,
+          calc_time DATETIME NOT NULL,
+          status VARCHAR(20) DEFAULT 'auto',
+          PRIMARY KEY (id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4",
+
+        "CREATE TABLE IF NOT EXISTS oa_payroll_item (
+          id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+          slip_id INT UNSIGNED NOT NULL,
+          item_type VARCHAR(30) NOT NULL,
+          item_name VARCHAR(80) NOT NULL,
+          amount DECIMAL(10,2) NOT NULL DEFAULT 0,
+          remark VARCHAR(255) DEFAULT '',
+          PRIMARY KEY (id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4",
+
+        "CREATE TABLE IF NOT EXISTS oa_salary_payment_log (
+          id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+          period_id INT UNSIGNED NOT NULL,
+          user_id INT UNSIGNED NOT NULL,
+          paid_amount DECIMAL(10,2) NOT NULL,
+          paid_at DATETIME NOT NULL,
+          channel VARCHAR(30) DEFAULT '',
+          voucher_no VARCHAR(80) DEFAULT '',
+          remark VARCHAR(255) DEFAULT '',
+          created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          PRIMARY KEY (id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4",
+
         "CREATE TABLE IF NOT EXISTS oa_commission_adjustment (
           id INT UNSIGNED NOT NULL AUTO_INCREMENT,
           calc_id INT UNSIGNED DEFAULT NULL,
