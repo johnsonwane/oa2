@@ -111,6 +111,12 @@ try {
 
     $visible = [];
     foreach ($allMenus as $menu) {
+        $parentName = trim((string)($menu['parent_name'] ?? ''));
+        if ($parentName === 'Sprint123') {
+            $visible[] = $menu;
+            continue;
+        }
+
         $key = (string)$menu['menu_key'];
         $need = $menuPermMap[$key] ?? [];
         if (empty($need)) {

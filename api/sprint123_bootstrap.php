@@ -1,5 +1,13 @@
 <?php
 
+
+function sprint123_table_exists(PDO $pdo, string $table): bool
+{
+    $stmt = $pdo->prepare('SHOW TABLES LIKE ?');
+    $stmt->execute([$table]);
+    return (bool)$stmt->fetchColumn();
+}
+
 function ensure_sprint123_tables(PDO $pdo): void
 {
     $sqlList = [
@@ -298,7 +306,7 @@ function ensure_sprint123_tables(PDO $pdo): void
 
 function ensure_sprint123_menus(PDO $pdo): void
 {
-    if (!table_exists($pdo, 'oa_menu')) {
+    if (!sprint123_table_exists($pdo, 'oa_menu')) {
         return;
     }
 
