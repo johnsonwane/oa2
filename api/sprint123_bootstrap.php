@@ -302,6 +302,7 @@ function ensure_sprint123_tables(PDO $pdo): void
     }
 
     ensure_sprint123_menus($pdo);
+    ensure_sprint123_seed_data($pdo);
 }
 
 function ensure_sprint123_menus(PDO $pdo): void
@@ -339,6 +340,38 @@ function ensure_sprint123_menus(PDO $pdo): void
             $stmt->execute([$menu[0], $menu[1], $menu[2], $menu[3], $menu[4], $menu[5], $menu[2]]);
         } catch (Throwable $e) {
             // 菜单插入失败不影响业务接口。
+        }
+    }
+}
+
+
+function ensure_sprint123_seed_data(PDO $pdo): void
+{
+    $seedSql = [
+        "INSERT INTO oa_material (title, material_type, category, tags, content_url, status) SELECT '短视频引流素材包', 'pdf', '引流资料', '抖音,素材', 'https://example.com/material-pack', 1 FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM oa_material)",
+        "INSERT INTO oa_material_campaign (material_id, channel, campaign_name, status) SELECT 1, 'douyin', '3月短视频投放', 1 FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM oa_material_campaign)",
+        "INSERT INTO oa_material_claim (campaign_id, material_id, consultant_user_id, wechat_name, mobile, source_channel, claim_time) SELECT 1, 1, 1, '测试学员A', '13800138000', 'douyin', NOW() FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM oa_material_claim)",
+        "INSERT INTO oa_contract (contract_no, order_id, student_id, status) SELECT 'HT2026001', 1, 1, 'signed' FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM oa_contract)",
+        "INSERT INTO oa_invoice_profile (student_id, company_name, tax_no, contact_name, contact_mobile) SELECT 1, '测试科技有限公司', '91310000TEST0001', '财务小王', '13900000001' FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM oa_invoice_profile)",
+        "INSERT INTO oa_invoice (order_id, invoice_profile_id, invoice_no, amount, invoice_type, status) SELECT 1, 1, 'FP2026001', 1999.00, 'normal', 'issued' FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM oa_invoice)",
+        "INSERT INTO oa_class_term (course_id, term_name, start_date, end_date, status) SELECT 1, 'Python-2026春季班', '2026-03-01', '2026-06-01', 'running' FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM oa_class_term)",
+        "INSERT INTO oa_student_term_rel (student_id, term_id, joined_at, status) SELECT 1, 1, NOW(), 'learning' FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM oa_student_term_rel)",
+        "INSERT INTO oa_shipment (student_id, order_id, receiver_name, receiver_mobile, receiver_address, status) SELECT 1, 1, '张三', '13800138000', '上海市浦东新区测试路1号', 'pending' FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM oa_shipment)",
+        "INSERT INTO oa_certificate_template (template_name, cert_type, template_url, status) SELECT '结业证书模板A', 'completion', 'https://example.com/cert-template-a', 1 FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM oa_certificate_template)",
+        "INSERT INTO oa_certificate_issue (student_id, course_id, template_id, cert_no, cert_type, issued_at) SELECT 1, 1, 1, 'CERT2026001', 'completion', NOW() FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM oa_certificate_issue)",
+        "INSERT INTO oa_commission_rule (rule_name, role_type, calc_base, commission_type, rate, fixed_amount, priority_no, status) SELECT '顾问默认分成规则', 'consultant', 'order', 'rate', 0.0500, 0, 100, 1 FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM oa_commission_rule)",
+        "INSERT INTO oa_commission_scope (rule_id, scope_type, scope_value) SELECT 1, 'course_id', '1' FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM oa_commission_scope)",
+        "INSERT INTO oa_commission_calc (order_id, rule_id, user_id, role_type, base_amount, commission_amount, calc_time, status) SELECT 1, 1, 1, 'consultant', 1999.00, 99.95, NOW(), 'auto' FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM oa_commission_calc)",
+        "INSERT INTO oa_commission_adjustment (calc_id, user_id, adjust_amount, reason, operator_user_id) SELECT 1, 1, 10.00, '测试补差', 1 FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM oa_commission_adjustment)",
+        "INSERT INTO oa_payroll_period (period_name, period_month, start_date, end_date, status) SELECT '2026年3月工资', '2026-03', '2026-03-01', '2026-03-31', 'draft' FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM oa_payroll_period)",
+        "INSERT INTO oa_payroll_slip (period_id, user_id, gross_amount, tax_amount, social_amount, housing_amount, special_deduction, net_amount, status) SELECT 1, 1, 10000, 500, 800, 600, 200, 7900, 'draft' FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM oa_payroll_slip)",
+    ];
+
+    foreach ($seedSql as $sql) {
+        try {
+            $pdo->exec($sql);
+        } catch (Throwable $e) {
+            // 测试数据写入失败不影响正常接口。
         }
     }
 }
