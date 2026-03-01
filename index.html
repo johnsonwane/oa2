@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>培训公司 OA</title>
+  <link rel="stylesheet" href="./assets/style.css" />
+  <style>
+    .app-shell{display:flex;min-height:100vh}
+    .content-shell{flex:1;display:flex;flex-direction:column;min-width:0}
+    .page-frame{flex:1;border:0;width:100%;background:#f3f6fb}
+    .oa-header{padding:12px 20px;background:#f3f6fb;position:sticky;top:0;z-index:30}
+  </style>
+</head>
+<body>
+<div class="app-shell">
+  <aside class="oa-sidebar">
+    <div class="brand">培训公司 OA</div>
+    <div class="user-box" id="userBox">未登录</div>
+    <div class="group-title">总览</div>
+    <ul class="menu-tree simple">
+      <li data-key="overview">数据总览</li>
+      <li data-key="todos">待办</li>
+    </ul>
+    <div class="group-title">业务管理</div>
+    <ul class="menu-tree simple">
+      <li data-key="students">学员管理</li><li data-key="courses">课程管理</li><li data-key="orders">订单管理</li><li data-key="finance">财务管理</li><li data-key="notifications">通知管理</li><li data-key="referrers">推荐者管理</li><li data-key="receipts">收款单管理</li><li data-key="delivery_logs">交付记录</li>
+    </ul>
+    <div class="group-title">系统管理</div>
+    <ul class="menu-tree simple">
+      <li data-key="users">员工管理</li><li data-key="departments">部门管理</li><li data-key="menus">菜单管理</li><li data-key="rbac_groups">角色管理</li><li data-key="rbac_permissions">权限管理</li><li data-key="rbac_assign">RBAC分配</li>
+    </ul>
+    <div class="group-title">经营分析</div>
+    <ul class="menu-tree simple"><li data-key="department_stats">部门统计</li></ul>
+    <div class="group-title">Sprint123</div>
+    <ul class="menu-tree simple">
+      <li data-key="materials">资料库</li><li data-key="material_campaigns">资料投放</li><li data-key="material_claims">资料领取</li><li data-key="contracts">合同管理</li><li data-key="invoice_profiles">开票档案</li><li data-key="invoices">发票管理</li><li data-key="class_terms">班期管理</li><li data-key="student_terms">学员班期</li><li data-key="shipments">寄送管理</li><li data-key="certificate_templates">证书模板</li><li data-key="certificate_issues">证书发放</li><li data-key="commission_scopes">分成范围</li><li data-key="commission_rules">分成规则</li><li data-key="commission_calcs">分成结算</li><li data-key="commission_adjustments">分成调整</li><li data-key="payroll_periods">工资期次</li><li data-key="payroll_slips">工资单</li>
+    </ul>
+  </aside>
+  <div class="content-shell">
+    <header class="oa-header">
+      <h1 id="pageTitle">OA 系统管理台</h1>
+      <div class="header-actions"><button class="btn-secondary" id="refreshBtn">刷新当前页</button><button class="btn-danger" id="logoutBtn">退出登录</button></div>
+    </header>
+    <iframe id="pageFrame" class="page-frame" src="./todos.html"></iframe>
+  </div>
+</div>
+<script>
+  const pageMap={overview:'overview.html',students:'students.html',courses:'courses.html',orders:'orders.html',referrers:'referrers.html',receipts:'receipts.html',delivery_logs:'delivery_logs.html',department_stats:'department_stats.html',finance:'finance.html',todos:'todos.html',notifications:'notifications.html',users:'users.html',departments:'departments.html',menus:'menus.html',rbac_groups:'rbac_groups.html',rbac_permissions:'rbac_permissions.html',rbac_assign:'rbac_assign.html',materials:'materials.html',material_campaigns:'material_campaigns.html',material_claims:'material_claims.html',contracts:'contracts.html',invoice_profiles:'invoice_profiles.html',invoices:'invoices.html',class_terms:'class_terms.html',student_terms:'student_terms.html',shipments:'shipments.html',certificate_templates:'certificate_templates.html',certificate_issues:'certificate_issues.html',commission_scopes:'commission_scopes.html',commission_rules:'commission_rules.html',commission_calcs:'commission_calcs.html',commission_adjustments:'commission_adjustments.html',payroll_periods:'payroll_periods.html',payroll_slips:'payroll_slips.html'};
+  const titleMap={overview:'数据总览',students:'学员管理',courses:'课程管理',orders:'订单管理',referrers:'推荐者管理',receipts:'收款单管理',delivery_logs:'交付记录',department_stats:'部门统计',finance:'财务管理',todos:'待办',notifications:'通知管理',users:'员工管理',departments:'部门管理',menus:'菜单管理',rbac_groups:'角色管理',rbac_permissions:'权限管理',rbac_assign:'RBAC分配',materials:'资料库',material_campaigns:'资料投放',material_claims:'资料领取',contracts:'合同管理',invoice_profiles:'开票档案',invoices:'发票管理',class_terms:'班期管理',student_terms:'学员班期',shipments:'寄送管理',certificate_templates:'证书模板',certificate_issues:'证书发放',commission_scopes:'分成范围',commission_rules:'分成规则',commission_calcs:'分成结算',commission_adjustments:'分成调整',payroll_periods:'工资期次',payroll_slips:'工资单'};
+  const frame=document.getElementById('pageFrame');
+  const titleEl=document.getElementById('pageTitle');
+  const userBox=document.getElementById('userBox');
+  const params=new URLSearchParams(location.search);
+  const key=params.get('page')||'todos';
+  const select=(k)=>{const file=pageMap[k]||pageMap.todos;frame.src='./'+file;titleEl.textContent=titleMap[k]||'OA 系统管理台';history.replaceState(null,'','./index.html?page='+k);document.querySelectorAll('.menu-tree li').forEach(li=>li.classList.toggle('active',li.dataset.key===k));};
+  document.querySelectorAll('.menu-tree li').forEach(li=>li.addEventListener('click',()=>select(li.dataset.key)));
+  document.getElementById('refreshBtn').addEventListener('click',()=>{try{frame.contentWindow.location.reload();}catch(_){frame.src=frame.src;}});
+  document.getElementById('logoutBtn').addEventListener('click',()=>{localStorage.removeItem('oa_token');localStorage.removeItem('oa_user');location.href='./login.html';});
+  try{const u=JSON.parse(localStorage.getItem('oa_user')||'{}');if(u&& (u.real_name||u.username)){userBox.textContent=`${u.real_name||u.username}（${u.role||'访客'}）`;}}catch(_){ }
+  if(!localStorage.getItem('oa_token')){location.href='./login.html';}
+  select(key);
+</script>
+</body>
+</html>
