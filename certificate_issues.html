@@ -5,18 +5,19 @@
   <header class="oa-header"><h1>证书发放</h1><div class="header-actions"><a class="btn-secondary" href="./todos.html">返回主入口</a><button @click="load">刷新</button><button class="btn-secondary" @click="exportXlsx">导出XLSX</button><button class="btn-secondary" @click="triggerImport">导入XLSX</button><input ref="importFileRef" type="file" accept=".xlsx,.xls" style="display:none" @change="handleImportFile"></div></header>
   
   <section class="content-card"><p class="role-tip"><strong>模块说明：</strong>证书发放模块（Sprint123）已补齐，可直接新增、编辑、删除、查询。</p>
-    <form class="inline-form" @submit.prevent="save">
-        <label>student_id<input v-model="form.student_id" type="text"/></label>
-        <label>course_id<input v-model="form.course_id" type="text"/></label>
-        <label>template_id<input v-model="form.template_id" type="text"/></label>
-        <label>cert_no<input v-model="form.cert_no" type="text"/></label>
-        <label>cert_type<input v-model="form.cert_type" type="text"/></label>
-        <label>issued_by_user_id<input v-model="form.issued_by_user_id" type="text"/></label>
-        <label>issued_at<input v-model="form.issued_at" type="datetime-local"/></label>
-        <label>cert_url<input v-model="form.cert_url" type="text"/></label>
-        <button>{{form.id?'保存':'新增'}}</button><button type="button" class="btn-secondary" @click="reset">重置</button>
+    <div class="section-actions"><button type="button" @click="openEditor(false)">新增记录</button></div><form class="inline-form editor-form" :class="{show:activeEditor}" @submit.prevent="save">
+        <label>学员ID<input v-model="form.student_id" type="text"/></label>
+        <label>课程ID<input v-model="form.course_id" type="text"/></label>
+        <label>模板ID<input v-model="form.template_id" type="text"/></label>
+        <label>证书编号<input v-model="form.cert_no" type="text"/></label>
+        <label>证书类型<input v-model="form.cert_type" type="text"/></label>
+        <label>发证人ID<input v-model="form.issued_by_user_id" type="text"/></label>
+        <label>开票时间<input v-model="form.issued_at" type="datetime-local"/></label>
+        <label>证书链接<input v-model="form.cert_url" type="text"/></label>
+        <button>{{form.id?'保存':'新增保存'}}</button><button type="button" class="btn-secondary" @click="closeEditor">取消</button>
     </form>
-    <table class="table"><thead><tr><th>id</th><th>student_id</th><th>course_id</th><th>template_id</th><th>cert_no</th><th>cert_type</th><th>issued_by_user_id</th><th>issued_at</th><th>cert_url</th><th>操作</th></tr></thead><tbody><tr v-for="row in list" :key="row.id"><td>{{row.id||"-"}}</td><td>{{row.student_id||"-"}}</td><td>{{row.course_id||"-"}}</td><td>{{row.template_id||"-"}}</td><td>{{row.cert_no||"-"}}</td><td>{{row.cert_type||"-"}}</td><td>{{row.issued_by_user_id||"-"}}</td><td>{{row.issued_at||"-"}}</td><td>{{row.cert_url||"-"}}</td><td><button class="btn-mini" @click="edit(row)">编辑</button><button class="btn-mini btn-danger" @click="delRow(row.id)">删除</button></td></tr></tbody></table>
+    <table class="table"><thead><tr><th>编号</th><th>学员ID</th><th>课程ID</th><th>模板ID</th><th>证书编号</th><th>证书类型</th><th>发证人ID</th><th>开票时间</th><th>证书链接</th><th>操作</th></tr></thead><tbody><tr v-for="row in list" :key="row.id"><td>{{row.id||"-"}}</td><td>{{row.student_id||"-"}}</td><td>{{row.course_id||"-"}}</td><td>{{row.template_id||"-"}}</td><td>{{row.cert_no||"-"}}</td><td>{{row.cert_type||"-"}}</td><td>{{row.issued_by_user_id||"-"}}</td><td>{{row.issued_at||"-"}}</td><td>{{row.cert_url||"-"}}</td><td><button class="btn-mini" @click="edit(row)">编辑</button><button class="btn-mini btn-danger" @click="delRow(row.id)">删除</button></td></tr></tbody></table>
+    <div class="editor-overlay" v-if="activeEditor" @click="closeEditor"></div>
     <p v-if="error" class="error">{{error}}</p>
   </section></div></main></div>
 <script>
@@ -24,13 +25,14 @@ const {createApp,ref,reactive,onMounted} = Vue;
 createApp({setup(){
   const list=ref([]),error=ref('');
   const importFileRef=ref(null);
+  const activeEditor=ref(false);
   const form=reactive({id:0,student_id:'',course_id:'',template_id:'',cert_no:'',cert_type:'',issued_by_user_id:'',issued_at:'',cert_url:''});
   const api='/api/certificate_issues.php';
   const req=async(url,opt={})=>{const r=await fetch(url,{headers:{'Content-Type':'application/json'},...opt});const t=await r.text();let j={};try{j=t?JSON.parse(t):{}}catch(_ ){}if(!r.ok||j.code!==0) throw new Error(j.message||'请求失败');return j.data;};
   const load=async()=>{try{error.value='';list.value=await req(api)}catch(e){error.value=e.message}};
   const reset=()=>{form.student_id='';form.course_id='';form.template_id='';form.cert_no='';form.cert_type='';form.issued_by_user_id='';form.issued_at='';form.cert_url='';form.id=0;};
-  const save=async()=>{try{error.value='';if(form.id){await req(api,{method:'PUT',body:JSON.stringify(form)})}else{await req(api,{method:'POST',body:JSON.stringify(form)})}reset();await load();}catch(e){error.value=e.message}};
-  const edit=(row)=>{form.id=Number(row.id)||0;Object.assign(form,{student_id: row.student_id ?? '' ,
+  const save=async()=>{try{error.value='';if(form.id){await req(api,{method:'PUT',body:JSON.stringify(form)})}else{await req(api,{method:'POST',body:JSON.stringify(form)})}reset();activeEditor.value=false;await load();}catch(e){error.value=e.message}};
+  const edit=(row)=>{activeEditor.value=true;form.id=Number(row.id)||0;Object.assign(form,{student_id: row.student_id ?? '' ,
       course_id: row.course_id ?? '' ,
       template_id: row.template_id ?? '' ,
       cert_no: row.cert_no ?? '' ,
@@ -41,7 +43,9 @@ createApp({setup(){
   const delRow=async(id)=>{if(!confirm('确认删除?'))return;try{await req(api+'?id='+id,{method:'DELETE'});await load();}catch(e){error.value=e.message}};
   const exportXlsx=()=>{try{error.value='';if(typeof XLSX==='undefined') throw new Error('XLSX 组件未加载');const ws=XLSX.utils.json_to_sheet(list.value||[]);const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'data');const n=(location.pathname.split('/').pop()||'data').replace('.html','');XLSX.writeFile(wb,`${n}.xlsx`);}catch(e){error.value=e.message;}};
   const triggerImport=()=>{if(importFileRef.value){importFileRef.value.value='';importFileRef.value.click();}};
+  const openEditor=(isEdit=false)=>{if(!isEdit){reset();}activeEditor.value=true;};
+  const closeEditor=()=>{activeEditor.value=false;};
   const handleImportFile=async(ev)=>{const f=ev.target.files&&ev.target.files[0];if(!f)return;try{error.value='';if(typeof XLSX==='undefined') throw new Error('XLSX 组件未加载');const buf=await f.arrayBuffer();const wb=XLSX.read(buf,{type:'array'});const ws=wb.Sheets[wb.SheetNames[0]];const rows=XLSX.utils.sheet_to_json(ws,{defval:''});for(const row of rows){const payload={};Object.keys(form).forEach(k=>{if(k!=='id'&&row[k]!==undefined)payload[k]=row[k];});const id=Number(row.id||0);if(id>0){await req(api,{method:'PUT',body:JSON.stringify({id,...payload})});}else{await req(api,{method:'POST',body:JSON.stringify(payload)});}}await load();}catch(e){error.value=e.message;}};
-  onMounted(load); return {list,error,form,importFileRef,load,reset,save,edit,delRow,exportXlsx,triggerImport,handleImportFile};
+  onMounted(load); return {list,error,form,importFileRef,activeEditor,load,reset,save,edit,delRow,exportXlsx,triggerImport,handleImportFile,openEditor,closeEditor};
 }}).mount('#app');
 </script></body></html>

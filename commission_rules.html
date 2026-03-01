@@ -5,18 +5,19 @@
   <header class="oa-header"><h1>分成规则</h1><div class="header-actions"><a class="btn-secondary" href="./todos.html">返回主入口</a><button @click="load">刷新</button><button class="btn-secondary" @click="exportXlsx">导出XLSX</button><button class="btn-secondary" @click="triggerImport">导入XLSX</button><input ref="importFileRef" type="file" accept=".xlsx,.xls" style="display:none" @change="handleImportFile"></div></header>
   
   <section class="content-card"><p class="role-tip"><strong>模块说明：</strong>分成规则模块（Sprint123）已补齐，可直接新增、编辑、删除、查询。</p>
-    <form class="inline-form" @submit.prevent="save">
-        <label>rule_name<input v-model="form.rule_name" type="text"/></label>
-        <label>role_type<input v-model="form.role_type" type="text"/></label>
-        <label>calc_base<input v-model="form.calc_base" type="text"/></label>
-        <label>commission_type<input v-model="form.commission_type" type="text"/></label>
-        <label>rate<input v-model="form.rate" type="number"/></label>
-        <label>fixed_amount<input v-model="form.fixed_amount" type="number"/></label>
-        <label>priority_no<input v-model="form.priority_no" type="number"/></label>
-        <label>status<input v-model="form.status" type="text"/></label>
-        <button>{{form.id?'保存':'新增'}}</button><button type="button" class="btn-secondary" @click="reset">重置</button>
+    <div class="section-actions"><button type="button" @click="openEditor(false)">新增记录</button></div><form class="inline-form editor-form" :class="{show:activeEditor}" @submit.prevent="save">
+        <label>规则名称<input v-model="form.rule_name" type="text"/></label>
+        <label>角色类型<input v-model="form.role_type" type="text"/></label>
+        <label>计算基准<input v-model="form.calc_base" type="text"/></label>
+        <label>分成类型<input v-model="form.commission_type" type="text"/></label>
+        <label>比例<input v-model="form.rate" type="number"/></label>
+        <label>固定金额<input v-model="form.fixed_amount" type="number"/></label>
+        <label>优先级<input v-model="form.priority_no" type="number"/></label>
+        <label>状态<input v-model="form.status" type="text"/></label>
+        <button>{{form.id?'保存':'新增保存'}}</button><button type="button" class="btn-secondary" @click="closeEditor">取消</button>
     </form>
-    <table class="table"><thead><tr><th>id</th><th>rule_name</th><th>role_type</th><th>calc_base</th><th>commission_type</th><th>rate</th><th>fixed_amount</th><th>priority_no</th><th>status</th><th>操作</th></tr></thead><tbody><tr v-for="row in list" :key="row.id"><td>{{row.id||"-"}}</td><td>{{row.rule_name||"-"}}</td><td>{{row.role_type||"-"}}</td><td>{{row.calc_base||"-"}}</td><td>{{row.commission_type||"-"}}</td><td>{{row.rate||"-"}}</td><td>{{row.fixed_amount||"-"}}</td><td>{{row.priority_no||"-"}}</td><td>{{row.status||"-"}}</td><td><button class="btn-mini" @click="edit(row)">编辑</button><button class="btn-mini btn-danger" @click="delRow(row.id)">删除</button></td></tr></tbody></table>
+    <table class="table"><thead><tr><th>编号</th><th>规则名称</th><th>角色类型</th><th>计算基准</th><th>分成类型</th><th>比例</th><th>固定金额</th><th>优先级</th><th>状态</th><th>操作</th></tr></thead><tbody><tr v-for="row in list" :key="row.id"><td>{{row.id||"-"}}</td><td>{{row.rule_name||"-"}}</td><td>{{row.role_type||"-"}}</td><td>{{row.calc_base||"-"}}</td><td>{{row.commission_type||"-"}}</td><td>{{row.rate||"-"}}</td><td>{{row.fixed_amount||"-"}}</td><td>{{row.priority_no||"-"}}</td><td>{{row.status||"-"}}</td><td><button class="btn-mini" @click="edit(row)">编辑</button><button class="btn-mini btn-danger" @click="delRow(row.id)">删除</button></td></tr></tbody></table>
+    <div class="editor-overlay" v-if="activeEditor" @click="closeEditor"></div>
     <p v-if="error" class="error">{{error}}</p>
   </section></div></main></div>
 <script>
@@ -24,13 +25,14 @@ const {createApp,ref,reactive,onMounted} = Vue;
 createApp({setup(){
   const list=ref([]),error=ref('');
   const importFileRef=ref(null);
+  const activeEditor=ref(false);
   const form=reactive({id:0,rule_name:'',role_type:'',calc_base:'',commission_type:'',rate:'',fixed_amount:'',priority_no:'',status:''});
   const api='/api/commission_rules.php';
   const req=async(url,opt={})=>{const r=await fetch(url,{headers:{'Content-Type':'application/json'},...opt});const t=await r.text();let j={};try{j=t?JSON.parse(t):{}}catch(_ ){}if(!r.ok||j.code!==0) throw new Error(j.message||'请求失败');return j.data;};
   const load=async()=>{try{error.value='';list.value=await req(api)}catch(e){error.value=e.message}};
   const reset=()=>{form.rule_name='';form.role_type='';form.calc_base='';form.commission_type='';form.rate='';form.fixed_amount='';form.priority_no='';form.status='';form.id=0;};
-  const save=async()=>{try{error.value='';if(form.id){await req(api,{method:'PUT',body:JSON.stringify(form)})}else{await req(api,{method:'POST',body:JSON.stringify(form)})}reset();await load();}catch(e){error.value=e.message}};
-  const edit=(row)=>{form.id=Number(row.id)||0;Object.assign(form,{rule_name: row.rule_name ?? '' ,
+  const save=async()=>{try{error.value='';if(form.id){await req(api,{method:'PUT',body:JSON.stringify(form)})}else{await req(api,{method:'POST',body:JSON.stringify(form)})}reset();activeEditor.value=false;await load();}catch(e){error.value=e.message}};
+  const edit=(row)=>{activeEditor.value=true;form.id=Number(row.id)||0;Object.assign(form,{rule_name: row.rule_name ?? '' ,
       role_type: row.role_type ?? '' ,
       calc_base: row.calc_base ?? '' ,
       commission_type: row.commission_type ?? '' ,
@@ -41,7 +43,9 @@ createApp({setup(){
   const delRow=async(id)=>{if(!confirm('确认删除?'))return;try{await req(api+'?id='+id,{method:'DELETE'});await load();}catch(e){error.value=e.message}};
   const exportXlsx=()=>{try{error.value='';if(typeof XLSX==='undefined') throw new Error('XLSX 组件未加载');const ws=XLSX.utils.json_to_sheet(list.value||[]);const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'data');const n=(location.pathname.split('/').pop()||'data').replace('.html','');XLSX.writeFile(wb,`${n}.xlsx`);}catch(e){error.value=e.message;}};
   const triggerImport=()=>{if(importFileRef.value){importFileRef.value.value='';importFileRef.value.click();}};
+  const openEditor=(isEdit=false)=>{if(!isEdit){reset();}activeEditor.value=true;};
+  const closeEditor=()=>{activeEditor.value=false;};
   const handleImportFile=async(ev)=>{const f=ev.target.files&&ev.target.files[0];if(!f)return;try{error.value='';if(typeof XLSX==='undefined') throw new Error('XLSX 组件未加载');const buf=await f.arrayBuffer();const wb=XLSX.read(buf,{type:'array'});const ws=wb.Sheets[wb.SheetNames[0]];const rows=XLSX.utils.sheet_to_json(ws,{defval:''});for(const row of rows){const payload={};Object.keys(form).forEach(k=>{if(k!=='id'&&row[k]!==undefined)payload[k]=row[k];});const id=Number(row.id||0);if(id>0){await req(api,{method:'PUT',body:JSON.stringify({id,...payload})});}else{await req(api,{method:'POST',body:JSON.stringify(payload)});}}await load();}catch(e){error.value=e.message;}};
-  onMounted(load); return {list,error,form,importFileRef,load,reset,save,edit,delRow,exportXlsx,triggerImport,handleImportFile};
+  onMounted(load); return {list,error,form,importFileRef,activeEditor,load,reset,save,edit,delRow,exportXlsx,triggerImport,handleImportFile,openEditor,closeEditor};
 }}).mount('#app');
 </script></body></html>
