@@ -6,8 +6,8 @@
   
   <section class="content-card"><p class="role-tip"><strong>模块说明：</strong>资料领取记录模块（Sprint123）已补齐，可直接新增、编辑、删除、查询。</p>
     <div class="section-actions"><button type="button" @click="openEditor(false)">新增记录</button></div><form class="inline-form editor-form" :class="{show:activeEditor}" @submit.prevent="save">
-        <label>投放ID<input v-model="form.campaign_id" type="text"/></label>
-        <label>资料ID<input v-model="form.material_id" type="text"/></label>
+        <label>投放ID<input v-model="form.campaign_id" type="text" required/></label>
+        <label>资料ID<input v-model="form.material_id" type="text" required/></label>
         <label>顾问ID<input v-model="form.consultant_user_id" type="text"/></label>
         <label>微信名<input v-model="form.wechat_name" type="text"/></label>
         <label>手机号<input v-model="form.mobile" type="text"/></label>
