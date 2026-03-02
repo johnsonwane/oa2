@@ -8,9 +8,11 @@
   <style>
     .app-shell{display:flex;min-height:100vh}
     .content-shell{flex:1;display:flex;flex-direction:column;min-width:0}
-    .page-frame{flex:1;border:0;width:100%;background:#f3f6fb}
-    .oa-header{padding:12px 20px;background:#f3f6fb;position:sticky;top:0;z-index:30}
-  </style>
+    .page-frame{flex:1;border:0;width:100%;background:#f3f6fb;border-top:1px solid #e5e7eb}
+    .oa-header{padding:12px 20px;background:linear-gradient(180deg,#f8fbff,#f3f6fb);position:sticky;top:0;z-index:30;border-bottom:1px solid #e5e7eb}
+    .oa-header h1{margin:0;font-size:22px}
+    .oa-sidebar{box-shadow:inset -1px 0 0 rgba(255,255,255,.08)}
+      </style>
 </head>
 <body>
 <div class="app-shell">
@@ -42,7 +44,7 @@
       <h1 id="pageTitle">OA 系统管理台</h1>
       <div class="header-actions"><button class="btn-secondary" id="refreshBtn">刷新当前页</button><button class="btn-danger" id="logoutBtn">退出登录</button></div>
     </header>
-    <iframe id="pageFrame" class="page-frame" src="./todos.html"></iframe>
+    <iframe id="pageFrame" class="page-frame" src="about:blank"></iframe>
   </div>
 </div>
 <script>
@@ -53,7 +55,7 @@
   const userBox=document.getElementById('userBox');
   const params=new URLSearchParams(location.search);
   const key=params.get('page')||'todos';
-  const select=(k)=>{const file=pageMap[k]||pageMap.todos;frame.src='./'+file;titleEl.textContent=titleMap[k]||'OA 系统管理台';history.replaceState(null,'','./index.html?page='+k);document.querySelectorAll('.menu-tree li').forEach(li=>li.classList.toggle('active',li.dataset.key===k));};
+  const select=(k)=>{const file=pageMap[k]||pageMap.todos;frame.src='./'+file+'?embedded=1';titleEl.textContent=titleMap[k]||'OA 系统管理台';history.replaceState(null,'','./index.html?page='+k);document.querySelectorAll('.menu-tree li').forEach(li=>li.classList.toggle('active',li.dataset.key===k));};
   document.querySelectorAll('.menu-tree li').forEach(li=>li.addEventListener('click',()=>select(li.dataset.key)));
   document.getElementById('refreshBtn').addEventListener('click',()=>{try{frame.contentWindow.location.reload();}catch(_){frame.src=frame.src;}});
   document.getElementById('logoutBtn').addEventListener('click',()=>{localStorage.removeItem('oa_token');localStorage.removeItem('oa_user');location.href='./login.html';});
