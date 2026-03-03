@@ -9,4 +9,8 @@ return [
         'pass' => getenv('DB_PASS') ?: '?(kFMNWb)5Fv+8-_uYwG',
         'charset' => 'utf8mb4',
     ],
+    'wecom' => [
+        'corp_id' => getenv('WECOM_CORP_ID') ?: '',
+        'contact_secret' => getenv('WECOM_CONTACT_SECRET') ?: '',
+    ],
 ];

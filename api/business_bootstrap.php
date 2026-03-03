@@ -47,6 +47,10 @@ function ensure_business_workflow_schema(PDO $pdo): void
       UNIQUE KEY uk_receipt_no (receipt_no)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 
+
+    $pdo->exec("INSERT INTO oa_menu (parent_name, menu_name, menu_key, path, icon, sort_no, status)
+                SELECT '业务管理', '外部联系人列表', 'external_contacts', '/external_contacts', '📇', 17, 1
+                FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM oa_menu WHERE menu_key='external_contacts')");
     $pdo->exec("INSERT INTO oa_menu (parent_name, menu_name, menu_key, path, icon, sort_no, status)
                 SELECT '业务管理', '收款单管理', 'receipts', '/receipts', '🧾', 18, 1
                 FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM oa_menu WHERE menu_key='receipts')");

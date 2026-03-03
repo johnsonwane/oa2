@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>外部联系人列表</title><link rel="stylesheet" href="./assets/style.css"/><script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script><style>html[data-embedded="1"] .oa-sidebar{display:none!important;}html[data-embedded="1"] .oa-layout{display:block!important;}html[data-embedded="1"] .oa-main{padding:12px 16px!important;}html[data-embedded="1"] .oa-header{position:static!important;padding-left:0!important;}html[data-embedded="1"] .header-actions a.btn-secondary{display:none!important;}html[data-embedded="1"] .menu-toggle,html[data-embedded="1"] .sidebar-overlay{display:none!important;}</style><script>(function(){var p=new URLSearchParams(location.search);if(p.get("embedded")==="1"){document.documentElement.setAttribute("data-embedded","1");}})();</script></head>
+<body><div class="oa-layout"><aside class="oa-sidebar"><div class="brand">培训公司 OA</div><div class="user-box">业务管理</div><div class="group-title">业务管理</div><ul class="menu-tree simple"><li class="active"><a href="./index.html?page=external_contacts" target="_top">外部联系人列表</a></li></ul></aside><main><div id="app" class="oa-main" v-cloak>
+  <header class="oa-header"><h1>外部联系人列表</h1><div class="header-actions"><a class="btn-secondary" href="./index.html?page=todos" target="_top">返回主入口</a><button @click="load(false)">刷新ID列表</button><button class="btn-secondary" @click="load(true)">拉取详细信息</button></div></header>
+  <section class="content-card"><p class="role-tip"><strong>使用说明：</strong>点击“拉取详细信息”从企业微信获取全部外部联系人。若提示未配置参数，请查看本页底部“接入所需信息”。</p>
+    <table class="table"><thead><tr><th>外部联系人ID</th><th>名称</th><th>类型</th><th>职位</th><th>企业名</th></tr></thead><tbody><tr v-for="row in list" :key="row.external_userid"><td>{{row.external_userid||'-'}}</td><td>{{row.name||'-'}}</td><td>{{row.type||'-'}}</td><td>{{row.position||'-'}}</td><td>{{row.corp_name||'-'}}</td></tr></tbody></table>
+    <p v-if="error" class="error">{{error}}</p>
+  </section>
+  <section class="content-card"><h3>接入所需信息（你需要提供）</h3><ul><li><strong>企业ID（CorpID）</strong>：企业微信管理后台 → 我的企业 → 企业信息。</li><li><strong>客户联系 Secret</strong>：企业微信管理后台 → 应用管理 → 自建应用/客户联系应用 → Secret。</li><li><strong>权限</strong>：应用需具备“客户联系-读取外部联系人”相关权限。</li><li><strong>配置方式</strong>：服务端环境变量 `WECOM_CORP_ID` 与 `WECOM_CONTACT_SECRET`。</li></ul></section>
+</div></main></div>
+<script>
+const {createApp,ref,onMounted} = Vue;
+createApp({setup(){
+  const list=ref([]),error=ref('');
+  const req=async(url)=>{const r=await fetch(url);const t=await r.text();let j={};try{j=t?JSON.parse(t):{}}catch(_ ){}if(!r.ok||j.code!==0) throw new Error(j.message||'请求失败');return j.data||[];};
+  const load=async(detail=false)=>{try{error.value='';list.value=await req('/api/external_contacts.php'+(detail?'?detail=1':''));}catch(e){error.value=e.message;}};
+  onMounted(()=>load(false));
+  return {list,error,load};
+}}).mount('#app');
+</script></body></html>
