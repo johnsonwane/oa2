@@ -40,9 +40,11 @@ function wecom_request_json(string $url, array $body): array
 function wecom_access_token(string $corpId, string $secret): string
 {
     $url = 'https://qyapi.weixin.qq.com/cgi-bin/gettoken?corpid=' . rawurlencode($corpId) . '&corpsecret=' . rawurlencode($secret);
-    $resp = file_get_contents($url);
+    $resp = @file_get_contents($url);
     if ($resp === false) {
-        throw new RuntimeException('获取企业微信 access_token 失败');
+        $last = error_get_last();
+        $msg = is_array($last) ? (string)($last['message'] ?? '') : '';
+        throw new RuntimeException('获取企业微信 access_token 失败' . ($msg !== '' ? '：' . $msg : ''));
     }
     $data = json_decode($resp, true);
     if (!is_array($data) || (int)($data['errcode'] ?? 0) !== 0 || empty($data['access_token'])) {
