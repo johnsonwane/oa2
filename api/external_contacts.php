@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/common.php';
+require_once __DIR__ . '/db.php';
 
 function wecom_config(): array
 {
@@ -8,6 +9,56 @@ function wecom_config(): array
         'corp_id' => (string)($config['wecom']['corp_id'] ?? getenv('WECOM_CORP_ID') ?: ''),
         'contact_secret' => (string)($config['wecom']['contact_secret'] ?? getenv('WECOM_CONTACT_SECRET') ?: ''),
     ];
+}
+
+function ensure_external_contact_cache_table(PDO $pdo): void
+{
+    $pdo->exec("CREATE TABLE IF NOT EXISTS oa_external_contact_cache (
+      id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+      external_userid VARCHAR(128) NOT NULL DEFAULT '',
+      customer_name VARCHAR(120) NOT NULL DEFAULT '',
+      description_text VARCHAR(255) NOT NULL DEFAULT '',
+      follower_name VARCHAR(120) NOT NULL DEFAULT '',
+      follower_userid VARCHAR(120) NOT NULL DEFAULT '',
+      follower_departments VARCHAR(255) NOT NULL DEFAULT '',
+      follow_created_at DATETIME DEFAULT NULL,
+      add_way VARCHAR(64) NOT NULL DEFAULT '',
+      mobile VARCHAR(64) NOT NULL DEFAULT '',
+      corp_name VARCHAR(255) NOT NULL DEFAULT '',
+      email VARCHAR(120) NOT NULL DEFAULT '',
+      address VARCHAR(255) NOT NULL DEFAULT '',
+      position VARCHAR(120) NOT NULL DEFAULT '',
+      tel VARCHAR(64) NOT NULL DEFAULT '',
+      tag_group_level VARCHAR(255) NOT NULL DEFAULT '',
+      tag_group_source VARCHAR(255) NOT NULL DEFAULT '',
+      updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      KEY idx_external_userid (external_userid)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+}
+
+function cached_rows(PDO $pdo): array
+{
+    $stmt = $pdo->query("SELECT
+      external_userid,
+      customer_name AS `客户名称`,
+      description_text AS `描述`,
+      follower_name AS `添加人`,
+      follower_userid AS `添加人账号`,
+      follower_departments AS `添加人所属部门`,
+      IFNULL(DATE_FORMAT(follow_created_at, '%Y-%m-%d %H:%i:%s'), '') AS `添加时间`,
+      add_way AS `来源`,
+      mobile AS `手机`,
+      corp_name AS `企业`,
+      email AS `邮箱`,
+      address AS `地址`,
+      position AS `职务`,
+      tel AS `电话`,
+      tag_group_level AS `标签组1(学员等级)`,
+      tag_group_source AS `标签组2(来源)`
+      FROM oa_external_contact_cache
+      ORDER BY id DESC");
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
 function wecom_get_json(string $url): array
@@ -176,23 +227,16 @@ function find_tag_group(array $tags, string $groupName): string
     return implode('、', array_values(array_unique($names)));
 }
 
-try {
-    if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
-        json_response(405, 'method not allowed', null, 405);
-    }
-
+function sync_external_contacts(PDO $pdo): int
+{
     $cfg = wecom_config();
     if ($cfg['corp_id'] === '' || $cfg['contact_secret'] === '') {
-        json_response(400, '未配置企业微信参数：WECOM_CORP_ID / WECOM_CONTACT_SECRET', null, 400);
+        throw new RuntimeException('未配置企业微信参数：WECOM_CORP_ID / WECOM_CONTACT_SECRET');
     }
 
     $token = wecom_access_token($cfg['corp_id'], $cfg['contact_secret']);
     $deptMap = wecom_department_map($token);
     $followUsers = wecom_follow_user_ids($token);
-
-    if (empty($followUsers)) {
-        json_response(0, 'ok', []);
-    }
 
     $userInfoMap = [];
     $externalIds = [];
@@ -217,22 +261,22 @@ try {
 
         if (empty($fus)) {
             $rows[] = [
-                '客户名称' => (string)($ec['name'] ?? ''),
-                '描述' => '',
-                '添加人' => '',
-                '添加人账号' => '',
-                '添加人所属部门' => '',
-                '添加时间' => '',
-                '来源' => '',
-                '手机' => (string)($ec['mobile'] ?? ''),
-                '企业' => (string)($ec['corp_name'] ?? ''),
-                '邮箱' => (string)($ec['email'] ?? ''),
-                '地址' => (string)($ec['address'] ?? ''),
-                '职务' => (string)($ec['position'] ?? ''),
-                '电话' => (string)($ec['tel'] ?? ''),
-                '标签组1(学员等级)' => '',
-                '标签组2(来源)' => '',
                 'external_userid' => $externalId,
+                'customer_name' => (string)($ec['name'] ?? ''),
+                'description_text' => '',
+                'follower_name' => '',
+                'follower_userid' => '',
+                'follower_departments' => '',
+                'follow_created_at' => null,
+                'add_way' => '',
+                'mobile' => (string)($ec['mobile'] ?? ''),
+                'corp_name' => (string)($ec['corp_name'] ?? ''),
+                'email' => (string)($ec['email'] ?? ''),
+                'address' => (string)($ec['address'] ?? ''),
+                'position' => (string)($ec['position'] ?? ''),
+                'tel' => (string)($ec['tel'] ?? ''),
+                'tag_group_level' => '',
+                'tag_group_source' => '',
             ];
             continue;
         }
@@ -252,27 +296,75 @@ try {
             }
             $tags = is_array($fu['tags'] ?? null) ? $fu['tags'] : [];
             $rows[] = [
-                '客户名称' => (string)($ec['name'] ?? ''),
-                '描述' => (string)($fu['description'] ?? ''),
-                '添加人' => (string)($user['name'] ?? ''),
-                '添加人账号' => $uid,
-                '添加人所属部门' => implode('、', array_values(array_unique($deptNames))),
-                '添加时间' => !empty($fu['createtime']) ? date('Y-m-d H:i:s', (int)$fu['createtime']) : '',
-                '来源' => (string)($fu['add_way'] ?? ''),
-                '手机' => (string)($ec['mobile'] ?? ''),
-                '企业' => (string)($ec['corp_name'] ?? ''),
-                '邮箱' => (string)($ec['email'] ?? ''),
-                '地址' => (string)($ec['address'] ?? ''),
-                '职务' => (string)($ec['position'] ?? ''),
-                '电话' => (string)($ec['tel'] ?? ''),
-                '标签组1(学员等级)' => find_tag_group($tags, '学员等级'),
-                '标签组2(来源)' => find_tag_group($tags, '来源'),
                 'external_userid' => $externalId,
+                'customer_name' => (string)($ec['name'] ?? ''),
+                'description_text' => (string)($fu['description'] ?? ''),
+                'follower_name' => (string)($user['name'] ?? ''),
+                'follower_userid' => $uid,
+                'follower_departments' => implode('、', array_values(array_unique($deptNames))),
+                'follow_created_at' => !empty($fu['createtime']) ? date('Y-m-d H:i:s', (int)$fu['createtime']) : null,
+                'add_way' => (string)($fu['add_way'] ?? ''),
+                'mobile' => (string)($ec['mobile'] ?? ''),
+                'corp_name' => (string)($ec['corp_name'] ?? ''),
+                'email' => (string)($ec['email'] ?? ''),
+                'address' => (string)($ec['address'] ?? ''),
+                'position' => (string)($ec['position'] ?? ''),
+                'tel' => (string)($ec['tel'] ?? ''),
+                'tag_group_level' => find_tag_group($tags, '学员等级'),
+                'tag_group_source' => find_tag_group($tags, '来源'),
             ];
         }
     }
 
-    json_response(0, 'ok', $rows);
+    $pdo->beginTransaction();
+    try {
+        $pdo->exec('DELETE FROM oa_external_contact_cache');
+        $stmt = $pdo->prepare("INSERT INTO oa_external_contact_cache
+            (external_userid, customer_name, description_text, follower_name, follower_userid, follower_departments, follow_created_at, add_way, mobile, corp_name, email, address, position, tel, tag_group_level, tag_group_source)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+        foreach ($rows as $r) {
+            $stmt->execute([
+                $r['external_userid'],
+                $r['customer_name'],
+                $r['description_text'],
+                $r['follower_name'],
+                $r['follower_userid'],
+                $r['follower_departments'],
+                $r['follow_created_at'],
+                $r['add_way'],
+                $r['mobile'],
+                $r['corp_name'],
+                $r['email'],
+                $r['address'],
+                $r['position'],
+                $r['tel'],
+                $r['tag_group_level'],
+                $r['tag_group_source'],
+            ]);
+        }
+        $pdo->commit();
+    } catch (Throwable $e) {
+        $pdo->rollBack();
+        throw $e;
+    }
+
+    return count($rows);
+}
+
+try {
+    $pdo = get_db_connection();
+    ensure_external_contact_cache_table($pdo);
+
+    if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+        json_response(0, 'ok', cached_rows($pdo));
+    }
+
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        $count = sync_external_contacts($pdo);
+        json_response(0, '同步完成', ['rows' => $count]);
+    }
+
+    json_response(405, 'method not allowed', null, 405);
 } catch (Throwable $e) {
     json_response(500, '服务异常：' . $e->getMessage(), null, 500);
 }
