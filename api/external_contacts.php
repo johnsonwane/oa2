@@ -41,6 +41,23 @@ function wecom_request_json(string $url, $body): array
     return $data;
 }
 
+
+
+function wecom_get_json(string $url): array
+{
+    $resp = @file_get_contents($url);
+    if ($resp === false) {
+        $last = error_get_last();
+        $msg = is_array($last) ? (string)($last['message'] ?? '') : '';
+        throw new RuntimeException('企业微信请求失败' . ($msg !== '' ? '：' . $msg : ''));
+    }
+    $data = json_decode($resp, true);
+    if (!is_array($data)) {
+        throw new RuntimeException('企业微信返回格式异常');
+    }
+    return $data;
+}
+
 function wecom_access_token(string $corpId, string $secret): string
 {
     $url = 'https://qyapi.weixin.qq.com/cgi-bin/gettoken?corpid=' . rawurlencode($corpId) . '&corpsecret=' . rawurlencode($secret);
@@ -67,9 +84,9 @@ function wecom_follow_user_ids(string $token): array
         if (is_string($row) || is_numeric($row)) {
             $v = trim((string)$row);
         } elseif (is_array($row)) {
-            $v = trim((string)($row['userid'] ?? ''));
+            $v = trim((string)($row['userid'] ?? ($row['user_id'] ?? ($row['UserId'] ?? ''))));
         } elseif (is_object($row)) {
-            $v = trim((string)($row->userid ?? ''));
+            $v = trim((string)($row->userid ?? ($row->user_id ?? ($row->UserId ?? ''))));
         }
         if ($v !== '') {
             $ids[] = $v;
@@ -81,7 +98,23 @@ function wecom_follow_user_ids(string $token): array
 function wecom_list_external_user_ids_by_user(string $token, string $userId): array
 {
     $url = 'https://qyapi.weixin.qq.com/cgi-bin/externalcontact/list?access_token=' . rawurlencode($token);
-    $res = wecom_request_json($url, ['userid' => $userId]);
+
+    // 首选官方推荐 POST JSON 方式
+    try {
+        $res = wecom_request_json($url, ['userid' => $userId]);
+    } catch (Throwable $e) {
+        $msg = (string)$e->getMessage();
+        // 某些环境网关会错误解析 body，兼容回退 GET query 方式
+        if (strpos($msg, 'missing field `userid`') !== false || strpos($msg, 'missing field userid') !== false) {
+            $res = wecom_get_json($url . '&userid=' . rawurlencode($userId));
+            if ((int)($res['errcode'] ?? 0) !== 0) {
+                throw new RuntimeException('企业微信接口错误：' . (string)($res['errmsg'] ?? 'unknown'));
+            }
+        } else {
+            throw $e;
+        }
+    }
+
     $ids = [];
     foreach (($res['external_userid'] ?? []) as $uid) {
         $v = trim((string)$uid);
