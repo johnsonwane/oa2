@@ -13,7 +13,7 @@ function wecom_config(): array
 
 function ensure_external_contact_cache_table(PDO $pdo): void
 {
-    $pdo->exec("CREATE TABLE IF NOT EXISTS oa_external_contact_cache (
+    $pdo->exec("CREATE TABLE IF NOT EXISTS oa_external_contact_cache_v2 (
       id INT UNSIGNED NOT NULL AUTO_INCREMENT,
       external_userid VARCHAR(128) NOT NULL DEFAULT '',
       errcode INT NOT NULL DEFAULT 0,
@@ -81,13 +81,13 @@ function ensure_external_contact_cache_table(PDO $pdo): void
     ];
 
     $exists = [];
-    $stmt = $pdo->query('SHOW COLUMNS FROM oa_external_contact_cache');
+    $stmt = $pdo->query('SHOW COLUMNS FROM oa_external_contact_cache_v2');
     foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $col) {
         $exists[(string)($col['Field'] ?? '')] = true;
     }
     foreach ($columns as $name => $ddl) {
         if (!isset($exists[$name])) {
-            $pdo->exec("ALTER TABLE oa_external_contact_cache ADD COLUMN {$name} {$ddl}");
+            $pdo->exec("ALTER TABLE oa_external_contact_cache_v2 ADD COLUMN {$name} {$ddl}");
         }
     }
 }
@@ -124,7 +124,7 @@ function cached_rows(PDO $pdo): array
       follow_user_oper_userid AS `follow_user.oper_userid`,
       follow_user_state AS `follow_user.state`,
       next_cursor
-      FROM oa_external_contact_cache
+      FROM oa_external_contact_cache_v2
       ORDER BY id DESC");
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
@@ -413,8 +413,8 @@ function sync_external_contacts(PDO $pdo): array
 
     $pdo->beginTransaction();
     try {
-        $pdo->exec('DELETE FROM oa_external_contact_cache');
-        $stmt = $pdo->prepare("INSERT INTO oa_external_contact_cache
+        $pdo->exec('DELETE FROM oa_external_contact_cache_v2');
+        $stmt = $pdo->prepare("INSERT INTO oa_external_contact_cache_v2
             (external_userid, errcode, errmsg, name, avatar, type, gender, unionid, position, corp_name, corp_full_name, external_profile,
              follow_user_userid, follow_user_remark, follow_user_description, follow_user_createtime, follow_user_tags_group_name,
              follow_user_tags_tag_name, follow_user_tags_type, follow_user_tags_tag_id, follow_user_remark_corp_name, follow_user_remark_mobiles,
