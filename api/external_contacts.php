@@ -204,11 +204,19 @@ function wecom_list_external_user_ids_by_user(string $token, string $userId): ar
 function wecom_external_detail(string $token, string $externalUserId): array
 {
     $url = 'https://qyapi.weixin.qq.com/cgi-bin/externalcontact/get?access_token=' . rawurlencode($token) . '&external_userid=' . rawurlencode($externalUserId);
-    $data = wecom_get_json($url);
-    if ((int)($data['errcode'] ?? 0) !== 0) {
-        return ['external_contact' => ['external_userid' => $externalUserId], 'follow_user' => []];
+    return wecom_assert_ok(wecom_get_json($url));
+}
+
+function push_sync_error(array &$errors, string $stage, string $id, string $message): void
+{
+    if (count($errors) >= 200) {
+        return;
     }
-    return $data;
+    $errors[] = [
+        'stage' => $stage,
+        'id' => $id,
+        'message' => $message,
+    ];
 }
 
 function find_tag_group(array $tags, string $groupName): string
@@ -227,7 +235,7 @@ function find_tag_group(array $tags, string $groupName): string
     return implode('、', array_values(array_unique($names)));
 }
 
-function sync_external_contacts(PDO $pdo): int
+function sync_external_contacts(PDO $pdo): array
 {
     $cfg = wecom_config();
     if ($cfg['corp_id'] === '' || $cfg['contact_secret'] === '') {
@@ -238,6 +246,7 @@ function sync_external_contacts(PDO $pdo): int
     $deptMap = wecom_department_map($token);
     $followUsers = wecom_follow_user_ids($token);
 
+    $errors = [];
     $userInfoMap = [];
     $externalIds = [];
     foreach ($followUsers as $uid) {
@@ -246,16 +255,30 @@ function sync_external_contacts(PDO $pdo): int
             continue;
         }
         if (!isset($userInfoMap[$uid])) {
-            $userInfoMap[$uid] = wecom_user_info($token, $uid);
+            try {
+                $userInfoMap[$uid] = wecom_user_info($token, $uid);
+            } catch (Throwable $e) {
+                push_sync_error($errors, 'user_info', $uid, $e->getMessage());
+                $userInfoMap[$uid] = ['name' => '', 'userid' => $uid, 'department' => []];
+            }
         }
-        foreach (wecom_list_external_user_ids_by_user($token, $uid) as $eid) {
-            $externalIds[$eid] = true;
+        try {
+            foreach (wecom_list_external_user_ids_by_user($token, $uid) as $eid) {
+                $externalIds[$eid] = true;
+            }
+        } catch (Throwable $e) {
+            push_sync_error($errors, 'list_external_user', $uid, $e->getMessage());
         }
     }
 
     $rows = [];
     foreach (array_keys($externalIds) as $externalId) {
-        $detail = wecom_external_detail($token, $externalId);
+        try {
+            $detail = wecom_external_detail($token, $externalId);
+        } catch (Throwable $e) {
+            push_sync_error($errors, 'external_detail', $externalId, $e->getMessage());
+            continue;
+        }
         $ec = is_array($detail['external_contact'] ?? null) ? $detail['external_contact'] : [];
         $fus = is_array($detail['follow_user'] ?? null) ? $detail['follow_user'] : [];
 
@@ -348,7 +371,12 @@ function sync_external_contacts(PDO $pdo): int
         throw $e;
     }
 
-    return count($rows);
+    return [
+        'rows' => count($rows),
+        'follow_users' => count($followUsers),
+        'external_contacts' => count($externalIds),
+        'errors' => $errors,
+    ];
 }
 
 try {
@@ -360,8 +388,10 @@ try {
     }
 
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-        $count = sync_external_contacts($pdo);
-        json_response(0, '同步完成', ['rows' => $count]);
+        $result = sync_external_contacts($pdo);
+        $errCount = count($result['errors'] ?? []);
+        $msg = $errCount > 0 ? ('同步完成，但有 ' . $errCount . ' 条异常') : '同步完成';
+        json_response(0, $msg, $result);
     }
 
     json_response(405, 'method not allowed', null, 405);
