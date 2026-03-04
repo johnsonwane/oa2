@@ -10,8 +10,12 @@ function wecom_config(): array
     ];
 }
 
-function wecom_request_json(string $url, array $body): array
+function wecom_request_json(string $url, $body): array
 {
+    if (!is_array($body) && !is_object($body)) {
+        $body = [];
+    }
+
     $ch = curl_init($url);
     curl_setopt_array($ch, [
         CURLOPT_RETURNTRANSFER => true,
