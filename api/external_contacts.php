@@ -92,6 +92,77 @@ function ensure_external_contact_cache_table(PDO $pdo): void
     }
 }
 
+function table_exists(PDO $pdo, string $tableName): bool
+{
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = ?");
+    $stmt->execute([$tableName]);
+    return (int)$stmt->fetchColumn() > 0;
+}
+
+function table_columns(PDO $pdo, string $tableName): array
+{
+    $stmt = $pdo->query("SHOW COLUMNS FROM `" . str_replace('`', '``', $tableName) . "`");
+    $cols = [];
+    foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+        $name = (string)($row['Field'] ?? '');
+        if ($name !== '') {
+            $cols[] = $name;
+        }
+    }
+    return $cols;
+}
+
+function migrate_legacy_external_contact_cache_if_needed(PDO $pdo): void
+{
+    $newTable = 'oa_external_contact_cache_v2';
+    $oldTable = 'oa_external_contact_cache';
+
+    if (!table_exists($pdo, $newTable) || !table_exists($pdo, $oldTable)) {
+        return;
+    }
+
+    $newCount = (int)$pdo->query("SELECT COUNT(*) FROM {$newTable}")->fetchColumn();
+    if ($newCount > 0) {
+        return;
+    }
+
+    $oldCount = (int)$pdo->query("SELECT COUNT(*) FROM {$oldTable}")->fetchColumn();
+    if ($oldCount <= 0) {
+        return;
+    }
+
+    $newCols = table_columns($pdo, $newTable);
+    $oldCols = table_columns($pdo, $oldTable);
+    $oldSet = array_fill_keys($oldCols, true);
+
+    $copyCols = [];
+    foreach ($newCols as $c) {
+        if ($c === 'id' || $c === 'updated_at') {
+            continue;
+        }
+        if (isset($oldSet[$c])) {
+            $copyCols[] = $c;
+        }
+    }
+
+    if (empty($copyCols)) {
+        return;
+    }
+
+    $sqlCols = implode(', ', array_map(function ($c) {
+        return "`" . str_replace('`', '``', $c) . "`";
+    }, $copyCols));
+
+    $pdo->beginTransaction();
+    try {
+        $pdo->exec("INSERT INTO {$newTable} ({$sqlCols}) SELECT {$sqlCols} FROM {$oldTable}");
+        $pdo->commit();
+    } catch (Throwable $e) {
+        $pdo->rollBack();
+        throw $e;
+    }
+}
+
 function cached_rows(PDO $pdo): array
 {
     $stmt = $pdo->query("SELECT
@@ -471,6 +542,7 @@ function sync_external_contacts(PDO $pdo): array
 try {
     $pdo = get_db_connection();
     ensure_external_contact_cache_table($pdo);
+    migrate_legacy_external_contact_cache_if_needed($pdo);
 
     if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         json_response(0, 'ok', cached_rows($pdo));
