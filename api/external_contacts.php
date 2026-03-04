@@ -16,46 +16,114 @@ function ensure_external_contact_cache_table(PDO $pdo): void
     $pdo->exec("CREATE TABLE IF NOT EXISTS oa_external_contact_cache (
       id INT UNSIGNED NOT NULL AUTO_INCREMENT,
       external_userid VARCHAR(128) NOT NULL DEFAULT '',
-      customer_name VARCHAR(120) NOT NULL DEFAULT '',
-      description_text VARCHAR(255) NOT NULL DEFAULT '',
-      follower_name VARCHAR(120) NOT NULL DEFAULT '',
-      follower_userid VARCHAR(120) NOT NULL DEFAULT '',
-      follower_departments VARCHAR(255) NOT NULL DEFAULT '',
-      follow_created_at DATETIME DEFAULT NULL,
-      add_way VARCHAR(64) NOT NULL DEFAULT '',
-      mobile VARCHAR(64) NOT NULL DEFAULT '',
-      corp_name VARCHAR(255) NOT NULL DEFAULT '',
-      email VARCHAR(120) NOT NULL DEFAULT '',
-      address VARCHAR(255) NOT NULL DEFAULT '',
+      errcode INT NOT NULL DEFAULT 0,
+      errmsg VARCHAR(255) NOT NULL DEFAULT '',
+      name VARCHAR(120) NOT NULL DEFAULT '',
+      avatar VARCHAR(500) NOT NULL DEFAULT '',
+      type VARCHAR(64) NOT NULL DEFAULT '',
+      gender VARCHAR(32) NOT NULL DEFAULT '',
+      unionid VARCHAR(128) NOT NULL DEFAULT '',
       position VARCHAR(120) NOT NULL DEFAULT '',
-      tel VARCHAR(64) NOT NULL DEFAULT '',
-      tag_group_level VARCHAR(255) NOT NULL DEFAULT '',
-      tag_group_source VARCHAR(255) NOT NULL DEFAULT '',
+      corp_name VARCHAR(255) NOT NULL DEFAULT '',
+      corp_full_name VARCHAR(255) NOT NULL DEFAULT '',
+      external_profile TEXT,
+      follow_user_userid VARCHAR(120) NOT NULL DEFAULT '',
+      follow_user_remark VARCHAR(255) NOT NULL DEFAULT '',
+      follow_user_description VARCHAR(255) NOT NULL DEFAULT '',
+      follow_user_createtime DATETIME DEFAULT NULL,
+      follow_user_tags_group_name TEXT,
+      follow_user_tags_tag_name TEXT,
+      follow_user_tags_type TEXT,
+      follow_user_tags_tag_id TEXT,
+      follow_user_remark_corp_name VARCHAR(255) NOT NULL DEFAULT '',
+      follow_user_remark_mobiles TEXT,
+      follow_user_add_way VARCHAR(64) NOT NULL DEFAULT '',
+      follow_user_wechat_channels TEXT,
+      follow_user_wechat_channels_nickname VARCHAR(120) NOT NULL DEFAULT '',
+      follow_user_wechat_channels_source VARCHAR(120) NOT NULL DEFAULT '',
+      follow_user_oper_userid VARCHAR(120) NOT NULL DEFAULT '',
+      follow_user_state VARCHAR(255) NOT NULL DEFAULT '',
+      next_cursor VARCHAR(255) NOT NULL DEFAULT '',
       updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
       PRIMARY KEY (id),
       KEY idx_external_userid (external_userid)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+    $columns = [
+        'errcode' => "INT NOT NULL DEFAULT 0",
+        'errmsg' => "VARCHAR(255) NOT NULL DEFAULT ''",
+        'name' => "VARCHAR(120) NOT NULL DEFAULT ''",
+        'avatar' => "VARCHAR(500) NOT NULL DEFAULT ''",
+        'type' => "VARCHAR(64) NOT NULL DEFAULT ''",
+        'gender' => "VARCHAR(32) NOT NULL DEFAULT ''",
+        'unionid' => "VARCHAR(128) NOT NULL DEFAULT ''",
+        'position' => "VARCHAR(120) NOT NULL DEFAULT ''",
+        'corp_name' => "VARCHAR(255) NOT NULL DEFAULT ''",
+        'corp_full_name' => "VARCHAR(255) NOT NULL DEFAULT ''",
+        'external_profile' => "TEXT",
+        'follow_user_userid' => "VARCHAR(120) NOT NULL DEFAULT ''",
+        'follow_user_remark' => "VARCHAR(255) NOT NULL DEFAULT ''",
+        'follow_user_description' => "VARCHAR(255) NOT NULL DEFAULT ''",
+        'follow_user_createtime' => "DATETIME DEFAULT NULL",
+        'follow_user_tags_group_name' => "TEXT",
+        'follow_user_tags_tag_name' => "TEXT",
+        'follow_user_tags_type' => "TEXT",
+        'follow_user_tags_tag_id' => "TEXT",
+        'follow_user_remark_corp_name' => "VARCHAR(255) NOT NULL DEFAULT ''",
+        'follow_user_remark_mobiles' => "TEXT",
+        'follow_user_add_way' => "VARCHAR(64) NOT NULL DEFAULT ''",
+        'follow_user_wechat_channels' => "TEXT",
+        'follow_user_wechat_channels_nickname' => "VARCHAR(120) NOT NULL DEFAULT ''",
+        'follow_user_wechat_channels_source' => "VARCHAR(120) NOT NULL DEFAULT ''",
+        'follow_user_oper_userid' => "VARCHAR(120) NOT NULL DEFAULT ''",
+        'follow_user_state' => "VARCHAR(255) NOT NULL DEFAULT ''",
+        'next_cursor' => "VARCHAR(255) NOT NULL DEFAULT ''",
+    ];
+
+    $exists = [];
+    $stmt = $pdo->query('SHOW COLUMNS FROM oa_external_contact_cache');
+    foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $col) {
+        $exists[(string)($col['Field'] ?? '')] = true;
+    }
+    foreach ($columns as $name => $ddl) {
+        if (!isset($exists[$name])) {
+            $pdo->exec("ALTER TABLE oa_external_contact_cache ADD COLUMN {$name} {$ddl}");
+        }
+    }
 }
 
 function cached_rows(PDO $pdo): array
 {
     $stmt = $pdo->query("SELECT
       external_userid,
-      customer_name AS `客户名称`,
-      description_text AS `描述`,
-      follower_name AS `添加人`,
-      follower_userid AS `添加人账号`,
-      follower_departments AS `添加人所属部门`,
-      IFNULL(DATE_FORMAT(follow_created_at, '%Y-%m-%d %H:%i:%s'), '') AS `添加时间`,
-      add_way AS `来源`,
-      mobile AS `手机`,
-      corp_name AS `企业`,
-      email AS `邮箱`,
-      address AS `地址`,
-      position AS `职务`,
-      tel AS `电话`,
-      tag_group_level AS `标签组1(学员等级)`,
-      tag_group_source AS `标签组2(来源)`
+      errcode,
+      errmsg,
+      name,
+      avatar,
+      type,
+      gender,
+      unionid,
+      position,
+      corp_name,
+      corp_full_name,
+      IFNULL(external_profile, '') AS external_profile,
+      follow_user_userid AS `follow_user.userid`,
+      follow_user_remark AS `follow_user.remark`,
+      follow_user_description AS `follow_user.description`,
+      IFNULL(DATE_FORMAT(follow_user_createtime, '%Y-%m-%d %H:%i:%s'), '') AS `follow_user.createtime`,
+      IFNULL(follow_user_tags_group_name, '') AS `follow_user.tags.group_name`,
+      IFNULL(follow_user_tags_tag_name, '') AS `follow_user.tags.tag_name`,
+      IFNULL(follow_user_tags_type, '') AS `follow_user.tags.type`,
+      IFNULL(follow_user_tags_tag_id, '') AS `follow_user.tags.tag_id`,
+      follow_user_remark_corp_name AS `follow_user.remark_corp_name`,
+      IFNULL(follow_user_remark_mobiles, '') AS `follow_user.remark_mobiles`,
+      follow_user_add_way AS `follow_user.add_way`,
+      IFNULL(follow_user_wechat_channels, '') AS `follow_user.wechat_channels`,
+      follow_user_wechat_channels_nickname AS `follow_user.wechat_channels.nickname`,
+      follow_user_wechat_channels_source AS `follow_user.wechat_channels.source`,
+      follow_user_oper_userid AS `follow_user.oper_userid`,
+      follow_user_state AS `follow_user.state`,
+      next_cursor
       FROM oa_external_contact_cache
       ORDER BY id DESC");
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -144,38 +212,6 @@ function wecom_follow_user_ids(string $token): array
     return array_values(array_unique($ids));
 }
 
-function wecom_user_info(string $token, string $userId): array
-{
-    $url = 'https://qyapi.weixin.qq.com/cgi-bin/user/get?access_token=' . rawurlencode($token) . '&userid=' . rawurlencode($userId);
-    $data = wecom_get_json($url);
-    if ((int)($data['errcode'] ?? 0) !== 0) {
-        return ['name' => '', 'userid' => $userId, 'department' => []];
-    }
-    return [
-        'name' => (string)($data['name'] ?? ''),
-        'userid' => (string)($data['userid'] ?? $userId),
-        'department' => is_array($data['department'] ?? null) ? $data['department'] : [],
-    ];
-}
-
-function wecom_department_map(string $token): array
-{
-    $url = 'https://qyapi.weixin.qq.com/cgi-bin/department/simplelist?access_token=' . rawurlencode($token);
-    $data = wecom_get_json($url);
-    if ((int)($data['errcode'] ?? 0) !== 0) {
-        return [];
-    }
-    $map = [];
-    foreach (($data['department_id'] ?? []) as $row) {
-        $id = (string)($row['id'] ?? '');
-        $name = (string)($row['name'] ?? '');
-        if ($id !== '') {
-            $map[$id] = $name;
-        }
-    }
-    return $map;
-}
-
 function wecom_list_external_user_ids_by_user(string $token, string $userId): array
 {
     $url = 'https://qyapi.weixin.qq.com/cgi-bin/externalcontact/list?access_token=' . rawurlencode($token);
@@ -204,7 +240,7 @@ function wecom_list_external_user_ids_by_user(string $token, string $userId): ar
 function wecom_external_detail(string $token, string $externalUserId): array
 {
     $url = 'https://qyapi.weixin.qq.com/cgi-bin/externalcontact/get?access_token=' . rawurlencode($token) . '&external_userid=' . rawurlencode($externalUserId);
-    return wecom_assert_ok(wecom_get_json($url));
+    return wecom_get_json($url);
 }
 
 function push_sync_error(array &$errors, string $stage, string $id, string $message): void
@@ -219,22 +255,6 @@ function push_sync_error(array &$errors, string $stage, string $id, string $mess
     ];
 }
 
-function find_tag_group(array $tags, string $groupName): string
-{
-    $names = [];
-    foreach ($tags as $tag) {
-        if (!is_array($tag)) {
-            continue;
-        }
-        $g = (string)($tag['group_name'] ?? '');
-        $t = (string)($tag['name'] ?? '');
-        if ($g === $groupName && $t !== '') {
-            $names[] = $t;
-        }
-    }
-    return implode('、', array_values(array_unique($names)));
-}
-
 function sync_external_contacts(PDO $pdo): array
 {
     $cfg = wecom_config();
@@ -243,24 +263,14 @@ function sync_external_contacts(PDO $pdo): array
     }
 
     $token = wecom_access_token($cfg['corp_id'], $cfg['contact_secret']);
-    $deptMap = wecom_department_map($token);
     $followUsers = wecom_follow_user_ids($token);
 
     $errors = [];
-    $userInfoMap = [];
     $externalIds = [];
     foreach ($followUsers as $uid) {
         $uid = trim((string)$uid);
         if ($uid === '') {
             continue;
-        }
-        if (!isset($userInfoMap[$uid])) {
-            try {
-                $userInfoMap[$uid] = wecom_user_info($token, $uid);
-            } catch (Throwable $e) {
-                push_sync_error($errors, 'user_info', $uid, $e->getMessage());
-                $userInfoMap[$uid] = ['name' => '', 'userid' => $uid, 'department' => []];
-            }
         }
         try {
             foreach (wecom_list_external_user_ids_by_user($token, $uid) as $eid) {
@@ -279,27 +289,49 @@ function sync_external_contacts(PDO $pdo): array
             push_sync_error($errors, 'external_detail', $externalId, $e->getMessage());
             continue;
         }
+
+        $errcode = (int)($detail['errcode'] ?? 0);
+        $errmsg = (string)($detail['errmsg'] ?? '');
+        $nextCursor = (string)($detail['next_cursor'] ?? '');
+        if ($errcode !== 0) {
+            push_sync_error($errors, 'external_detail_errcode', $externalId, $errmsg !== '' ? $errmsg : ('errcode=' . $errcode));
+            continue;
+        }
+
         $ec = is_array($detail['external_contact'] ?? null) ? $detail['external_contact'] : [];
         $fus = is_array($detail['follow_user'] ?? null) ? $detail['follow_user'] : [];
 
         if (empty($fus)) {
             $rows[] = [
-                'external_userid' => $externalId,
-                'customer_name' => (string)($ec['name'] ?? ''),
-                'description_text' => '',
-                'follower_name' => '',
-                'follower_userid' => '',
-                'follower_departments' => '',
-                'follow_created_at' => null,
-                'add_way' => '',
-                'mobile' => (string)($ec['mobile'] ?? ''),
-                'corp_name' => (string)($ec['corp_name'] ?? ''),
-                'email' => (string)($ec['email'] ?? ''),
-                'address' => (string)($ec['address'] ?? ''),
+                'external_userid' => (string)($ec['external_userid'] ?? $externalId),
+                'errcode' => $errcode,
+                'errmsg' => $errmsg,
+                'name' => (string)($ec['name'] ?? ''),
+                'avatar' => (string)($ec['avatar'] ?? ''),
+                'type' => (string)($ec['type'] ?? ''),
+                'gender' => (string)($ec['gender'] ?? ''),
+                'unionid' => (string)($ec['unionid'] ?? ''),
                 'position' => (string)($ec['position'] ?? ''),
-                'tel' => (string)($ec['tel'] ?? ''),
-                'tag_group_level' => '',
-                'tag_group_source' => '',
+                'corp_name' => (string)($ec['corp_name'] ?? ''),
+                'corp_full_name' => (string)($ec['corp_full_name'] ?? ''),
+                'external_profile' => json_encode($ec['external_profile'] ?? new stdClass(), JSON_UNESCAPED_UNICODE),
+                'follow_user_userid' => '',
+                'follow_user_remark' => '',
+                'follow_user_description' => '',
+                'follow_user_createtime' => null,
+                'follow_user_tags_group_name' => '',
+                'follow_user_tags_tag_name' => '',
+                'follow_user_tags_type' => '',
+                'follow_user_tags_tag_id' => '',
+                'follow_user_remark_corp_name' => '',
+                'follow_user_remark_mobiles' => '',
+                'follow_user_add_way' => '',
+                'follow_user_wechat_channels' => '',
+                'follow_user_wechat_channels_nickname' => '',
+                'follow_user_wechat_channels_source' => '',
+                'follow_user_oper_userid' => '',
+                'follow_user_state' => '',
+                'next_cursor' => $nextCursor,
             ];
             continue;
         }
@@ -308,33 +340,73 @@ function sync_external_contacts(PDO $pdo): array
             if (!is_array($fu)) {
                 continue;
             }
-            $uid = (string)($fu['userid'] ?? '');
-            $user = $userInfoMap[$uid] ?? ['name' => '', 'userid' => $uid, 'department' => []];
-            $deptNames = [];
-            foreach (($user['department'] ?? []) as $deptId) {
-                $k = (string)$deptId;
-                if (isset($deptMap[$k]) && $deptMap[$k] !== '') {
-                    $deptNames[] = $deptMap[$k];
+            $tags = is_array($fu['tags'] ?? null) ? $fu['tags'] : [];
+            $groupNames = [];
+            $tagNames = [];
+            $tagTypes = [];
+            $tagIds = [];
+            foreach ($tags as $tag) {
+                if (!is_array($tag)) {
+                    continue;
+                }
+                $group = (string)($tag['group_name'] ?? '');
+                $tagName = (string)($tag['tag_name'] ?? ($tag['name'] ?? ''));
+                $tagType = (string)($tag['type'] ?? '');
+                $tagId = (string)($tag['tag_id'] ?? '');
+                if ($group !== '') {
+                    $groupNames[] = $group;
+                }
+                if ($tagName !== '') {
+                    $tagNames[] = $tagName;
+                }
+                if ($tagType !== '') {
+                    $tagTypes[] = $tagType;
+                }
+                if ($tagId !== '') {
+                    $tagIds[] = $tagId;
                 }
             }
-            $tags = is_array($fu['tags'] ?? null) ? $fu['tags'] : [];
+
+            $wechatChannels = $fu['wechat_channels'] ?? null;
+            $wechatChannelsJson = '';
+            $wechatChannelsNickname = '';
+            $wechatChannelsSource = '';
+            if (is_array($wechatChannels)) {
+                $wechatChannelsJson = json_encode($wechatChannels, JSON_UNESCAPED_UNICODE);
+                $wechatChannelsNickname = (string)($wechatChannels['nickname'] ?? '');
+                $wechatChannelsSource = (string)($wechatChannels['source'] ?? '');
+            }
+
             $rows[] = [
-                'external_userid' => $externalId,
-                'customer_name' => (string)($ec['name'] ?? ''),
-                'description_text' => (string)($fu['description'] ?? ''),
-                'follower_name' => (string)($user['name'] ?? ''),
-                'follower_userid' => $uid,
-                'follower_departments' => implode('、', array_values(array_unique($deptNames))),
-                'follow_created_at' => !empty($fu['createtime']) ? date('Y-m-d H:i:s', (int)$fu['createtime']) : null,
-                'add_way' => (string)($fu['add_way'] ?? ''),
-                'mobile' => (string)($ec['mobile'] ?? ''),
-                'corp_name' => (string)($ec['corp_name'] ?? ''),
-                'email' => (string)($ec['email'] ?? ''),
-                'address' => (string)($ec['address'] ?? ''),
+                'external_userid' => (string)($ec['external_userid'] ?? $externalId),
+                'errcode' => $errcode,
+                'errmsg' => $errmsg,
+                'name' => (string)($ec['name'] ?? ''),
+                'avatar' => (string)($ec['avatar'] ?? ''),
+                'type' => (string)($ec['type'] ?? ''),
+                'gender' => (string)($ec['gender'] ?? ''),
+                'unionid' => (string)($ec['unionid'] ?? ''),
                 'position' => (string)($ec['position'] ?? ''),
-                'tel' => (string)($ec['tel'] ?? ''),
-                'tag_group_level' => find_tag_group($tags, '学员等级'),
-                'tag_group_source' => find_tag_group($tags, '来源'),
+                'corp_name' => (string)($ec['corp_name'] ?? ''),
+                'corp_full_name' => (string)($ec['corp_full_name'] ?? ''),
+                'external_profile' => json_encode($ec['external_profile'] ?? new stdClass(), JSON_UNESCAPED_UNICODE),
+                'follow_user_userid' => (string)($fu['userid'] ?? ''),
+                'follow_user_remark' => (string)($fu['remark'] ?? ''),
+                'follow_user_description' => (string)($fu['description'] ?? ''),
+                'follow_user_createtime' => !empty($fu['createtime']) ? date('Y-m-d H:i:s', (int)$fu['createtime']) : null,
+                'follow_user_tags_group_name' => implode('、', array_values(array_unique($groupNames))),
+                'follow_user_tags_tag_name' => implode('、', array_values(array_unique($tagNames))),
+                'follow_user_tags_type' => implode('、', array_values(array_unique($tagTypes))),
+                'follow_user_tags_tag_id' => implode('、', array_values(array_unique($tagIds))),
+                'follow_user_remark_corp_name' => (string)($fu['remark_corp_name'] ?? ''),
+                'follow_user_remark_mobiles' => json_encode($fu['remark_mobiles'] ?? [], JSON_UNESCAPED_UNICODE),
+                'follow_user_add_way' => (string)($fu['add_way'] ?? ''),
+                'follow_user_wechat_channels' => $wechatChannelsJson,
+                'follow_user_wechat_channels_nickname' => $wechatChannelsNickname,
+                'follow_user_wechat_channels_source' => $wechatChannelsSource,
+                'follow_user_oper_userid' => (string)($fu['oper_userid'] ?? ''),
+                'follow_user_state' => (string)($fu['state'] ?? ''),
+                'next_cursor' => $nextCursor,
             ];
         }
     }
@@ -343,26 +415,43 @@ function sync_external_contacts(PDO $pdo): array
     try {
         $pdo->exec('DELETE FROM oa_external_contact_cache');
         $stmt = $pdo->prepare("INSERT INTO oa_external_contact_cache
-            (external_userid, customer_name, description_text, follower_name, follower_userid, follower_departments, follow_created_at, add_way, mobile, corp_name, email, address, position, tel, tag_group_level, tag_group_source)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+            (external_userid, errcode, errmsg, name, avatar, type, gender, unionid, position, corp_name, corp_full_name, external_profile,
+             follow_user_userid, follow_user_remark, follow_user_description, follow_user_createtime, follow_user_tags_group_name,
+             follow_user_tags_tag_name, follow_user_tags_type, follow_user_tags_tag_id, follow_user_remark_corp_name, follow_user_remark_mobiles,
+             follow_user_add_way, follow_user_wechat_channels, follow_user_wechat_channels_nickname, follow_user_wechat_channels_source,
+             follow_user_oper_userid, follow_user_state, next_cursor)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
         foreach ($rows as $r) {
             $stmt->execute([
                 $r['external_userid'],
-                $r['customer_name'],
-                $r['description_text'],
-                $r['follower_name'],
-                $r['follower_userid'],
-                $r['follower_departments'],
-                $r['follow_created_at'],
-                $r['add_way'],
-                $r['mobile'],
-                $r['corp_name'],
-                $r['email'],
-                $r['address'],
+                $r['errcode'],
+                $r['errmsg'],
+                $r['name'],
+                $r['avatar'],
+                $r['type'],
+                $r['gender'],
+                $r['unionid'],
                 $r['position'],
-                $r['tel'],
-                $r['tag_group_level'],
-                $r['tag_group_source'],
+                $r['corp_name'],
+                $r['corp_full_name'],
+                $r['external_profile'],
+                $r['follow_user_userid'],
+                $r['follow_user_remark'],
+                $r['follow_user_description'],
+                $r['follow_user_createtime'],
+                $r['follow_user_tags_group_name'],
+                $r['follow_user_tags_tag_name'],
+                $r['follow_user_tags_type'],
+                $r['follow_user_tags_tag_id'],
+                $r['follow_user_remark_corp_name'],
+                $r['follow_user_remark_mobiles'],
+                $r['follow_user_add_way'],
+                $r['follow_user_wechat_channels'],
+                $r['follow_user_wechat_channels_nickname'],
+                $r['follow_user_wechat_channels_source'],
+                $r['follow_user_oper_userid'],
+                $r['follow_user_state'],
+                $r['next_cursor'],
             ]);
         }
         $pdo->commit();
