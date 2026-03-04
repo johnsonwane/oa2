@@ -243,10 +243,44 @@ function wecom_request_json(string $url, $body): array
     return $data;
 }
 
+function wecom_retryable_errcode(int $errcode): bool
+{
+    return in_array($errcode, [-1, 42001, 45009, 50001, 50002], true);
+}
+
+function wecom_retryable_message(string $message): bool
+{
+    if (preg_match('/errcode\s*=\s*(-?\d+)/', $message, $m)) {
+        return wecom_retryable_errcode((int)$m[1]);
+    }
+    return false;
+}
+
+function wecom_with_retry(callable $fn, int $maxAttempts = 6, int $sleepMs = 200)
+{
+    $attempt = 0;
+    $last = null;
+    while ($attempt < $maxAttempts) {
+        $attempt++;
+        try {
+            return $fn();
+        } catch (Throwable $e) {
+            $last = $e;
+            if (!wecom_retryable_message((string)$e->getMessage()) || $attempt >= $maxAttempts) {
+                throw $e;
+            }
+            usleep($sleepMs * 1000 * $attempt);
+        }
+    }
+    throw $last ?: new RuntimeException('企业微信请求失败');
+}
+
 function wecom_assert_ok(array $data): array
 {
-    if ((int)($data['errcode'] ?? 0) !== 0) {
-        throw new RuntimeException('企业微信接口错误：' . (string)($data['errmsg'] ?? 'unknown'));
+    $errcode = (int)($data['errcode'] ?? 0);
+    if ($errcode !== 0) {
+        $errmsg = (string)($data['errmsg'] ?? 'unknown');
+        throw new RuntimeException('企业微信接口错误：errcode=' . $errcode . '; errmsg=' . $errmsg);
     }
     return $data;
 }
@@ -265,7 +299,9 @@ function wecom_access_token(string $corpId, string $secret): string
 function wecom_follow_user_ids(string $token): array
 {
     $url = 'https://qyapi.weixin.qq.com/cgi-bin/externalcontact/get_follow_user_list?access_token=' . rawurlencode($token);
-    $res = wecom_assert_ok(wecom_request_json($url, new stdClass()));
+    $res = wecom_with_retry(function () use ($url) {
+        return wecom_assert_ok(wecom_request_json($url, new stdClass()));
+    });
     $ids = [];
     foreach (($res['follow_user'] ?? []) as $row) {
         $v = '';
@@ -288,11 +324,15 @@ function wecom_list_external_user_ids_by_user(string $token, string $userId): ar
     $url = 'https://qyapi.weixin.qq.com/cgi-bin/externalcontact/list?access_token=' . rawurlencode($token);
 
     try {
-        $res = wecom_assert_ok(wecom_request_json($url, ['userid' => $userId]));
+        $res = wecom_with_retry(function () use ($url, $userId) {
+            return wecom_assert_ok(wecom_request_json($url, ['userid' => $userId]));
+        });
     } catch (Throwable $e) {
         $msg = (string)$e->getMessage();
         if (strpos($msg, 'missing field `userid`') !== false || strpos($msg, 'missing field userid') !== false) {
-            $res = wecom_assert_ok(wecom_get_json($url . '&userid=' . rawurlencode($userId)));
+            $res = wecom_with_retry(function () use ($url, $userId) {
+                return wecom_assert_ok(wecom_get_json($url . '&userid=' . rawurlencode($userId)));
+            });
         } else {
             throw $e;
         }
@@ -311,7 +351,9 @@ function wecom_list_external_user_ids_by_user(string $token, string $userId): ar
 function wecom_external_detail(string $token, string $externalUserId): array
 {
     $url = 'https://qyapi.weixin.qq.com/cgi-bin/externalcontact/get?access_token=' . rawurlencode($token) . '&external_userid=' . rawurlencode($externalUserId);
-    return wecom_get_json($url);
+    return wecom_with_retry(function () use ($url) {
+        return wecom_get_json($url);
+    });
 }
 
 function push_sync_error(array &$errors, string $stage, string $id, string $message): void
@@ -535,6 +577,8 @@ function sync_external_contacts(PDO $pdo): array
         'rows' => count($rows),
         'follow_users' => count($followUsers),
         'external_contacts' => count($externalIds),
+        'detail_success' => count($rows),
+        'detail_failed' => count($errors),
         'errors' => $errors,
     ];
 }

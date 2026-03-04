@@ -50,7 +50,7 @@ createApp({setup(){
   const prevPage=()=>{if(page.value>1) page.value--;};
   const nextPage=()=>{if(page.value<totalPages.value) page.value++;};
   const load=async()=>{try{error.value='';success.value='';const j=await req('/api/external_contacts.php');list.value=j.data||[];}catch(e){error.value=e.message;}};
-  const syncNow=async()=>{try{error.value='';success.value='';syncErrors.value=[];syncing.value=true;const j=await req('/api/external_contacts.php',{method:'POST'});const d=j.data||{};syncErrors.value=Array.isArray(d.errors)?d.errors:[];success.value=`${j.message||'同步完成'}，写入 ${Number(d.rows||0)} 条记录（联系人 ${Number(d.external_contacts||0)}，跟进人 ${Number(d.follow_users||0)}）`;await load();}catch(e){error.value=e.message;}finally{syncing.value=false;}};
+  const syncNow=async()=>{try{error.value='';success.value='';syncErrors.value=[];syncing.value=true;const j=await req('/api/external_contacts.php',{method:'POST'});const d=j.data||{};syncErrors.value=Array.isArray(d.errors)?d.errors:[];success.value=`${j.message||'同步完成'}，写入 ${Number(d.rows||0)} 条记录（联系人 ${Number(d.external_contacts||0)}，跟进人 ${Number(d.follow_users||0)}，详情成功 ${Number(d.detail_success||0)}，详情失败 ${Number(d.detail_failed||0)}）`;await load();}catch(e){error.value=e.message;}finally{syncing.value=false;}};
   onMounted(load);
   return {columns,error,success,syncing,syncErrors,keyword,sortKey,sortOrder,page,totalPages,filteredCount,pagedList,load,syncNow,prevPage,nextPage};
 }}).mount('#app');
