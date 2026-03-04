@@ -62,8 +62,15 @@ function wecom_follow_user_ids(string $token): array
     $url = 'https://qyapi.weixin.qq.com/cgi-bin/externalcontact/get_follow_user_list?access_token=' . rawurlencode($token);
     $res = wecom_request_json($url, new stdClass());
     $ids = [];
-    foreach (($res['follow_user'] ?? []) as $id) {
-        $v = trim((string)$id);
+    foreach (($res['follow_user'] ?? []) as $row) {
+        $v = '';
+        if (is_string($row) || is_numeric($row)) {
+            $v = trim((string)$row);
+        } elseif (is_array($row)) {
+            $v = trim((string)($row['userid'] ?? ''));
+        } elseif (is_object($row)) {
+            $v = trim((string)($row->userid ?? ''));
+        }
         if ($v !== '') {
             $ids[] = $v;
         }
@@ -129,6 +136,10 @@ try {
 
     $ids = [];
     foreach ($followUsers as $uid) {
+        $uid = trim((string)$uid);
+        if ($uid === '') {
+            continue;
+        }
         foreach (wecom_list_external_user_ids_by_user($token, $uid) as $id) {
             $ids[] = $id;
         }
