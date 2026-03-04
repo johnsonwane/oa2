@@ -53,28 +53,38 @@ function wecom_access_token(string $corpId, string $secret): string
     return (string)$data['access_token'];
 }
 
-function wecom_list_external_user_ids(string $token): array
+function wecom_follow_user_ids(string $token): array
 {
-    $url = 'https://qyapi.weixin.qq.com/cgi-bin/externalcontact/list?access_token=' . rawurlencode($token);
-    $all = [];
-    $cursor = '';
-    for ($i = 0; $i < 50; $i++) {
-        $res = wecom_request_json($url, ['cursor' => $cursor, 'limit' => 100]);
-        foreach (($res['external_userid'] ?? []) as $uid) {
-            $all[] = (string)$uid;
-        }
-        $cursor = (string)($res['next_cursor'] ?? '');
-        if ($cursor === '') {
-            break;
+    $url = 'https://qyapi.weixin.qq.com/cgi-bin/externalcontact/get_follow_user_list?access_token=' . rawurlencode($token);
+    $res = wecom_request_json($url, new stdClass());
+    $ids = [];
+    foreach (($res['follow_user'] ?? []) as $id) {
+        $v = trim((string)$id);
+        if ($v !== '') {
+            $ids[] = $v;
         }
     }
-    return array_values(array_unique($all));
+    return array_values(array_unique($ids));
+}
+
+function wecom_list_external_user_ids_by_user(string $token, string $userId): array
+{
+    $url = 'https://qyapi.weixin.qq.com/cgi-bin/externalcontact/list?access_token=' . rawurlencode($token);
+    $res = wecom_request_json($url, ['userid' => $userId]);
+    $ids = [];
+    foreach (($res['external_userid'] ?? []) as $uid) {
+        $v = trim((string)$uid);
+        if ($v !== '') {
+            $ids[] = $v;
+        }
+    }
+    return $ids;
 }
 
 function wecom_get_external_detail(string $token, string $externalUserId): array
 {
     $url = 'https://qyapi.weixin.qq.com/cgi-bin/externalcontact/get?access_token=' . rawurlencode($token) . '&external_userid=' . rawurlencode($externalUserId);
-    $resp = file_get_contents($url);
+    $resp = @file_get_contents($url);
     if ($resp === false) {
         return ['external_userid' => $externalUserId, 'name' => '', 'type' => '', 'position' => '', 'corp_name' => ''];
     }
@@ -108,9 +118,20 @@ try {
     }
 
     $token = wecom_access_token($cfg['corp_id'], $cfg['contact_secret']);
-    $ids = wecom_list_external_user_ids($token);
-    $withDetail = isset($_GET['detail']) && (string)$_GET['detail'] === '1';
+    $followUsers = wecom_follow_user_ids($token);
+    if (empty($followUsers)) {
+        json_response(0, 'ok', []);
+    }
 
+    $ids = [];
+    foreach ($followUsers as $uid) {
+        foreach (wecom_list_external_user_ids_by_user($token, $uid) as $id) {
+            $ids[] = $id;
+        }
+    }
+    $ids = array_values(array_unique($ids));
+
+    $withDetail = isset($_GET['detail']) && (string)$_GET['detail'] === '1';
     if (!$withDetail) {
         json_response(0, 'ok', array_map(static fn($id) => ['external_userid' => $id], $ids));
     }
