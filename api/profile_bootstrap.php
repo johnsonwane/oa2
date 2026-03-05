@@ -1,16 +1,40 @@
 <?php
 
-function ensure_table_columns(PDO $pdo, string $table, array $columns): void
-{
-    $exists = [];
-    $stmt = $pdo->query("SHOW COLUMNS FROM `{$table}`");
-    foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
-        $exists[$row['Field']] = true;
-    }
+if (!function_exists('ensure_table_columns')) {
+    function ensure_table_columns(PDO $pdo, string $table, array $columns): void
+    {
+        if ($table === '' || empty($columns)) {
+            return;
+        }
 
-    foreach ($columns as $name => $ddl) {
-        if (!isset($exists[$name])) {
-            $pdo->exec("ALTER TABLE `{$table}` ADD COLUMN {$ddl}");
+        if (!preg_match('/^[a-zA-Z0-9_]+$/', $table)) {
+            return;
+        }
+
+        $quotedTable = "`{$table}`";
+
+        $exists = [];
+        try {
+            $stmt = $pdo->query("SHOW COLUMNS FROM {$quotedTable}");
+            foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+                $name = (string)($row['Field'] ?? '');
+                if ($name !== '') {
+                    $exists[$name] = true;
+                }
+            }
+        } catch (Throwable $e) {
+            // 表不存在或无元数据权限时直接跳过，避免接口 500。
+            return;
+        }
+
+        foreach ($columns as $name => $ddl) {
+            if (!isset($exists[$name])) {
+                try {
+                    $pdo->exec("ALTER TABLE {$quotedTable} ADD COLUMN {$ddl}");
+                } catch (Throwable $e) {
+                    // 兼容生产环境只读账号或受限权限，忽略补列失败。
+                }
+            }
         }
     }
 }
@@ -20,6 +44,7 @@ function ensure_student_user_profile_columns(PDO $pdo): void
     ensure_table_columns($pdo, 'oa_student', [
         'gender' => "`gender` VARCHAR(10) DEFAULT ''",
         'birthday' => "`birthday` DATE DEFAULT NULL",
+        'wechat_name' => "`wechat_name` VARCHAR(80) DEFAULT ''",
         'wechat' => "`wechat` VARCHAR(50) DEFAULT ''",
         'id_no' => "`id_no` VARCHAR(30) DEFAULT ''",
         'intention_level' => "`intention_level` VARCHAR(30) DEFAULT ''",
@@ -27,8 +52,6 @@ function ensure_student_user_profile_columns(PDO $pdo): void
         'source' => "`source` VARCHAR(50) DEFAULT ''",
         'enrolled_courses' => "`enrolled_courses` JSON DEFAULT NULL",
         'delivery_coach' => "`delivery_coach` VARCHAR(50) DEFAULT ''",
-        'guardian_name' => "`guardian_name` VARCHAR(50) DEFAULT ''",
-        'guardian_phone' => "`guardian_phone` VARCHAR(20) DEFAULT ''",
         'address' => "`address` VARCHAR(255) DEFAULT ''",
         'remark' => "`remark` VARCHAR(255) DEFAULT ''",
     ]);

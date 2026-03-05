@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>发票管理</title><link rel="stylesheet" href="./assets/style.css"/><script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script><script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script><style>html[data-embedded="1"] .oa-sidebar{display:none!important;}html[data-embedded="1"] .oa-layout{display:block!important;}html[data-embedded="1"] .oa-main{padding:12px 16px!important;}html[data-embedded="1"] .oa-header{position:static!important;padding-left:0!important;}html[data-embedded="1"] .header-actions a.btn-secondary{display:none!important;}html[data-embedded="1"] .menu-toggle,html[data-embedded="1"] .sidebar-overlay{display:none!important;}</style><script>(function(){var p=new URLSearchParams(location.search);if(p.get("embedded")==="1"){document.documentElement.setAttribute("data-embedded","1");}})();</script></head>
+<body><div class="oa-layout"><aside class="oa-sidebar"><div class="brand">培训公司 OA</div><div class="user-box">Sprint123 模块</div><div class="group-title">总览</div><ul class="menu-tree simple"><li><a href="./index.html?page=overview" target="_top">数据总览</a></li><li><a href="./index.html?page=todos" target="_top">待办</a></li></ul><div class="group-title">业务管理</div><ul class="menu-tree simple"><li><a href="./index.html?page=students" target="_top">学员管理</a></li><li><a href="./index.html?page=courses" target="_top">课程管理</a></li><li><a href="./index.html?page=orders" target="_top">订单管理</a></li><li><a href="./index.html?page=finance" target="_top">财务管理</a></li><li><a href="./index.html?page=notifications" target="_top">通知管理</a></li><li><a href="./index.html?page=referrers" target="_top">推荐者管理</a></li><li><a href="./index.html?page=receipts" target="_top">收款单管理</a></li><li><a href="./index.html?page=delivery_logs" target="_top">交付记录</a></li></ul><div class="group-title">系统管理</div><ul class="menu-tree simple"><li><a href="./index.html?page=users" target="_top">员工管理</a></li><li><a href="./index.html?page=departments" target="_top">部门管理</a></li><li><a href="./index.html?page=menus" target="_top">菜单管理</a></li><li><a href="./index.html?page=rbac_groups" target="_top">角色管理</a></li><li><a href="./index.html?page=rbac_permissions" target="_top">权限管理</a></li><li><a href="./index.html?page=rbac_assign" target="_top">RBAC分配</a></li></ul><div class="group-title">经营分析</div><ul class="menu-tree simple"><li><a href="./index.html?page=department_stats" target="_top">部门统计</a></li></ul><div class="group-title">Sprint123</div><ul class="menu-tree simple"><li><a href="./index.html?page=materials" target="_top">资料库</a></li><li><a href="./index.html?page=material_campaigns" target="_top">资料投放</a></li><li><a href="./index.html?page=material_claims" target="_top">资料领取</a></li><li><a href="./index.html?page=contracts" target="_top">合同管理</a></li><li><a href="./index.html?page=invoice_profiles" target="_top">开票档案</a></li><li class="active"><a href="./index.html?page=invoices" target="_top">发票管理</a></li><li><a href="./index.html?page=class_terms" target="_top">班期管理</a></li><li><a href="./index.html?page=student_terms" target="_top">学员班期</a></li><li><a href="./index.html?page=shipments" target="_top">寄送管理</a></li><li><a href="./index.html?page=certificate_templates" target="_top">证书模板</a></li><li><a href="./index.html?page=certificate_issues" target="_top">证书发放</a></li><li><a href="./index.html?page=commission_scopes" target="_top">分成范围</a></li><li><a href="./index.html?page=commission_rules" target="_top">分成规则</a></li><li><a href="./index.html?page=commission_calcs" target="_top">分成结算</a></li><li><a href="./index.html?page=commission_adjustments" target="_top">分成调整</a></li><li><a href="./index.html?page=payroll_periods" target="_top">工资期次</a></li><li><a href="./index.html?page=payroll_slips" target="_top">工资单</a></li></ul></aside><main><div id="app" class="oa-main" v-cloak>
+  <header class="oa-header"><h1>发票管理</h1><div class="header-actions"><a class="btn-secondary" href="./index.html?page=todos" target="_top">返回主入口</a><button @click="load">刷新</button><button class="btn-secondary" @click="exportXlsx">导出XLSX</button><button class="btn-secondary" @click="triggerImport">导入XLSX</button><input ref="importFileRef" type="file" accept=".xlsx,.xls" style="display:none" @change="handleImportFile"></div></header>
+  
+  <section class="content-card"><p class="role-tip"><strong>模块说明：</strong>发票管理模块（Sprint123）已补齐，可直接新增、编辑、删除、查询。</p><p class="role-tip"><strong>防错提示：</strong>系统会校验订单存在且金额>0，降低误开票风险。</p>
+    <div class="section-actions"><button type="button" @click="openEditor(false)">新增记录</button></div><form class="inline-form editor-form" :class="{show:activeEditor}" @submit.prevent="save">
+        <label>订单ID<input v-model="form.order_id" type="text" required/></label>
+        <label>收款单ID<input v-model="form.receipt_id" type="text"/></label>
+        <label>开票档案ID<input v-model="form.invoice_profile_id" type="text"/></label>
+        <label>发票编号<input v-model="form.invoice_no" type="text"/></label>
+        <label>金额<input v-model="form.amount" type="number" required/></label>
+        <label>发票类型<input v-model="form.invoice_type" type="text"/></label>
+        <label>状态<input v-model="form.status" type="text"/></label>
+        <label>开票时间<input v-model="form.issued_at" type="datetime-local"/></label>
+        <button>{{form.id?'保存':'新增保存'}}</button><button type="button" class="btn-secondary" @click="closeEditor">取消</button>
+    </form>
+    <table class="table"><thead><tr><th>编号</th><th>订单ID</th><th>收款单ID</th><th>开票档案ID</th><th>发票编号</th><th>金额</th><th>发票类型</th><th>状态</th><th>开票时间</th><th>操作</th></tr></thead><tbody><tr v-for="row in list" :key="row.id"><td>{{row.id||"-"}}</td><td>{{row.order_id||"-"}}</td><td>{{row.receipt_id||"-"}}</td><td>{{row.invoice_profile_id||"-"}}</td><td>{{row.invoice_no||"-"}}</td><td>{{row.amount||"-"}}</td><td>{{row.invoice_type||"-"}}</td><td>{{row.status||"-"}}</td><td>{{row.issued_at||"-"}}</td><td><button class="btn-mini" @click="edit(row)">编辑</button><button class="btn-mini btn-danger" @click="delRow(row.id)">删除</button></td></tr></tbody></table>
+    <div class="editor-overlay" v-if="activeEditor" @click="closeEditor"></div>
+    <p v-if="error" class="error">{{error}}</p>
+  </section></div></main></div>
+<script>
+const {createApp,ref,reactive,onMounted} = Vue;
+createApp({setup(){
+  const list=ref([]),error=ref('');
+  const importFileRef=ref(null);
+  const activeEditor=ref(false);
+  const form=reactive({id:0,order_id:'',receipt_id:'',invoice_profile_id:'',invoice_no:'',amount:'',invoice_type:'',status:'',issued_at:''});
+  const api='/api/invoices.php';
+  const req=async(url,opt={})=>{const r=await fetch(url,{headers:{'Content-Type':'application/json'},...opt});const t=await r.text();let j={};try{j=t?JSON.parse(t):{}}catch(_ ){}if(!r.ok||j.code!==0) throw new Error(j.message||'请求失败');return j.data;};
+  const load=async()=>{try{error.value='';list.value=await req(api)}catch(e){error.value=e.message}};
+  const reset=()=>{form.order_id='';form.receipt_id='';form.invoice_profile_id='';form.invoice_no='';form.amount='';form.invoice_type='';form.status='';form.issued_at='';form.id=0;};
+  const save=async()=>{try{error.value='';if(form.id){await req(api,{method:'PUT',body:JSON.stringify(form)})}else{await req(api,{method:'POST',body:JSON.stringify(form)})}reset();activeEditor.value=false;await load();}catch(e){error.value=e.message}};
+  const edit=(row)=>{activeEditor.value=true;form.id=Number(row.id)||0;Object.assign(form,{order_id: row.order_id ?? '' ,
+      receipt_id: row.receipt_id ?? '' ,
+      invoice_profile_id: row.invoice_profile_id ?? '' ,
+      invoice_no: row.invoice_no ?? '' ,
+      amount: row.amount ?? '' ,
+      invoice_type: row.invoice_type ?? '' ,
+      status: row.status ?? '' ,
+      issued_at: row.issued_at ?? '' ,});};
+  const delRow=async(id)=>{if(!confirm('确认删除?'))return;try{await req(api+'?id='+id,{method:'DELETE'});await load();}catch(e){error.value=e.message}};
+  const exportXlsx=()=>{try{error.value='';if(typeof XLSX==='undefined') throw new Error('XLSX 组件未加载');const ws=XLSX.utils.json_to_sheet(list.value||[]);const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'data');const n=(location.pathname.split('/').pop()||'data').replace('.html','');XLSX.writeFile(wb,`${n}.xlsx`);}catch(e){error.value=e.message;}};
+  const triggerImport=()=>{if(importFileRef.value){importFileRef.value.value='';importFileRef.value.click();}};
+  const openEditor=(isEdit=false)=>{if(!isEdit){reset();}activeEditor.value=true;};
+  const closeEditor=()=>{activeEditor.value=false;};
+  const handleImportFile=async(ev)=>{const f=ev.target.files&&ev.target.files[0];if(!f)return;try{error.value='';if(typeof XLSX==='undefined') throw new Error('XLSX 组件未加载');const buf=await f.arrayBuffer();const wb=XLSX.read(buf,{type:'array'});const ws=wb.Sheets[wb.SheetNames[0]];const rows=XLSX.utils.sheet_to_json(ws,{defval:''});for(const row of rows){const payload={};Object.keys(form).forEach(k=>{if(k!=='id'&&row[k]!==undefined)payload[k]=row[k];});const id=Number(row.id||0);if(id>0){await req(api,{method:'PUT',body:JSON.stringify({id,...payload})});}else{await req(api,{method:'POST',body:JSON.stringify(payload)});}}await load();}catch(e){error.value=e.message;}};
+  onMounted(load); return {list,error,form,importFileRef,activeEditor,load,reset,save,edit,delRow,exportXlsx,triggerImport,handleImportFile,openEditor,closeEditor};
+}}).mount('#app');
+</script></body></html>
