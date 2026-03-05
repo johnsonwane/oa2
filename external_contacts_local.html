@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="zh-CN"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>企微外部联系人本地版</title><link rel="stylesheet" href="./assets/style.css"/><script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script><style>html[data-embedded="1"] .oa-sidebar{display:none!important;}html[data-embedded="1"] .oa-layout{display:block!important;}html[data-embedded="1"] .oa-main{padding:12px 16px!important;}html[data-embedded="1"] .oa-header{position:static!important;padding-left:0!important;}html[data-embedded="1"] .header-actions a.btn-secondary{display:none!important;}html[data-embedded="1"] .menu-toggle,html[data-embedded="1"] .sidebar-overlay{display:none!important;}</style><script>(function(){var p=new URLSearchParams(location.search);if(p.get("embedded")==="1"){document.documentElement.setAttribute("data-embedded","1");}})();</script></head>
 <body><div class="oa-layout"><aside class="oa-sidebar"><div class="brand">培训公司 OA</div><div class="user-box">业务管理</div><div class="group-title">业务管理</div><ul class="menu-tree simple"><li><a href="./index.html?page=external_contacts" target="_top">外部联系人列表</a></li><li class="active"><a href="./index.html?page=external_contacts_local" target="_top">企微外部联系人本地版</a></li></ul></aside><main><div id="app" class="oa-main" v-cloak>
@@ -10,23 +10,54 @@
       <button @click="upload" :disabled="uploading||!file">{{uploading?'导入中...':'导入xlsx'}}</button>
       <span v-if="file">已选择：{{file.name}}</span>
     </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 10px">
+      <input v-model.trim="keyword" placeholder="搜索任意字段" style="min-width:260px;padding:6px 8px;border:1px solid #d1d5db;border-radius:6px"/>
+      <select v-model="sortKey" style="padding:6px 8px;border:1px solid #d1d5db;border-radius:6px"><option v-for="c in columns" :key="c" :value="c">按 {{c}}</option></select>
+      <select v-model="sortOrder" style="padding:6px 8px;border:1px solid #d1d5db;border-radius:6px"><option value="desc">降序</option><option value="asc">升序</option></select>
+      <select v-model.number="pageSize" style="padding:6px 8px;border:1px solid #d1d5db;border-radius:6px">
+        <option :value="20">每页 20</option>
+        <option :value="50">每页 50</option>
+        <option :value="100">每页 100</option>
+      </select>
+    </div>
     <p v-if="success" style="color:#16a34a">{{success}}</p>
     <p v-if="error" class="error">{{error}}</p>
     <div style="overflow:auto">
-      <table class="table"><thead><tr><th v-for="c in columns" :key="c">{{c}}</th></tr></thead><tbody><tr v-for="(row,idx) in list" :key="idx"><td v-for="c in columns" :key="c">{{row[c]||'-'}}</td></tr></tbody></table>
+      <table class="table"><thead><tr><th v-for="c in columns" :key="c">{{c}}</th></tr></thead><tbody><tr v-for="(row,idx) in pagedList" :key="idx"><td v-for="c in columns" :key="c">{{row[c]||'-'}}</td></tr></tbody></table>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:8px">
+      <span>共 {{filteredCount}} 条，当前第 {{page}} / {{totalPages}} 页（每页 {{pageSize}} 条）</span>
+      <button @click="prevPage" :disabled="page<=1">上一页</button>
+      <button @click="nextPage" :disabled="page>=totalPages">下一页</button>
     </div>
   </section>
 </div></main></div>
 <script>
-const {createApp,ref,onMounted} = Vue;
+const {createApp,ref,computed,onMounted,watch} = Vue;
 createApp({setup(){
   const columns=['客户名称','描述','添加人','添加人账号','添加人所属部门','添加时间','来源','手机','企业','邮箱','地址','职务','电话','标签组1(学员等级)','标签组2(来源)'];
   const list=ref([]),error=ref(''),success=ref(''),file=ref(null),uploading=ref(false);
+  const keyword=ref(''),sortKey=ref(columns[0]||''),sortOrder=ref('desc'),page=ref(1),pageSize=ref(20);
   const req=async(url,opt={})=>{const r=await fetch(url,opt);const t=await r.text();let j={};try{j=t?JSON.parse(t):{}}catch(_ ){}if(!r.ok||j.code!==0) throw new Error(j.message||'请求失败');return j;};
   const load=async()=>{try{error.value='';const j=await req('/api/external_contacts_local.php');list.value=j.data||[];}catch(e){error.value=e.message;}};
+  const filteredSortedList=computed(()=>{
+    const kw=keyword.value.toLowerCase();
+    const base=(list.value||[]).filter(row=>!kw||columns.some(k=>String(row[k]||'').toLowerCase().includes(kw)));
+    const k=sortKey.value,ord=sortOrder.value==='asc'?1:-1;
+    return base.slice().sort((a,b)=>{const av=String(a[k]||''),bv=String(b[k]||'');if(av===bv) return 0;return av>bv?ord:-ord;});
+  });
+  const filteredCount=computed(()=>filteredSortedList.value.length);
+  const totalPages=computed(()=>Math.max(1,Math.ceil(filteredCount.value/pageSize.value)));
+  const pagedList=computed(()=>{const s=(page.value-1)*pageSize.value;return filteredSortedList.value.slice(s,s+pageSize.value);});
+  watch([keyword,sortKey,sortOrder,pageSize],()=>{page.value=1;});
+  watch(totalPages,()=>{if(page.value>totalPages.value) page.value=totalPages.value;});
+  const prevPage=()=>{if(page.value>1) page.value--;};
+  const nextPage=()=>{if(page.value<totalPages.value) page.value++;};
   const pickFile=(e)=>{const f=e.target&&e.target.files&&e.target.files[0]?e.target.files[0]:null;file.value=f;};
   const upload=async()=>{try{if(!file.value){error.value='请先选择xlsx文件';return;}error.value='';success.value='';uploading.value=true;const fd=new FormData();fd.append('file',file.value);const j=await req('/api/external_contacts_local.php',{method:'POST',body:fd});success.value=`导入成功，写入 ${Number((j.data||{}).rows||0)} 条`;await load();}catch(e){error.value=e.message;}finally{uploading.value=false;}};
   onMounted(load);
-  return {columns,list,error,success,file,uploading,load,pickFile,upload};
+  return {columns,list,error,success,file,uploading,keyword,sortKey,sortOrder,page,pageSize,totalPages,filteredCount,pagedList,load,pickFile,upload,prevPage,nextPage};
 }}).mount('#app');
 </script></body></html>
+
+
