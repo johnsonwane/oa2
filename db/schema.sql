@@ -119,6 +119,7 @@ CREATE TABLE IF NOT EXISTS oa_student (
   gender VARCHAR(10) DEFAULT '',
   birthday DATE DEFAULT NULL,
   phone VARCHAR(20) NOT NULL,
+  wechat_name VARCHAR(80) DEFAULT '',
   wechat VARCHAR(50) DEFAULT '',
   id_no VARCHAR(30) DEFAULT '',
   level VARCHAR(30) DEFAULT '',
@@ -137,8 +138,6 @@ CREATE TABLE IF NOT EXISTS oa_student (
   enrolled_courses JSON DEFAULT NULL,
   consultant VARCHAR(50) DEFAULT '',
   delivery_coach VARCHAR(50) DEFAULT '',
-  guardian_name VARCHAR(50) DEFAULT '',
-  guardian_phone VARCHAR(20) DEFAULT '',
   address VARCHAR(255) DEFAULT '',
   remark VARCHAR(255) DEFAULT '',
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -297,10 +296,11 @@ INSERT INTO oa_permission (perm_name, perm_code, module_name, remark, status) VA
 ('菜单课程', 'menu_courses', '菜单可见性', '可见课程管理', 1),
 ('菜单订单', 'menu_orders', '菜单可见性', '可见订单管理', 1),
 ('菜单财务', 'menu_finance', '菜单可见性', '可见财务管理', 1),
-('菜单待办', 'menu_todos', '菜单可见性', '可见待办管理', 1),
+('菜单待办', 'menu_todos', '菜单可见性', '可见待办', 1),
 ('菜单通知', 'menu_notifications', '菜单可见性', '可见通知管理', 1),
 ('菜单推荐者', 'menu_referrers', '菜单可见性', '可见推荐者管理', 1),
-('菜单用户管理', 'menu_users', '菜单可见性', '可见用户管理', 1),
+('菜单外部联系人', 'menu_external_contacts', '菜单可见性', '可见外部联系人列表', 1),
+('菜单员工管理', 'menu_users', '菜单可见性', '可见员工管理', 1),
 ('菜单菜单管理', 'menu_manage', '菜单可见性', '可见菜单管理', 1),
 ('菜单部门管理', 'menu_departments', '菜单可见性', '可见部门管理', 1),
 ('菜单收款单', 'menu_receipts', '菜单可见性', '可见收款单管理', 1),
@@ -326,15 +326,15 @@ SELECT u.id, g.id FROM oa_user u, oa_user_group g WHERE u.username='boss01' AND 
 INSERT IGNORE INTO oa_group_permission_rel (group_id, perm_id)
 SELECT g.id, p.id FROM oa_user_group g, oa_permission p WHERE g.group_code='super_admin';
 INSERT IGNORE INTO oa_group_permission_rel (group_id, perm_id)
-SELECT g.id, p.id FROM oa_user_group g, oa_permission p WHERE g.group_code='consultant_role' AND p.perm_code IN ('menu_overview','menu_students','menu_notifications');
+SELECT g.id, p.id FROM oa_user_group g, oa_permission p WHERE g.group_code='consultant_role' AND p.perm_code IN ('menu_overview','menu_todos','menu_students','menu_notifications');
 INSERT IGNORE INTO oa_group_permission_rel (group_id, perm_id)
-SELECT g.id, p.id FROM oa_user_group g, oa_permission p WHERE g.group_code='headteacher_role' AND p.perm_code IN ('menu_overview','menu_students','menu_orders','menu_finance','menu_notifications','menu_referrers');
+SELECT g.id, p.id FROM oa_user_group g, oa_permission p WHERE g.group_code='headteacher_role' AND p.perm_code IN ('menu_overview','menu_todos','menu_students','menu_orders','menu_finance','menu_notifications','menu_referrers');
 INSERT IGNORE INTO oa_group_permission_rel (group_id, perm_id)
-SELECT g.id, p.id FROM oa_user_group g, oa_permission p WHERE g.group_code='coach_role' AND p.perm_code IN ('menu_overview','menu_students','menu_orders','menu_delivery_logs','menu_notifications');
+SELECT g.id, p.id FROM oa_user_group g, oa_permission p WHERE g.group_code='coach_role' AND p.perm_code IN ('menu_overview','menu_todos','menu_students','menu_orders','menu_delivery_logs','menu_notifications');
 INSERT IGNORE INTO oa_group_permission_rel (group_id, perm_id)
-SELECT g.id, p.id FROM oa_user_group g, oa_permission p WHERE g.group_code='manager_role' AND p.perm_code IN ('menu_overview','menu_department_stats');
+SELECT g.id, p.id FROM oa_user_group g, oa_permission p WHERE g.group_code='manager_role' AND p.perm_code IN ('menu_overview','menu_todos','menu_department_stats');
 INSERT IGNORE INTO oa_group_permission_rel (group_id, perm_id)
-SELECT g.id, p.id FROM oa_user_group g, oa_permission p WHERE g.group_code='boss_role' AND p.perm_code IN ('menu_overview','menu_department_stats');
+SELECT g.id, p.id FROM oa_user_group g, oa_permission p WHERE g.group_code='boss_role' AND p.perm_code IN ('menu_overview','menu_todos','menu_department_stats');
 
 INSERT INTO oa_menu (parent_name, menu_name, menu_key, path, icon, sort_no, status) VALUES
 ('总览','数据总览','overview','/overview','🏠',1,1),
@@ -342,12 +342,13 @@ INSERT INTO oa_menu (parent_name, menu_name, menu_key, path, icon, sort_no, stat
 ('业务管理','课程管理','courses','/courses','📘',12,1),
 ('业务管理','订单管理','orders','/orders','🧾',13,1),
 ('业务管理','财务管理','finance','/finance','💰',14,1),
-('业务管理','待办管理','todos','/todos','✅',15,1),
+('总览','待办','todos','/todos','✅',2,1),
 ('业务管理','通知管理','notifications','/notifications','🔔',16,1),
 ('业务管理','推荐者管理','referrers','/referrers','🤝',17,1),
+('业务管理','外部联系人列表','external_contacts','/external_contacts','📇',17,1),
 ('业务管理','收款单管理','receipts','/receipts','🧾',18,1),
 ('业务管理','交付记录','delivery_logs','/delivery_logs','📒',19,1),
-('系统管理','用户管理','users','/users','👥',21,1),
+('系统管理','员工管理','users','/users','👥',21,1),
 ('系统管理','菜单管理','menus','/menus','🧭',22,1),
 ('系统管理','角色管理','rbac_groups','/rbac/groups','🧩',23,1),
 ('系统管理','权限管理','rbac_permissions','/rbac/permissions','🔐',24,1),
@@ -356,10 +357,10 @@ INSERT INTO oa_menu (parent_name, menu_name, menu_key, path, icon, sort_no, stat
 ('经营分析','部门统计','department_stats','/department_stats','📊',30,1)
 ON DUPLICATE KEY UPDATE menu_name=VALUES(menu_name), parent_name=VALUES(parent_name), path=VALUES(path), icon=VALUES(icon), sort_no=VALUES(sort_no), status=VALUES(status);
 
-INSERT INTO oa_student (name, gender, birthday, phone, wechat, id_no, level, intention_level, follow_status, source, enrolled_courses, consultant, delivery_coach, guardian_name, guardian_phone, address, remark) VALUES
-('张三', '男', '2003-03-12', '13800000001', 'zhangsan001', '310101200303120011', 'A1', '高意向', '已报名', '抖音', JSON_ARRAY('Python全栈训练营','就业辅导课'), '顾问A', '教练甲', '张父', '13900000001', '上海市徐汇区XX路1号', '基础好，目标就业'),
-('李四', '女', '2001-08-08', '13800000002', 'lisi002', '310101200108080022', 'B2', '中意向', '跟进中', '小红书', JSON_ARRAY('新媒体运营实战班'), '顾问A', '教练乙', '李母', '13900000002', '上海市浦东新区XX路2号', '对运营课程感兴趣'),
-('王五', '男', '1999-12-20', '13800000003', 'wangwu003', '310101199912200033', 'A2', '高意向', '已报名', '转介绍', JSON_ARRAY('AI 应用办公提效课'), '顾问B', '教练丙', '王父', '13900000003', '上海市闵行区XX路3号', '希望转行AI办公');
+INSERT INTO oa_student (name, gender, birthday, phone, wechat_name, wechat, id_no, level, intention_level, follow_status, source, enrolled_courses, consultant, delivery_coach, address, remark) VALUES
+('张三', '男', '2003-03-12', '13800000001', '张三同学', 'zhangsan001', '310101200303120011', 'A1', '高意向', '已报名', '抖音', JSON_ARRAY('Python全栈训练营','就业辅导课'), '顾问A', '教练甲', '上海市徐汇区XX路1号', '基础好，目标就业'),
+('李四', '女', '2001-08-08', '13800000002', '李四同学', 'lisi002', '310101200108080022', 'B2', '中意向', '跟进中', '小红书', JSON_ARRAY('新媒体运营实战班'), '顾问A', '教练乙', '上海市浦东新区XX路2号', '对运营课程感兴趣'),
+('王五', '男', '1999-12-20', '13800000003', '王五同学', 'wangwu003', '310101199912200033', 'A2', '高意向', '已报名', '转介绍', JSON_ARRAY('AI 应用办公提效课'), '顾问B', '教练丙', '上海市闵行区XX路3号', '希望转行AI办公');
 
 INSERT INTO oa_course (course_name, coach_name, period_weeks, price, status) VALUES
 ('Python 全栈训练营', '讲师赵', 12, 12800, 1),
