@@ -356,6 +356,45 @@ function wecom_external_detail(string $token, string $externalUserId): array
     });
 }
 
+function wecom_external_user_ids_by_page(string $token, int $limit = 100): array
+{
+    $url = 'https://qyapi.weixin.qq.com/cgi-bin/externalcontact/get_by_page?access_token=' . rawurlencode($token);
+    $all = [];
+    $cursor = '';
+    $seen = [];
+
+    for ($i = 0; $i < 1000; $i++) {
+        $payload = ['limit' => $limit];
+        if ($cursor !== '') {
+            $payload['cursor'] = $cursor;
+        }
+
+        $res = wecom_with_retry(function () use ($url, $payload) {
+            return wecom_assert_ok(wecom_request_json($url, $payload));
+        });
+
+        $list = is_array($res['external_contact_list'] ?? null) ? $res['external_contact_list'] : [];
+        foreach ($list as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+            $eid = trim((string)($row['external_userid'] ?? ''));
+            if ($eid !== '') {
+                $all[$eid] = true;
+            }
+        }
+
+        $next = trim((string)($res['next_cursor'] ?? ''));
+        if ($next === '' || isset($seen[$next])) {
+            break;
+        }
+        $seen[$next] = true;
+        $cursor = $next;
+    }
+
+    return array_keys($all);
+}
+
 function push_sync_error(array &$errors, string $stage, string $id, string $message): void
 {
     if (count($errors) >= 200) {
@@ -380,6 +419,9 @@ function sync_external_contacts(PDO $pdo): array
 
     $errors = [];
     $externalIds = [];
+    $followListHits = 0;
+    $byPageHits = 0;
+
     foreach ($followUsers as $uid) {
         $uid = trim((string)$uid);
         if ($uid === '') {
@@ -388,10 +430,20 @@ function sync_external_contacts(PDO $pdo): array
         try {
             foreach (wecom_list_external_user_ids_by_user($token, $uid) as $eid) {
                 $externalIds[$eid] = true;
+                $followListHits++;
             }
         } catch (Throwable $e) {
             push_sync_error($errors, 'list_external_user', $uid, $e->getMessage());
         }
+    }
+
+    try {
+        foreach (wecom_external_user_ids_by_page($token, 100) as $eid) {
+            $externalIds[$eid] = true;
+            $byPageHits++;
+        }
+    } catch (Throwable $e) {
+        push_sync_error($errors, 'external_get_by_page', 'all', $e->getMessage());
     }
 
     $rows = [];
@@ -577,6 +629,8 @@ function sync_external_contacts(PDO $pdo): array
         'rows' => count($rows),
         'follow_users' => count($followUsers),
         'external_contacts' => count($externalIds),
+        'from_follow_user_list' => $followListHits,
+        'from_get_by_page' => $byPageHits,
         'detail_success' => count($rows),
         'detail_failed' => count($errors),
         'errors' => $errors,
