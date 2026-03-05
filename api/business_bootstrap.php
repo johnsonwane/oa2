@@ -52,10 +52,13 @@ function ensure_business_workflow_schema(PDO $pdo): void
                 SELECT '业务管理', '外部联系人列表', 'external_contacts', '/external_contacts', '📇', 17, 1
                 FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM oa_menu WHERE menu_key='external_contacts')");
     $pdo->exec("INSERT INTO oa_menu (parent_name, menu_name, menu_key, path, icon, sort_no, status)
-                SELECT '业务管理', '收款单管理', 'receipts', '/receipts', '🧾', 18, 1
+                SELECT '业务管理', '企微外部联系人本地版', 'external_contacts_local', '/external_contacts_local', '🗂️', 18, 1
+                FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM oa_menu WHERE menu_key='external_contacts_local')");
+    $pdo->exec("INSERT INTO oa_menu (parent_name, menu_name, menu_key, path, icon, sort_no, status)
+                SELECT '业务管理', '收款单管理', 'receipts', '/receipts', '🧾', 19, 1
                 FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM oa_menu WHERE menu_key='receipts')");
     $pdo->exec("INSERT INTO oa_menu (parent_name, menu_name, menu_key, path, icon, sort_no, status)
-                SELECT '业务管理', '交付记录', 'delivery_logs', '/delivery_logs', '📒', 19, 1
+                SELECT '业务管理', '交付记录', 'delivery_logs', '/delivery_logs', '📒', 20, 1
                 FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM oa_menu WHERE menu_key='delivery_logs')");
     $pdo->exec("INSERT INTO oa_menu (parent_name, menu_name, menu_key, path, icon, sort_no, status)
                 SELECT '经营分析', '部门统计', 'department_stats', '/department_stats', '📊', 30, 1
