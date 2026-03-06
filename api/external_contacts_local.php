@@ -21,10 +21,30 @@ function ensure_external_contacts_local_table(PDO $pdo): void
       phone VARCHAR(64) NOT NULL DEFAULT '',
       tag_group1_student_level VARCHAR(255) NOT NULL DEFAULT '',
       tag_group2_source VARCHAR(255) NOT NULL DEFAULT '',
+      row_hash CHAR(40) NOT NULL DEFAULT '',
       created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-      PRIMARY KEY (id)
+      PRIMARY KEY (id),
+      UNIQUE KEY uk_row_hash (row_hash)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+    $cols = [];
+    $stmt = $pdo->query('SHOW COLUMNS FROM oa_external_contacts_local');
+    foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+        $cols[(string)($row['Field'] ?? '')] = true;
+    }
+    if (!isset($cols['row_hash'])) {
+        $pdo->exec("ALTER TABLE oa_external_contacts_local ADD COLUMN row_hash CHAR(40) NOT NULL DEFAULT ''");
+    }
+
+    $idx = [];
+    $stmt = $pdo->query('SHOW INDEX FROM oa_external_contacts_local');
+    foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+        $idx[(string)($row['Key_name'] ?? '')] = true;
+    }
+    if (!isset($idx['uk_row_hash'])) {
+        $pdo->exec("ALTER TABLE oa_external_contacts_local ADD UNIQUE KEY uk_row_hash (row_hash)");
+    }
 }
 
 function local_select_sql(): string
@@ -242,11 +262,35 @@ function is_note_row(array $line): bool
     return false;
 }
 
-function import_xlsx(PDO $pdo, string $path): int
+
+function external_contacts_local_row_hash(array $data): string
+{
+    $parts = [
+        trim((string)($data['customer_name'] ?? '')),
+        trim((string)($data['description_text'] ?? '')),
+        trim((string)($data['follower_name'] ?? '')),
+        trim((string)($data['follower_account'] ?? '')),
+        trim((string)($data['follower_department'] ?? '')),
+        trim((string)($data['follow_time'] ?? '')),
+        trim((string)($data['source'] ?? '')),
+        trim((string)($data['mobile'] ?? '')),
+        trim((string)($data['enterprise'] ?? '')),
+        trim((string)($data['email'] ?? '')),
+        trim((string)($data['address'] ?? '')),
+        trim((string)($data['job_title'] ?? '')),
+        trim((string)($data['phone'] ?? '')),
+        trim((string)($data['tag_group1_student_level'] ?? '')),
+        trim((string)($data['tag_group2_source'] ?? '')),
+    ];
+    return sha1(implode("
+", $parts));
+}
+
+function import_xlsx(PDO $pdo, string $path): array
 {
     $rows = xlsx_rows($path);
     if (count($rows) <= 1) {
-        return 0;
+        return ['inserted' => 0, 'skipped' => 0, 'processed' => 0];
     }
 
     $map = [
@@ -291,12 +335,12 @@ function import_xlsx(PDO $pdo, string $path): int
 
     $pdo->beginTransaction();
     try {
-        $pdo->exec('DELETE FROM oa_external_contacts_local');
-        $stmt = $pdo->prepare("INSERT INTO oa_external_contacts_local
-          (customer_name, description_text, follower_name, follower_account, follower_department, follow_time, source, mobile, enterprise, email, address, job_title, phone, tag_group1_student_level, tag_group2_source)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+        $stmt = $pdo->prepare("INSERT IGNORE INTO oa_external_contacts_local
+          (customer_name, description_text, follower_name, follower_account, follower_department, follow_time, source, mobile, enterprise, email, address, job_title, phone, tag_group1_student_level, tag_group2_source, row_hash)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
 
-        $count = 0;
+        $processed = 0;
+        $inserted = 0;
         for ($r = $headerRowIndex + 1; $r < count($rows); $r++) {
             $line = $rows[$r];
 
@@ -350,6 +394,8 @@ function import_xlsx(PDO $pdo, string $path): int
                 continue;
             }
 
+            $processed++;
+            $hash = external_contacts_local_row_hash($data);
             $stmt->execute([
                 $data['customer_name'],
                 $data['description_text'],
@@ -366,11 +412,18 @@ function import_xlsx(PDO $pdo, string $path): int
                 $data['phone'],
                 $data['tag_group1_student_level'],
                 $data['tag_group2_source'],
+                $hash,
             ]);
-            $count++;
+            if ($stmt->rowCount() > 0) {
+                $inserted++;
+            }
         }
         $pdo->commit();
-        return $count;
+        return [
+            'inserted' => $inserted,
+            'skipped' => max(0, $processed - $inserted),
+            'processed' => $processed,
+        ];
     } catch (Throwable $e) {
         $pdo->rollBack();
         throw $e;
@@ -406,8 +459,8 @@ try {
             json_response(400, '上传临时文件无效', null, 400);
         }
 
-        $count = import_xlsx($pdo, $tmp);
-        json_response(0, '导入成功', ['rows' => $count]);
+        $result = import_xlsx($pdo, $tmp);
+        json_response(0, '导入成功', $result);
     }
 
     json_response(405, 'method not allowed', null, 405);
