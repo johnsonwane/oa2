@@ -51,7 +51,7 @@ function local_select_sql(): string
 
 function local_rows(PDO $pdo): array
 {
-    $stmt = $pdo->query(local_select_sql() . " ORDER BY id DESC");
+    $stmt = $pdo->query(local_select_sql() . " ORDER BY follow_time DESC, id DESC");
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
@@ -60,7 +60,7 @@ function local_rows_paged(PDO $pdo, array $query): array
     $pg = parse_pagination($query, 1, 100, 1000);
     $total = (int)$pdo->query('SELECT COUNT(*) FROM oa_external_contacts_local')->fetchColumn();
 
-    $stmt = $pdo->prepare(local_select_sql() . " ORDER BY id DESC LIMIT ? OFFSET ?");
+    $stmt = $pdo->prepare(local_select_sql() . " ORDER BY follow_time DESC, id DESC LIMIT ? OFFSET ?");
     $stmt->bindValue(1, (int)$pg['page_size'], PDO::PARAM_INT);
     $stmt->bindValue(2, (int)$pg['offset'], PDO::PARAM_INT);
     $stmt->execute();
