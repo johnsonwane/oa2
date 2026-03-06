@@ -27,9 +27,10 @@ function ensure_external_contacts_local_table(PDO $pdo): void
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 }
 
-function local_rows(PDO $pdo): array
+function local_select_sql(): string
 {
-    $stmt = $pdo->query("SELECT
+    return "SELECT
+      id,
       customer_name AS `客户名称`,
       description_text AS `描述`,
       follower_name AS `添加人`,
@@ -45,9 +46,34 @@ function local_rows(PDO $pdo): array
       phone AS `电话`,
       tag_group1_student_level AS `标签组1(学员等级)`,
       tag_group2_source AS `标签组2(来源)`
-      FROM oa_external_contacts_local
-      ORDER BY id DESC");
+      FROM oa_external_contacts_local";
+}
+
+function local_rows(PDO $pdo): array
+{
+    $stmt = $pdo->query(local_select_sql() . " ORDER BY id DESC");
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+function local_rows_paged(PDO $pdo, array $query): array
+{
+    $pg = parse_pagination($query, 1, 100, 1000);
+    $total = (int)$pdo->query('SELECT COUNT(*) FROM oa_external_contacts_local')->fetchColumn();
+
+    $stmt = $pdo->prepare(local_select_sql() . " ORDER BY id DESC LIMIT ? OFFSET ?");
+    $stmt->bindValue(1, (int)$pg['page_size'], PDO::PARAM_INT);
+    $stmt->bindValue(2, (int)$pg['offset'], PDO::PARAM_INT);
+    $stmt->execute();
+
+    return [
+        'items' => $stmt->fetchAll(PDO::FETCH_ASSOC),
+        'pagination' => [
+            'page' => (int)$pg['page'],
+            'page_size' => (int)$pg['page_size'],
+            'total' => $total,
+            'total_pages' => $pg['page_size'] > 0 ? (int)ceil($total / $pg['page_size']) : 1,
+        ],
+    ];
 }
 
 function xlsx_shared_strings(ZipArchive $zip): array
@@ -315,6 +341,9 @@ try {
     ensure_external_contacts_local_table($pdo);
 
     if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+        if (paged_mode($_GET)) {
+            json_response(0, 'ok', local_rows_paged($pdo, $_GET));
+        }
         json_response(0, 'ok', local_rows($pdo));
     }
 
