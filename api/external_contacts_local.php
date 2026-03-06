@@ -215,6 +215,33 @@ function normalize_datetime_or_null(string $value): ?string
     return date('Y-m-d H:i:s', $ts);
 }
 
+function is_note_row(array $line): bool
+{
+    $text = '';
+    foreach ($line as $cell) {
+        $v = trim((string)$cell);
+        if ($v !== '') {
+            $text .= $v . ' ';
+        }
+    }
+    $text = trim($text);
+    if ($text === '') {
+        return false;
+    }
+
+    $notes = [
+        '1.学员名称优先取成员为学员设置的备注名',
+        '2.暂时不支持企业微信联系人的对外自定义字段导出',
+        '3.暂时不支持个人标签的导出',
+    ];
+    foreach ($notes as $n) {
+        if (strpos($text, $n) !== false) {
+            return true;
+        }
+    }
+    return false;
+}
+
 function import_xlsx(PDO $pdo, string $path): int
 {
     $rows = xlsx_rows($path);
@@ -222,7 +249,6 @@ function import_xlsx(PDO $pdo, string $path): int
         return 0;
     }
 
-    $header = array_values($rows[0]);
     $map = [
         '客户名称' => 'customer_name',
         '描述' => 'description_text',
@@ -241,15 +267,25 @@ function import_xlsx(PDO $pdo, string $path): int
         '标签组2(来源)' => 'tag_group2_source',
     ];
 
+    $headerRowIndex = -1;
     $indexMap = [];
-    foreach ($header as $i => $name) {
-        $k = trim((string)$name);
-        if (isset($map[$k])) {
-            $indexMap[$i] = $map[$k];
+    for ($r = 0; $r < count($rows) && $r < 30; $r++) {
+        $line = array_values($rows[$r]);
+        $tmp = [];
+        foreach ($line as $i => $name) {
+            $k = trim((string)$name);
+            if (isset($map[$k])) {
+                $tmp[$i] = $map[$k];
+            }
+        }
+        if (count($tmp) >= 5) {
+            $headerRowIndex = $r;
+            $indexMap = $tmp;
+            break;
         }
     }
 
-    if (empty($indexMap)) {
+    if ($headerRowIndex < 0 || empty($indexMap)) {
         throw new RuntimeException('未识别到表头，请确认是标准模板');
     }
 
@@ -261,8 +297,13 @@ function import_xlsx(PDO $pdo, string $path): int
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
 
         $count = 0;
-        for ($r = 1; $r < count($rows); $r++) {
+        for ($r = $headerRowIndex + 1; $r < count($rows); $r++) {
             $line = $rows[$r];
+
+            if (is_note_row($line)) {
+                continue;
+            }
+
             $data = [
                 'customer_name' => '',
                 'description_text' => '',
@@ -335,6 +376,7 @@ function import_xlsx(PDO $pdo, string $path): int
         throw $e;
     }
 }
+
 
 try {
     $pdo = get_db_connection();
