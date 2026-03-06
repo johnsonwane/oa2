@@ -19,7 +19,7 @@ try {
         $userId = (int)($_GET['user_id'] ?? 0);
 
         if ($keyword !== '') {
-            $where[] = '(name LIKE :kw OR phone LIKE :kw OR consultant LIKE :kw OR delivery_coach LIKE :kw)';
+            $where[] = '(name LIKE :kw OR wechat_name LIKE :kw OR wechat LIKE :kw OR phone LIKE :kw OR consultant LIKE :kw OR delivery_coach LIKE :kw)';
             $params[':kw'] = "%{$keyword}%";
         }
         if ($status !== '') {
@@ -61,7 +61,7 @@ try {
             $countStmt->execute($params);
             $total = (int)$countStmt->fetchColumn();
 
-            $sql = 'SELECT id, name, gender, birthday, phone, wechat, id_no, level, intention_level, follow_status, source, source_channel, miniapp_openid, is_student, student_stage, lead_registered_at, converted_at, owner_consultant_user_id, headteacher_user_id, coach_user_id, enrolled_courses, consultant, delivery_coach, guardian_name, guardian_phone, address, remark, created_at FROM oa_student'
+            $sql = 'SELECT id, name, gender, birthday, phone, wechat_name, wechat, id_no, level, intention_level, follow_status, source, source_channel, miniapp_openid, is_student, student_stage, lead_registered_at, converted_at, owner_consultant_user_id, headteacher_user_id, coach_user_id, enrolled_courses, consultant, delivery_coach, address, remark, created_at FROM oa_student'
                 . $whereSql . ' ORDER BY id DESC LIMIT :limit OFFSET :offset';
             $stmt = $pdo->prepare($sql);
             foreach ($params as $k => $v) {
@@ -80,14 +80,14 @@ try {
             ]);
         }
 
-        $stmt = $pdo->prepare('SELECT id, name, gender, birthday, phone, wechat, id_no, level, intention_level, follow_status, source, source_channel, miniapp_openid, is_student, student_stage, lead_registered_at, converted_at, owner_consultant_user_id, headteacher_user_id, coach_user_id, enrolled_courses, consultant, delivery_coach, guardian_name, guardian_phone, address, remark, created_at FROM oa_student' . $whereSql . ' ORDER BY id DESC');
+        $stmt = $pdo->prepare('SELECT id, name, gender, birthday, phone, wechat_name, wechat, id_no, level, intention_level, follow_status, source, source_channel, miniapp_openid, is_student, student_stage, lead_registered_at, converted_at, owner_consultant_user_id, headteacher_user_id, coach_user_id, enrolled_courses, consultant, delivery_coach, address, remark, created_at FROM oa_student' . $whereSql . ' ORDER BY id DESC');
         $stmt->execute($params);
         json_response(0, 'ok', $stmt->fetchAll());
     }
 
     if ($m === 'POST') {
         $d = request_body();
-        require_fields($d, ['wechat', 'phone']);
+        require_fields($d, ['wechat_name', 'phone']);
 
         $phone = trim($d['phone']);
         $existsStmt = $pdo->prepare('SELECT id FROM oa_student WHERE phone = ? LIMIT 1');
@@ -96,12 +96,13 @@ try {
             json_response(409, '手机号已存在', null, 409);
         }
 
-        $stmt = $pdo->prepare('INSERT INTO oa_student(name, gender, birthday, phone, wechat, id_no, level, intention_level, follow_status, source, source_channel, miniapp_openid, is_student, student_stage, lead_registered_at, converted_at, owner_consultant_user_id, headteacher_user_id, coach_user_id, enrolled_courses, consultant, delivery_coach, guardian_name, guardian_phone, address, remark) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
+        $stmt = $pdo->prepare('INSERT INTO oa_student(name, gender, birthday, phone, wechat_name, wechat, id_no, level, intention_level, follow_status, source, source_channel, miniapp_openid, is_student, student_stage, lead_registered_at, converted_at, owner_consultant_user_id, headteacher_user_id, coach_user_id, enrolled_courses, consultant, delivery_coach, address, remark) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
         $stmt->execute([
             trim((string)($d['name'] ?? '')),
             trim((string)($d['gender'] ?? '')),
             normalize_date_or_empty($d['birthday'] ?? ''),
             $phone,
+            trim((string)($d['wechat_name'] ?? '')),
             trim((string)($d['wechat'] ?? '')),
             trim((string)($d['id_no'] ?? '')),
             trim((string)($d['level'] ?? '')),
@@ -120,8 +121,6 @@ try {
             json_encode($d['enrolled_courses'] ?? [], JSON_UNESCAPED_UNICODE),
             trim((string)($d['consultant'] ?? '')),
             trim((string)($d['delivery_coach'] ?? '')),
-            trim((string)($d['guardian_name'] ?? '')),
-            trim((string)($d['guardian_phone'] ?? '')),
             trim((string)($d['address'] ?? '')),
             trim((string)($d['remark'] ?? '')),
         ]);
@@ -132,7 +131,7 @@ try {
         $d = request_body();
         $id = (int)($d['id'] ?? 0);
         if ($id <= 0) json_response(400, 'id非法', null, 400);
-        require_fields($d, ['wechat', 'phone']);
+        require_fields($d, ['wechat_name', 'phone']);
 
         $phone = trim($d['phone']);
         $existsStmt = $pdo->prepare('SELECT id FROM oa_student WHERE phone = ? AND id <> ? LIMIT 1');
@@ -141,12 +140,13 @@ try {
             json_response(409, '手机号已存在', null, 409);
         }
 
-        $stmt = $pdo->prepare('UPDATE oa_student SET name=?, gender=?, birthday=?, phone=?, wechat=?, id_no=?, level=?, intention_level=?, follow_status=?, source=?, source_channel=?, miniapp_openid=?, is_student=?, student_stage=?, lead_registered_at=?, converted_at=?, owner_consultant_user_id=?, headteacher_user_id=?, coach_user_id=?, enrolled_courses=?, consultant=?, delivery_coach=?, guardian_name=?, guardian_phone=?, address=?, remark=? WHERE id=?');
+        $stmt = $pdo->prepare('UPDATE oa_student SET name=?, gender=?, birthday=?, phone=?, wechat_name=?, wechat=?, id_no=?, level=?, intention_level=?, follow_status=?, source=?, source_channel=?, miniapp_openid=?, is_student=?, student_stage=?, lead_registered_at=?, converted_at=?, owner_consultant_user_id=?, headteacher_user_id=?, coach_user_id=?, enrolled_courses=?, consultant=?, delivery_coach=?, address=?, remark=? WHERE id=?');
         $stmt->execute([
             trim((string)($d['name'] ?? '')),
             trim((string)($d['gender'] ?? '')),
             normalize_date_or_empty($d['birthday'] ?? ''),
             $phone,
+            trim((string)($d['wechat_name'] ?? '')),
             trim((string)($d['wechat'] ?? '')),
             trim((string)($d['id_no'] ?? '')),
             trim((string)($d['level'] ?? '')),
@@ -165,8 +165,6 @@ try {
             json_encode($d['enrolled_courses'] ?? [], JSON_UNESCAPED_UNICODE),
             trim((string)($d['consultant'] ?? '')),
             trim((string)($d['delivery_coach'] ?? '')),
-            trim((string)($d['guardian_name'] ?? '')),
-            trim((string)($d['guardian_phone'] ?? '')),
             trim((string)($d['address'] ?? '')),
             trim((string)($d['remark'] ?? '')),
             $id
