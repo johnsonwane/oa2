@@ -3,6 +3,19 @@ require_once __DIR__ . '/common.php';
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/business_bootstrap.php';
 
+function dashboard_get_user_columns(PDO $pdo): array
+{
+    $columns = [];
+    $stmt = $pdo->query('SHOW COLUMNS FROM `oa_user`');
+    foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+        $name = (string)($row['Field'] ?? '');
+        if ($name !== '') {
+            $columns[$name] = true;
+        }
+    }
+    return $columns;
+}
+
 if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
     json_response(405, '仅支持 GET', null, 405);
 }
@@ -16,7 +29,12 @@ try {
     $params = [];
 
     if ($userId > 0) {
-        $uStmt = $pdo->prepare('SELECT role, real_name, department FROM oa_user WHERE id=? LIMIT 1');
+        $userColumns = dashboard_get_user_columns($pdo);
+        $roleSelect = isset($userColumns['role']) ? 'role' : "'' AS role";
+        $realNameSelect = isset($userColumns['real_name']) ? 'real_name' : "'' AS real_name";
+        $departmentSelect = isset($userColumns['department']) ? 'department' : "'' AS department";
+
+        $uStmt = $pdo->prepare("SELECT {$roleSelect}, {$realNameSelect}, {$departmentSelect} FROM oa_user WHERE id=? LIMIT 1");
         $uStmt->execute([$userId]);
         $u = $uStmt->fetch();
         if ($u) {

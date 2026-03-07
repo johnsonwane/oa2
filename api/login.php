@@ -2,6 +2,19 @@
 require_once __DIR__ . '/common.php';
 require_once __DIR__ . '/db.php';
 
+function login_get_user_columns(PDO $pdo): array
+{
+    $columns = [];
+    $stmt = $pdo->query('SHOW COLUMNS FROM `oa_user`');
+    foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+        $name = (string)($row['Field'] ?? '');
+        if ($name !== '') {
+            $columns[$name] = true;
+        }
+    }
+    return $columns;
+}
+
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     json_response(405, '仅支持 POST 请求', null, 405);
 }
@@ -14,7 +27,15 @@ try {
     $password = (string)$data['password'];
 
     $pdo = get_db_connection();
-    $stmt = $pdo->prepare('SELECT id, username, password_hash, real_name, role, department, position FROM oa_user WHERE username = ? AND status = 1 LIMIT 1');
+    $columns = login_get_user_columns($pdo);
+
+    $departmentSelect = isset($columns['department']) ? 'department' : "'' AS department";
+    $positionSelect = isset($columns['position']) ? 'position' : "'' AS position";
+    $realNameSelect = isset($columns['real_name']) ? 'real_name' : "'' AS real_name";
+    $roleSelect = isset($columns['role']) ? 'role' : "'' AS role";
+    $statusWhere = isset($columns['status']) ? ' AND status = 1' : '';
+
+    $stmt = $pdo->prepare("SELECT id, username, password_hash, {$realNameSelect}, {$roleSelect}, {$departmentSelect}, {$positionSelect} FROM oa_user WHERE username = ?{$statusWhere} LIMIT 1");
     $stmt->execute([$username]);
     $user = $stmt->fetch();
 
