@@ -47,26 +47,41 @@ function ensure_external_contacts_local_table(PDO $pdo): void
     }
 }
 
+
+function ensure_external_contacts_local_note_table(PDO $pdo): void
+{
+    $pdo->exec("CREATE TABLE IF NOT EXISTS oa_external_contacts_local_account_note (
+      id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+      follower_account VARCHAR(120) NOT NULL DEFAULT '',
+      account_note VARCHAR(120) NOT NULL DEFAULT '',
+      updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      UNIQUE KEY uk_follower_account (follower_account)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+}
+
 function local_select_sql(): string
 {
     return "SELECT
-      id,
-      customer_name AS `客户名称`,
-      description_text AS `描述`,
-      follower_name AS `添加人`,
-      follower_account AS `添加人账号`,
-      follower_department AS `添加人所属部门`,
-      IFNULL(DATE_FORMAT(follow_time, '%Y-%m-%d %H:%i:%s'), '') AS `添加时间`,
-      source AS `来源`,
-      mobile AS `手机`,
-      enterprise AS `企业`,
-      email AS `邮箱`,
-      address AS `地址`,
-      job_title AS `职务`,
-      phone AS `电话`,
-      tag_group1_student_level AS `标签组1(学员等级)`,
-      tag_group2_source AS `标签组2(来源)`
-      FROM oa_external_contacts_local";
+      t.id,
+      t.customer_name AS `客户名称`,
+      t.description_text AS `描述`,
+      t.follower_name AS `添加人`,
+      IFNULL(NULLIF(n.account_note, ''), t.follower_account) AS `添加人账号`,
+      t.follower_account AS `添加人账号原始`,
+      t.follower_department AS `添加人所属部门`,
+      IFNULL(DATE_FORMAT(t.follow_time, '%Y-%m-%d %H:%i:%s'), '') AS `添加时间`,
+      t.source AS `来源`,
+      t.mobile AS `手机`,
+      t.enterprise AS `企业`,
+      t.email AS `邮箱`,
+      t.address AS `地址`,
+      t.job_title AS `职务`,
+      t.phone AS `电话`,
+      t.tag_group1_student_level AS `标签组1(学员等级)`,
+      t.tag_group2_source AS `标签组2(来源)`
+      FROM oa_external_contacts_local t
+      LEFT JOIN oa_external_contacts_local_account_note n ON n.follower_account = t.follower_account";
 }
 
 function local_rows(PDO $pdo): array
@@ -434,6 +449,7 @@ function import_xlsx(PDO $pdo, string $path): array
 try {
     $pdo = get_db_connection();
     ensure_external_contacts_local_table($pdo);
+    ensure_external_contacts_local_note_table($pdo);
 
     if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         if (paged_mode($_GET)) {

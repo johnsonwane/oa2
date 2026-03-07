@@ -79,6 +79,7 @@ try {
         'referrers' => ['menu_referrers'],
         'external_contacts' => ['menu_external_contacts', 'menu_referrers', 'menu_manage'],
         'external_contacts_local' => ['menu_external_contacts_local', 'menu_external_contacts', 'menu_referrers', 'menu_manage'],
+        'external_contacts_local_notes' => ['menu_external_contacts_local_notes', 'menu_external_contacts_local', 'menu_manage'],
         'users' => ['user_view', 'user_edit', 'menu_users'],
         'menus' => ['menu_manage'],
         'rbac_groups' => ['group_manage'],
