@@ -21,11 +21,11 @@ function ensure_external_contacts_local_table(PDO $pdo): void
       phone VARCHAR(64) NOT NULL DEFAULT '',
       tag_group1_student_level VARCHAR(255) NOT NULL DEFAULT '',
       tag_group2_source VARCHAR(255) NOT NULL DEFAULT '',
-      row_hash CHAR(40) NOT NULL DEFAULT '',
+      row_hash CHAR(40) DEFAULT NULL,
       created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
       PRIMARY KEY (id),
-      UNIQUE KEY uk_row_hash (row_hash)
+      KEY idx_row_hash (row_hash)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 
     $cols = [];
@@ -34,7 +34,7 @@ function ensure_external_contacts_local_table(PDO $pdo): void
         $cols[(string)($row['Field'] ?? '')] = true;
     }
     if (!isset($cols['row_hash'])) {
-        $pdo->exec("ALTER TABLE oa_external_contacts_local ADD COLUMN row_hash CHAR(40) NOT NULL DEFAULT ''");
+        $pdo->exec("ALTER TABLE oa_external_contacts_local ADD COLUMN row_hash CHAR(40) DEFAULT NULL");
     }
 
     $idx = [];
@@ -42,8 +42,8 @@ function ensure_external_contacts_local_table(PDO $pdo): void
     foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
         $idx[(string)($row['Key_name'] ?? '')] = true;
     }
-    if (!isset($idx['uk_row_hash'])) {
-        $pdo->exec("ALTER TABLE oa_external_contacts_local ADD UNIQUE KEY uk_row_hash (row_hash)");
+    if (!isset($idx['idx_row_hash']) && !isset($idx['uk_row_hash'])) {
+        $pdo->exec("ALTER TABLE oa_external_contacts_local ADD KEY idx_row_hash (row_hash)");
     }
 }
 
@@ -350,9 +350,10 @@ function import_xlsx(PDO $pdo, string $path): array
 
     $pdo->beginTransaction();
     try {
-        $stmt = $pdo->prepare("INSERT IGNORE INTO oa_external_contacts_local
+        $stmt = $pdo->prepare("INSERT INTO oa_external_contacts_local
           (customer_name, description_text, follower_name, follower_account, follower_department, follow_time, source, mobile, enterprise, email, address, job_title, phone, tag_group1_student_level, tag_group2_source, row_hash)
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+        $existsStmt = $pdo->prepare('SELECT 1 FROM oa_external_contacts_local WHERE row_hash = ? LIMIT 1');
 
         $processed = 0;
         $inserted = 0;
@@ -411,6 +412,11 @@ function import_xlsx(PDO $pdo, string $path): array
 
             $processed++;
             $hash = external_contacts_local_row_hash($data);
+            $existsStmt->execute([$hash]);
+            if ($existsStmt->fetchColumn()) {
+                continue;
+            }
+
             $stmt->execute([
                 $data['customer_name'],
                 $data['description_text'],
@@ -429,9 +435,7 @@ function import_xlsx(PDO $pdo, string $path): array
                 $data['tag_group2_source'],
                 $hash,
             ]);
-            if ($stmt->rowCount() > 0) {
-                $inserted++;
-            }
+            $inserted++;
         }
         $pdo->commit();
         return [
