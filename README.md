@@ -171,6 +171,7 @@ mysql -uroot -p < db/schema.sql
 - 业务与技术分期设计：`docs/sprint123_roadmap.md`
 - 扩展建表脚本：`db/sprint123_extension.sql`
 - 流程缺口复盘（第二轮）：`docs/flow-gap-review.md`
+- 顾问到交付角色旅程梳理：`docs/role-journey-consultant-to-delivery.md`
 
 
 ## 鉴权
