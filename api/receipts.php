@@ -4,6 +4,35 @@ require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/business_bootstrap.php';
 require_once __DIR__ . '/hr_bootstrap.php';
 
+function receipts_scope(PDO $pdo, string $orderAlias = 'o', string $studentAlias = 's'): array
+{
+    $role = auth_user_role();
+    $uid = auth_user_id();
+    $uname = auth_user_name();
+
+    if (auth_is_admin_like() || $role === '财务') {
+        return ['sql' => '1=1', 'params' => []];
+    }
+    if ($role === '顾问') {
+        return ['sql' => "({$orderAlias}.seller_user_id = :uid OR {$studentAlias}.owner_consultant_user_id = :uid OR {$studentAlias}.consultant = :uname)", 'params' => [':uid' => $uid, ':uname' => $uname]];
+    }
+    if ($role === '班主任') {
+        return ['sql' => "{$studentAlias}.headteacher_user_id = :uid", 'params' => [':uid' => $uid]];
+    }
+    if ($role === '教练') {
+        return ['sql' => "({$studentAlias}.coach_user_id = :uid OR {$studentAlias}.delivery_coach = :uname)", 'params' => [':uid' => $uid, ':uname' => $uname]];
+    }
+    return ['sql' => '1=0', 'params' => []];
+}
+
+function receipt_accessible(PDO $pdo, int $id): bool
+{
+    $scope = receipts_scope($pdo, 'o', 's');
+    $stmt = $pdo->prepare('SELECT COUNT(*) FROM oa_receipt r LEFT JOIN oa_order o ON o.id=r.order_id LEFT JOIN oa_student s ON s.id=o.student_id WHERE r.id=:id AND (' . $scope['sql'] . ')');
+    $stmt->execute(array_merge([':id' => $id], $scope['params']));
+    return (int)$stmt->fetchColumn() > 0;
+}
+
 try {
     $pdo = get_db_connection();
     ensure_business_workflow_schema($pdo);
@@ -18,12 +47,16 @@ try {
     $m = $_SERVER['REQUEST_METHOD'];
 
     if ($m === 'GET') {
-        $sql = 'SELECT r.id,r.order_id,r.receipt_no,r.amount,r.channel,r.receiver_user_id,ru.real_name receiver_name,r.pay_method,r.pay_time,r.refund_time,r.refund_amount,r.verified_status,r.remark,r.created_at,o.student_id,s.name student_name,o.course_id,c.course_name,o.paid_amount FROM oa_receipt r LEFT JOIN oa_order o ON o.id=r.order_id LEFT JOIN oa_student s ON s.id=o.student_id LEFT JOIN oa_course c ON c.id=o.course_id LEFT JOIN oa_user ru ON ru.id=r.receiver_user_id ORDER BY r.id DESC';
-        $rows = $pdo->query($sql)->fetchAll();
-        json_response(0, 'ok', $rows);
+        $scope = receipts_scope($pdo, 'o', 's');
+        $sql = 'SELECT r.id,r.order_id,r.receipt_no,r.amount,r.channel,r.receiver_user_id,ru.real_name receiver_name,r.pay_method,r.pay_time,r.refund_time,r.refund_amount,r.verified_status,r.remark,r.created_at,o.student_id,s.name student_name,o.course_id,c.course_name,o.paid_amount FROM oa_receipt r LEFT JOIN oa_order o ON o.id=r.order_id LEFT JOIN oa_student s ON s.id=o.student_id LEFT JOIN oa_course c ON c.id=o.course_id LEFT JOIN oa_user ru ON ru.id=r.receiver_user_id WHERE ' . $scope['sql'] . ' ORDER BY r.id DESC';
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute($scope['params']);
+        json_response(0, 'ok', $stmt->fetchAll());
     }
 
     if ($m === 'POST' || $m === 'PUT') {
+        auth_require_roles(['财务', '班主任']);
+
         $d = request_body();
         require_fields($d, ['order_id', 'receipt_no', 'amount']);
         $orderId = (int)$d['order_id'];
@@ -54,14 +87,21 @@ try {
 
         $id = (int)($d['id'] ?? 0);
         if ($id <= 0) json_response(400, 'id非法', null, 400);
+        if (!receipt_accessible($pdo, $id)) {
+            json_response(403, '无权修改该收款单', null, 403);
+        }
         $stmt = $pdo->prepare('UPDATE oa_receipt SET order_id=?,receipt_no=?,amount=?,channel=?,receiver_user_id=?,pay_method=?,pay_time=?,refund_time=?,refund_amount=?,verified_status=?,remark=? WHERE id=?');
         $stmt->execute([$orderId, trim((string)$d['receipt_no']), $amount, trim((string)($d['channel'] ?? '')), $receiver, trim((string)($d['pay_method'] ?? '')), trim((string)($d['pay_time'] ?? '')) ?: null, trim((string)($d['refund_time'] ?? '')) ?: null, $refundAmount, $verified, trim((string)($d['remark'] ?? '')), $id]);
         json_response(0, 'updated');
     }
 
     if ($m === 'DELETE') {
+        auth_require_roles(['财务']);
         $id = (int)($_GET['id'] ?? 0);
         if ($id <= 0) json_response(400, 'id非法', null, 400);
+        if (!receipt_accessible($pdo, $id)) {
+            json_response(403, '无权删除该收款单', null, 403);
+        }
         $stmt = $pdo->prepare('DELETE FROM oa_receipt WHERE id=?');
         $stmt->execute([$id]);
         json_response(0, 'deleted');

@@ -175,4 +175,44 @@ function require_auth_session(): void
     $GLOBALS['__oa_auth_token'] = $token;
 }
 
+
+function auth_user_id(): int
+{
+    $u = auth_user();
+    return (int)($u['id'] ?? 0);
+}
+
+function auth_user_role(): string
+{
+    $u = auth_user();
+    return trim((string)($u['role'] ?? ''));
+}
+
+function auth_user_name(): string
+{
+    $u = auth_user();
+    return trim((string)($u['real_name'] ?? ''));
+}
+
+function auth_is_admin_like(): bool
+{
+    $role = auth_user_role();
+    return $role === '超管' || $role === '老板' || stripos($role, 'admin') !== false;
+}
+
+function auth_role_in(array $roles): bool
+{
+    return in_array(auth_user_role(), $roles, true);
+}
+
+function auth_require_roles(array $roles): void
+{
+    if (auth_is_admin_like()) {
+        return;
+    }
+    if (!auth_role_in($roles)) {
+        json_response(403, '当前角色无此操作权限', null, 403);
+    }
+}
+
 require_auth_session();

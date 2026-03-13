@@ -41,6 +41,23 @@ function payroll_slips_validate(PDO $pdo, array $data): void
     if ((float)($data['net_amount'] ?? 0) < 0) {
         json_response(400, '业务校验失败：实发金额不能为负数，请检查扣减项', null, 400);
     }
+
+    $status = trim((string)($data['status'] ?? 'draft'));
+    if ($status !== '' && !in_array($status, ['draft', 'reviewing', 'approved', 'paid'], true)) {
+        json_response(400, '业务校验失败：工资单状态非法', null, 400);
+    }
+}
+
+function payroll_status_allowed(?string $old, string $new): bool
+{
+    $allowed = [
+        'draft' => ['draft', 'reviewing', 'approved'],
+        'reviewing' => ['reviewing', 'approved', 'draft'],
+        'approved' => ['approved', 'paid'],
+        'paid' => ['paid'],
+    ];
+    if ($old === null) return in_array($new, ['draft', 'reviewing'], true);
+    return in_array($new, $allowed[$old] ?? [], true);
 }
 
 try {
@@ -49,31 +66,64 @@ try {
     $m = $_SERVER['REQUEST_METHOD'];
 
     if ($m === 'GET') {
-        json_response(0, 'ok', crud_list($pdo, 'oa_payroll_slip'));
+        if (auth_is_admin_like() || auth_role_in(['财务'])) {
+            json_response(0, 'ok', crud_list($pdo, 'oa_payroll_slip'));
+        }
+        $uid = auth_user_id();
+        $stmt = $pdo->prepare('SELECT * FROM oa_payroll_slip WHERE user_id=? ORDER BY id DESC');
+        $stmt->execute([$uid]);
+        json_response(0, 'ok', $stmt->fetchAll());
     }
 
     if ($m === 'POST') {
+        auth_require_roles(['财务']);
         $d = request_body();
         require_fields($d, ['period_id', 'user_id']);
         $d = payroll_slip_prepare($d);
         payroll_slips_validate($pdo, $d);
+        $status = trim((string)($d['status'] ?? 'draft')) ?: 'draft';
+        if (!payroll_status_allowed(null, $status)) {
+            json_response(400, '工资单状态流转非法', null, 400);
+        }
+        $d['status'] = $status;
         $id = crud_insert($pdo, 'oa_payroll_slip', ['period_id', 'user_id', 'gross_amount', 'tax_amount', 'social_amount', 'housing_amount', 'special_deduction', 'net_amount', 'status'], $d);
         json_response(0, 'created', ['id' => $id]);
     }
 
     if ($m === 'PUT') {
+        auth_require_roles(['财务']);
         $d = request_body();
         $id = (int)($d['id'] ?? 0);
         if ($id <= 0) json_response(400, 'id非法', null, 400);
+
+        $oldStmt = $pdo->prepare('SELECT status FROM oa_payroll_slip WHERE id=?');
+        $oldStmt->execute([$id]);
+        $old = $oldStmt->fetch();
+        if (!$old) json_response(404, '工资单不存在', null, 404);
+
         $d = payroll_slip_prepare($d);
         payroll_slips_validate($pdo, $d);
+        $newStatus = trim((string)($d['status'] ?? $old['status'])) ?: (string)$old['status'];
+        if (!payroll_status_allowed((string)$old['status'], $newStatus)) {
+            json_response(400, '工资单状态流转非法', null, 400);
+        }
+
+        $d['status'] = $newStatus;
         crud_update($pdo, 'oa_payroll_slip', $id, ['period_id', 'user_id', 'gross_amount', 'tax_amount', 'social_amount', 'housing_amount', 'special_deduction', 'net_amount', 'status'], $d);
         json_response(0, 'updated');
     }
 
     if ($m === 'DELETE') {
+        auth_require_roles(['财务']);
         $id = (int)($_GET['id'] ?? 0);
         if ($id <= 0) json_response(400, 'id非法', null, 400);
+        $oldStmt = $pdo->prepare('SELECT status FROM oa_payroll_slip WHERE id=?');
+        $oldStmt->execute([$id]);
+        $old = $oldStmt->fetch();
+        if (!$old) json_response(404, '工资单不存在', null, 404);
+        if ((string)$old['status'] === 'paid') {
+            json_response(400, '已发放工资单禁止删除', null, 400);
+        }
         crud_delete($pdo, 'oa_payroll_slip', $id);
         json_response(0, 'deleted');
     }
