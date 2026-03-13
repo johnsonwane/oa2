@@ -49,6 +49,24 @@ CREATE TABLE IF NOT EXISTS oa_user (
   UNIQUE KEY uk_username (username)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+
+
+CREATE TABLE IF NOT EXISTS oa_session (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  user_id INT UNSIGNED NOT NULL,
+  token_hash CHAR(64) NOT NULL,
+  issued_at DATETIME NOT NULL,
+  expires_at DATETIME NOT NULL,
+  revoked_at DATETIME DEFAULT NULL,
+  last_seen_at DATETIME DEFAULT NULL,
+  last_ip VARCHAR(64) DEFAULT '',
+  user_agent VARCHAR(255) DEFAULT '',
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_token_hash (token_hash),
+  KEY idx_session_user (user_id),
+  KEY idx_session_expire (expires_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 CREATE TABLE IF NOT EXISTS oa_department (
   id INT UNSIGNED NOT NULL AUTO_INCREMENT,
   dept_name VARCHAR(50) NOT NULL,

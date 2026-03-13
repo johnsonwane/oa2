@@ -4,14 +4,7 @@ require_once __DIR__ . '/db.php';
 
 function ensure_external_contacts_local_note_table(PDO $pdo): void
 {
-    $pdo->exec("CREATE TABLE IF NOT EXISTS oa_external_contacts_local_account_note (
-      id INT UNSIGNED NOT NULL AUTO_INCREMENT,
-      follower_account VARCHAR(120) NOT NULL DEFAULT '',
-      account_note VARCHAR(120) NOT NULL DEFAULT '',
-      updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-      PRIMARY KEY (id),
-      UNIQUE KEY uk_follower_account (follower_account)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+    // P0 稳定性整改：禁止运行时建表。
 }
 
 try {

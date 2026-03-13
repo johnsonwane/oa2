@@ -4,60 +4,13 @@ require_once __DIR__ . '/db.php';
 
 function ensure_external_contacts_local_table(PDO $pdo): void
 {
-    $pdo->exec("CREATE TABLE IF NOT EXISTS oa_external_contacts_local (
-      id INT UNSIGNED NOT NULL AUTO_INCREMENT,
-      customer_name VARCHAR(120) NOT NULL DEFAULT '',
-      description_text VARCHAR(255) NOT NULL DEFAULT '',
-      follower_name VARCHAR(120) NOT NULL DEFAULT '',
-      follower_account VARCHAR(120) NOT NULL DEFAULT '',
-      follower_department VARCHAR(255) NOT NULL DEFAULT '',
-      follow_time DATETIME DEFAULT NULL,
-      source VARCHAR(120) NOT NULL DEFAULT '',
-      mobile VARCHAR(64) NOT NULL DEFAULT '',
-      enterprise VARCHAR(255) NOT NULL DEFAULT '',
-      email VARCHAR(120) NOT NULL DEFAULT '',
-      address VARCHAR(255) NOT NULL DEFAULT '',
-      job_title VARCHAR(120) NOT NULL DEFAULT '',
-      phone VARCHAR(64) NOT NULL DEFAULT '',
-      tag_group1_student_level VARCHAR(255) NOT NULL DEFAULT '',
-      tag_group2_source VARCHAR(255) NOT NULL DEFAULT '',
-      row_hash CHAR(40) DEFAULT NULL,
-      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-      PRIMARY KEY (id),
-      KEY idx_row_hash (row_hash)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-
-    $cols = [];
-    $stmt = $pdo->query('SHOW COLUMNS FROM oa_external_contacts_local');
-    foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
-        $cols[(string)($row['Field'] ?? '')] = true;
-    }
-    if (!isset($cols['row_hash'])) {
-        $pdo->exec("ALTER TABLE oa_external_contacts_local ADD COLUMN row_hash CHAR(40) DEFAULT NULL");
-    }
-
-    $idx = [];
-    $stmt = $pdo->query('SHOW INDEX FROM oa_external_contacts_local');
-    foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
-        $idx[(string)($row['Key_name'] ?? '')] = true;
-    }
-    if (!isset($idx['idx_row_hash']) && !isset($idx['uk_row_hash'])) {
-        $pdo->exec("ALTER TABLE oa_external_contacts_local ADD KEY idx_row_hash (row_hash)");
-    }
+    // P0 稳定性整改：禁止运行时建表/补列。
 }
 
 
 function ensure_external_contacts_local_note_table(PDO $pdo): void
 {
-    $pdo->exec("CREATE TABLE IF NOT EXISTS oa_external_contacts_local_account_note (
-      id INT UNSIGNED NOT NULL AUTO_INCREMENT,
-      follower_account VARCHAR(120) NOT NULL DEFAULT '',
-      account_note VARCHAR(120) NOT NULL DEFAULT '',
-      updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-      PRIMARY KEY (id),
-      UNIQUE KEY uk_follower_account (follower_account)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+    // P0 稳定性整改：禁止运行时建表/补列。
 }
 
 function local_select_sql(): string

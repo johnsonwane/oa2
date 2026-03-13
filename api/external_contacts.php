@@ -13,83 +13,7 @@ function wecom_config(): array
 
 function ensure_external_contact_cache_table(PDO $pdo): void
 {
-    $pdo->exec("CREATE TABLE IF NOT EXISTS oa_external_contact_cache_v2 (
-      id INT UNSIGNED NOT NULL AUTO_INCREMENT,
-      external_userid VARCHAR(128) NOT NULL DEFAULT '',
-      errcode INT NOT NULL DEFAULT 0,
-      errmsg VARCHAR(255) NOT NULL DEFAULT '',
-      name VARCHAR(120) NOT NULL DEFAULT '',
-      avatar VARCHAR(500) NOT NULL DEFAULT '',
-      type VARCHAR(64) NOT NULL DEFAULT '',
-      gender VARCHAR(32) NOT NULL DEFAULT '',
-      unionid VARCHAR(128) NOT NULL DEFAULT '',
-      position VARCHAR(120) NOT NULL DEFAULT '',
-      corp_name VARCHAR(255) NOT NULL DEFAULT '',
-      corp_full_name VARCHAR(255) NOT NULL DEFAULT '',
-      external_profile TEXT,
-      follow_user_userid VARCHAR(120) NOT NULL DEFAULT '',
-      follow_user_remark VARCHAR(255) NOT NULL DEFAULT '',
-      follow_user_description VARCHAR(255) NOT NULL DEFAULT '',
-      follow_user_createtime DATETIME DEFAULT NULL,
-      follow_user_tags_group_name TEXT,
-      follow_user_tags_tag_name TEXT,
-      follow_user_tags_type TEXT,
-      follow_user_tags_tag_id TEXT,
-      follow_user_remark_corp_name VARCHAR(255) NOT NULL DEFAULT '',
-      follow_user_remark_mobiles TEXT,
-      follow_user_add_way VARCHAR(64) NOT NULL DEFAULT '',
-      follow_user_wechat_channels TEXT,
-      follow_user_wechat_channels_nickname VARCHAR(120) NOT NULL DEFAULT '',
-      follow_user_wechat_channels_source VARCHAR(120) NOT NULL DEFAULT '',
-      follow_user_oper_userid VARCHAR(120) NOT NULL DEFAULT '',
-      follow_user_state VARCHAR(255) NOT NULL DEFAULT '',
-      next_cursor VARCHAR(255) NOT NULL DEFAULT '',
-      updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-      PRIMARY KEY (id),
-      KEY idx_external_userid (external_userid)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-
-    $columns = [
-        'errcode' => "INT NOT NULL DEFAULT 0",
-        'errmsg' => "VARCHAR(255) NOT NULL DEFAULT ''",
-        'name' => "VARCHAR(120) NOT NULL DEFAULT ''",
-        'avatar' => "VARCHAR(500) NOT NULL DEFAULT ''",
-        'type' => "VARCHAR(64) NOT NULL DEFAULT ''",
-        'gender' => "VARCHAR(32) NOT NULL DEFAULT ''",
-        'unionid' => "VARCHAR(128) NOT NULL DEFAULT ''",
-        'position' => "VARCHAR(120) NOT NULL DEFAULT ''",
-        'corp_name' => "VARCHAR(255) NOT NULL DEFAULT ''",
-        'corp_full_name' => "VARCHAR(255) NOT NULL DEFAULT ''",
-        'external_profile' => "TEXT",
-        'follow_user_userid' => "VARCHAR(120) NOT NULL DEFAULT ''",
-        'follow_user_remark' => "VARCHAR(255) NOT NULL DEFAULT ''",
-        'follow_user_description' => "VARCHAR(255) NOT NULL DEFAULT ''",
-        'follow_user_createtime' => "DATETIME DEFAULT NULL",
-        'follow_user_tags_group_name' => "TEXT",
-        'follow_user_tags_tag_name' => "TEXT",
-        'follow_user_tags_type' => "TEXT",
-        'follow_user_tags_tag_id' => "TEXT",
-        'follow_user_remark_corp_name' => "VARCHAR(255) NOT NULL DEFAULT ''",
-        'follow_user_remark_mobiles' => "TEXT",
-        'follow_user_add_way' => "VARCHAR(64) NOT NULL DEFAULT ''",
-        'follow_user_wechat_channels' => "TEXT",
-        'follow_user_wechat_channels_nickname' => "VARCHAR(120) NOT NULL DEFAULT ''",
-        'follow_user_wechat_channels_source' => "VARCHAR(120) NOT NULL DEFAULT ''",
-        'follow_user_oper_userid' => "VARCHAR(120) NOT NULL DEFAULT ''",
-        'follow_user_state' => "VARCHAR(255) NOT NULL DEFAULT ''",
-        'next_cursor' => "VARCHAR(255) NOT NULL DEFAULT ''",
-    ];
-
-    $exists = [];
-    $stmt = $pdo->query('SHOW COLUMNS FROM oa_external_contact_cache_v2');
-    foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $col) {
-        $exists[(string)($col['Field'] ?? '')] = true;
-    }
-    foreach ($columns as $name => $ddl) {
-        if (!isset($exists[$name])) {
-            $pdo->exec("ALTER TABLE oa_external_contact_cache_v2 ADD COLUMN {$name} {$ddl}");
-        }
-    }
+    // P0 稳定性整改：禁止运行时建表/补列。
 }
 
 function table_exists(PDO $pdo, string $tableName): bool
@@ -114,53 +38,7 @@ function table_columns(PDO $pdo, string $tableName): array
 
 function migrate_legacy_external_contact_cache_if_needed(PDO $pdo): void
 {
-    $newTable = 'oa_external_contact_cache_v2';
-    $oldTable = 'oa_external_contact_cache';
-
-    if (!table_exists($pdo, $newTable) || !table_exists($pdo, $oldTable)) {
-        return;
-    }
-
-    $newCount = (int)$pdo->query("SELECT COUNT(*) FROM {$newTable}")->fetchColumn();
-    if ($newCount > 0) {
-        return;
-    }
-
-    $oldCount = (int)$pdo->query("SELECT COUNT(*) FROM {$oldTable}")->fetchColumn();
-    if ($oldCount <= 0) {
-        return;
-    }
-
-    $newCols = table_columns($pdo, $newTable);
-    $oldCols = table_columns($pdo, $oldTable);
-    $oldSet = array_fill_keys($oldCols, true);
-
-    $copyCols = [];
-    foreach ($newCols as $c) {
-        if ($c === 'id' || $c === 'updated_at') {
-            continue;
-        }
-        if (isset($oldSet[$c])) {
-            $copyCols[] = $c;
-        }
-    }
-
-    if (empty($copyCols)) {
-        return;
-    }
-
-    $sqlCols = implode(', ', array_map(function ($c) {
-        return "`" . str_replace('`', '``', $c) . "`";
-    }, $copyCols));
-
-    $pdo->beginTransaction();
-    try {
-        $pdo->exec("INSERT INTO {$newTable} ({$sqlCols}) SELECT {$sqlCols} FROM {$oldTable}");
-        $pdo->commit();
-    } catch (Throwable $e) {
-        $pdo->rollBack();
-        throw $e;
-    }
+    // P0 稳定性整改：迁移动作下放到发布脚本。
 }
 
 function cached_rows(PDO $pdo): array

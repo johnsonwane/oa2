@@ -2,15 +2,15 @@
 
 return [
     'db' => [
-        'host' => getenv('DB_HOST') ?: '10.0.0.7',
+        'host' => getenv('DB_HOST') ?: '127.0.0.1',
         'port' => getenv('DB_PORT') ?: '3306',
         'dbname' => getenv('DB_NAME') ?: 'oa2',
         'user' => getenv('DB_USER') ?: 'root',
-        'pass' => getenv('DB_PASS') ?: '?(kFMNWb)5Fv+8-_uYwG',
+        'pass' => getenv('DB_PASS') ?: '',
         'charset' => 'utf8mb4',
     ],
     'wecom' => [
-        'corp_id' => getenv('WECOM_CORP_ID') ?: 'ww72e258e75a2f4e35',
-        'contact_secret' => getenv('WECOM_CONTACT_SECRET') ?: 'aQ1xXj_DTscWbXrbBepwTL1D7wSDjuBjqtzGpjaRLyI',
+        'corp_id' => getenv('WECOM_CORP_ID') ?: '',
+        'contact_secret' => getenv('WECOM_CONTACT_SECRET') ?: '',
     ],
 ];

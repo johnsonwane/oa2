@@ -1,6 +1,5 @@
 <?php
 require_once __DIR__ . '/common.php';
-require_once __DIR__ . '/db.php';
 
 function login_get_user_columns(PDO $pdo): array
 {
@@ -43,10 +42,22 @@ try {
         json_response(401, '用户名或密码错误', null, 401);
     }
 
-    $token = hash('sha256', $user['id'] . '|' . $user['username'] . '|' . microtime(true) . '|' . bin2hex(random_bytes(8)));
+    $token = bin2hex(random_bytes(32));
+    $tokenHash = hash('sha256', $token);
+    $expiresAt = date('Y-m-d H:i:s', time() + 7 * 24 * 3600);
+
+    $insert = $pdo->prepare('INSERT INTO oa_session(user_id, token_hash, issued_at, expires_at, last_seen_at, last_ip, user_agent) VALUES(?, ?, NOW(), ?, NOW(), ?, ?)');
+    $insert->execute([
+        (int)$user['id'],
+        $tokenHash,
+        $expiresAt,
+        client_ip(),
+        (string)($_SERVER['HTTP_USER_AGENT'] ?? ''),
+    ]);
 
     json_response(0, '登录成功', [
         'token' => $token,
+        'expires_at' => $expiresAt,
         'user' => [
             'id' => (int)$user['id'],
             'username' => $user['username'],

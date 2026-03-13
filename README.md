@@ -17,6 +17,7 @@
 ## API 接口
 
 - `POST /api/login.php` 登录
+- `POST /api/logout.php` 退出登录（需 Bearer Token）
 - `GET/POST/PUT/DELETE /api/menu.php` 菜单 CRUD
 - `GET/POST/PUT/DELETE /api/students.php` 学员 CRUD
 - `GET/POST/PUT/DELETE /api/courses.php` 课程 CRUD
@@ -169,3 +170,10 @@ mysql -uroot -p < db/schema.sql
 
 - 业务与技术分期设计：`docs/sprint123_roadmap.md`
 - 扩展建表脚本：`db/sprint123_extension.sql`
+
+
+## 鉴权
+
+- 除 `login.php`、`health.php` 外，其他 API 均需携带请求头：`Authorization: Bearer <token>`。
+- 登录后返回的 token 默认 7 天过期。
+- 会话数据存储在 `oa_session` 表中。

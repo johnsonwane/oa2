@@ -1,9 +1,11 @@
 <?php
 
+require_once __DIR__ . '/db.php';
+
 header('Content-Type: application/json; charset=utf-8');
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type');
+header('Access-Control-Allow-Headers: Content-Type, Authorization, X-OA-Token');
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(204);
@@ -69,3 +71,108 @@ function normalize_date_or_empty($value): string
     }
     return $v;
 }
+
+function auth_user(): ?array
+{
+    return $GLOBALS['__oa_auth_user'] ?? null;
+}
+
+function auth_token(): string
+{
+    return (string)($GLOBALS['__oa_auth_token'] ?? '');
+}
+
+function client_ip(): string
+{
+    $keys = ['HTTP_X_FORWARDED_FOR', 'HTTP_X_REAL_IP', 'REMOTE_ADDR'];
+    foreach ($keys as $k) {
+        $val = trim((string)($_SERVER[$k] ?? ''));
+        if ($val !== '') {
+            if ($k === 'HTTP_X_FORWARDED_FOR') {
+                return trim(explode(',', $val)[0]);
+            }
+            return $val;
+        }
+    }
+    return '';
+}
+
+function is_public_endpoint(): bool
+{
+    $name = basename((string)($_SERVER['SCRIPT_NAME'] ?? ''));
+    $public = [
+        'login.php',
+        'health.php',
+    ];
+    return in_array($name, $public, true);
+}
+
+function request_bearer_token(): string
+{
+    $auth = trim((string)($_SERVER['HTTP_AUTHORIZATION'] ?? ''));
+    if ($auth !== '' && preg_match('/^Bearer\s+(.+)$/i', $auth, $m)) {
+        return trim($m[1]);
+    }
+    $xToken = trim((string)($_SERVER['HTTP_X_OA_TOKEN'] ?? ''));
+    if ($xToken !== '') {
+        return $xToken;
+    }
+    return '';
+}
+
+function require_auth_session(): void
+{
+    if (is_public_endpoint()) {
+        return;
+    }
+
+    $token = request_bearer_token();
+    if ($token === '') {
+        json_response(401, '未登录或登录已过期', null, 401);
+    }
+
+    try {
+        $pdo = get_db_connection();
+    } catch (Throwable $e) {
+        json_response(500, '认证服务不可用', null, 500);
+    }
+
+    $tokenHash = hash('sha256', $token);
+    try {
+        $stmt = $pdo->prepare('SELECT s.id AS session_id, s.user_id, s.expires_at, u.username, u.real_name, u.role, u.status
+            FROM oa_session s
+            JOIN oa_user u ON u.id = s.user_id
+            WHERE s.token_hash = ? AND s.revoked_at IS NULL
+            LIMIT 1');
+        $stmt->execute([$tokenHash]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+    } catch (Throwable $e) {
+        json_response(500, '认证数据表不存在，请先执行数据库迁移', null, 500);
+    }
+
+    if (!$row) {
+        json_response(401, '登录状态无效，请重新登录', null, 401);
+    }
+
+    $expiresAt = strtotime((string)($row['expires_at'] ?? ''));
+    if ($expiresAt <= time()) {
+        json_response(401, '登录已过期，请重新登录', null, 401);
+    }
+
+    if ((int)($row['status'] ?? 1) !== 1) {
+        json_response(403, '账号已禁用', null, 403);
+    }
+
+    $pdo->prepare('UPDATE oa_session SET last_seen_at = NOW(), last_ip = ?, user_agent = ? WHERE id = ?')
+        ->execute([client_ip(), (string)($_SERVER['HTTP_USER_AGENT'] ?? ''), (int)$row['session_id']]);
+
+    $GLOBALS['__oa_auth_user'] = [
+        'id' => (int)$row['user_id'],
+        'username' => (string)$row['username'],
+        'real_name' => (string)($row['real_name'] ?? ''),
+        'role' => (string)($row['role'] ?? ''),
+    ];
+    $GLOBALS['__oa_auth_token'] = $token;
+}
+
+require_auth_session();
