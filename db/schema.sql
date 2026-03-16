@@ -402,6 +402,7 @@ INSERT INTO oa_menu (parent_name, menu_name, menu_key, path, icon, sort_no, stat
 ('业务管理','推荐者管理','referrers','/referrers','🤝',17,1),
 ('业务管理','外部联系人列表','external_contacts','/external_contacts','📇',17,1),
 ('业务管理','收款单管理','receipts','/receipts','🧾',18,1),
+('业务管理','企微收款','payment_callback_logs','/payment_callback_logs','💳',18,1),
 ('业务管理','交付记录','delivery_logs','/delivery_logs','📒',19,1),
 ('系统管理','员工管理','users','/users','👥',21,1),
 ('系统管理','菜单管理','menus','/menus','🧭',22,1),

@@ -107,6 +107,7 @@ try {
         'commission_adjustments' => ['menu_overview', 'menu_todos', 'menu_manage'],
         'payroll_periods' => ['menu_overview', 'menu_todos', 'menu_manage'],
         'payroll_slips' => ['menu_overview', 'menu_todos', 'menu_manage'],
+        'payment_callback_logs' => ['menu_finance', 'menu_receipts', 'menu_manage'],
     ];
 
     $allMenus = $pdo->query('SELECT id, menu_name, menu_key, path, icon, sort_no, status, parent_name FROM oa_menu WHERE status=1 ORDER BY sort_no ASC, id ASC')->fetchAll();
