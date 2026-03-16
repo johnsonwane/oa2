@@ -113,3 +113,39 @@
 - 补齐 Sprint 设计与后端落地不一致的问题：将 `oa_payment_callback_log`、证书、分成 scope/calc、工资条明细与工资发放日志纳入运行期 bootstrap。
 - 新增缺失 API：支付回调日志、证书模板/发放、分成作用范围/计算明细、工资条明细、工资发放日志。
 - 后续建议：按模块增加前端页面与小程序接口，并补充角色级字段权限与审批流。
+
+---
+
+## 上线倒排甘特图（假设 4 月 1 日上线）
+
+```mermaid
+gantt
+    title OA Sprint123 上线倒排计划（Go-Live: 2026-04-01）
+    dateFormat  YYYY-MM-DD
+    excludes    weekends
+
+    section 方案与基线
+    需求冻结/范围确认           :done, s1, 2026-02-17, 5d
+    数据模型与接口清单评审       :done, s2, after s1, 4d
+
+    section Sprint 1（获客与成交）
+    后端 API 与表结构补齐         :active, s3, 2026-02-24, 8d
+    联调与回归（订单/合同/开票）    :s4, after s3, 5d
+
+    section Sprint 2（交付闭环）
+    期次/邮寄/证书模块开发         :s5, 2026-03-06, 7d
+    联调与回归（班主任/交付）       :s6, after s5, 4d
+
+    section Sprint 3（提成与薪酬）
+    规则/工资条/支出单开发         :s7, 2026-03-17, 6d
+    财务核算联调与试算             :s8, after s7, 4d
+
+    section 上线准备
+    UAT 与缺陷修复                :crit, s9, 2026-03-25, 4d
+    上线演练/数据初始化/培训       :crit, s10, after s9, 2d
+    正式上线                      :milestone, m1, 2026-04-01, 1d
+```
+
+> 说明：
+> - 若上线年份不是 2026，可整体平移日期，保持“4 月 1 日上线”与任务前后依赖不变。
+> - `UAT 与缺陷修复`、`上线演练/数据初始化/培训` 建议设为强约束（critical），避免压缩导致上线风险升高。
