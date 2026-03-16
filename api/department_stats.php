@@ -11,24 +11,20 @@ try {
     $pdo = get_db_connection();
     ensure_business_workflow_schema($pdo);
 
-    $userId = (int)($_GET['user_id'] ?? 0);
-    if ($userId <= 0) {
-        json_response(400, 'user_id 非法', null, 400);
-    }
-
+    $uid = auth_user_id();
     $uStmt = $pdo->prepare('SELECT id, role, department FROM oa_user WHERE id=? LIMIT 1');
-    $uStmt->execute([$userId]);
+    $uStmt->execute([$uid]);
     $user = $uStmt->fetch();
     if (!$user) json_response(404, '用户不存在', null, 404);
 
     $role = trim((string)$user['role']);
-    if (!in_array($role, ['老板', '部门经理', '超管'], true)) {
+    if (!auth_is_admin_like() && !in_array($role, ['部门经理'], true)) {
         json_response(403, '当前角色无权查看部门统计', null, 403);
     }
 
     $params = [];
     $where = '';
-    if ($role === '部门经理') {
+    if ($role === '部门经理' && !auth_is_admin_like()) {
         $where = ' WHERE u.department = :dept';
         $params[':dept'] = trim((string)$user['department']);
     }
@@ -42,7 +38,7 @@ try {
                    IFNULL(SUM(CASE WHEN o.seller_role='教练' THEN o.seller_commission_amount ELSE 0 END),0) coach_sales_commission,
                    IFNULL(SUM(o.referrer_commission_amount),0) referrer_commission
             FROM oa_user u
-            LEFT JOIN oa_student s ON s.consultant = u.real_name OR s.delivery_coach = u.real_name
+            LEFT JOIN oa_student s ON s.owner_consultant_user_id = u.id OR s.headteacher_user_id = u.id OR s.coach_user_id = u.id
             LEFT JOIN oa_order o ON o.student_id = s.id
             " . $where . "
             GROUP BY u.department
