@@ -3,354 +3,61 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>培训公司 OA 仪表盘(H5)</title>
+  <title>培训公司 OA</title>
   <link rel="stylesheet" href="./assets/style.css" />
-  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <style>
+    .app-shell{display:flex;min-height:100vh}
+    .content-shell{flex:1;display:flex;flex-direction:column;min-width:0}
+    .page-frame{flex:1;border:0;width:100%;background:#f3f6fb;border-top:1px solid #e5e7eb}
+    .oa-header{padding:12px 20px;background:linear-gradient(180deg,#f8fbff,#f3f6fb);position:sticky;top:0;z-index:30;border-bottom:1px solid #e5e7eb}
+    .oa-header h1{margin:0;font-size:22px}
+    .oa-sidebar{box-shadow:inset -1px 0 0 rgba(255,255,255,.08)}
+      </style>
 </head>
 <body>
-<div id="app" class="oa-layout" :class="{'mobile': isMobile, 'sidebar-open': sidebarOpen}" v-cloak>
-  <aside class="oa-sidebar" :class="{'open': sidebarOpen}">
+<div class="app-shell">
+  <aside class="oa-sidebar">
     <div class="brand">培训公司 OA</div>
-    <div class="user-box">{{ user.real_name || user.username }}（{{ user.role || '访客' }}）</div>
-    <template v-for="group in groupedMenus" :key="group.parent">
-      <div class="group-title">{{ group.parent }}</div>
-      <ul class="menu-tree simple">
-        <li v-for="m in group.children" :key="m.id" :class="{active:activeTab===m.menu_key}" @click="selectMenu(m.menu_key)">{{ m.menu_name }}</li>
-      </ul>
-    </template>
+    <div class="user-box" id="userBox">未登录</div>
+    <div class="group-title">总览</div>
+    <ul class="menu-tree simple">
+      <li data-key="overview">数据总览</li>
+      <li data-key="todos">待办</li>
+    </ul>
+    <div class="group-title">业务管理</div>
+    <ul class="menu-tree simple">
+      <li data-key="students">学员管理</li><li data-key="courses">课程管理</li><li data-key="orders">订单管理</li><li data-key="finance">财务管理</li><li data-key="notifications">通知管理</li><li data-key="referrers">推荐者管理</li><li data-key="external_contacts">外部联系人列表</li><li data-key="external_contacts_local">企微外部联系人本地版</li><li data-key="external_contacts_local_notes">添加人账号备注映射</li><li data-key="receipts">收款单管理</li><li data-key="payment_callback_logs">企微收款</li><li data-key="delivery_logs">交付记录</li><li data-key="materials">资料库</li><li data-key="material_campaigns">资料投放</li><li data-key="material_claims">资料领取</li><li data-key="contracts">合同管理</li><li data-key="invoice_profiles">开票档案</li><li data-key="invoices">发票管理</li><li data-key="class_terms">班期管理</li><li data-key="student_terms">学员班期</li><li data-key="shipments">寄送管理</li><li data-key="certificate_templates">证书模板</li><li data-key="certificate_issues">证书发放</li><li data-key="commission_scopes">分成范围</li><li data-key="commission_rules">分成规则</li><li data-key="commission_calcs">分成结算</li><li data-key="commission_adjustments">分成调整</li><li data-key="payroll_periods">工资期次</li><li data-key="payroll_slips">工资单</li>
+    </ul>
+    <div class="group-title">系统管理</div>
+    <ul class="menu-tree simple">
+      <li data-key="users">员工管理</li><li data-key="departments">部门管理</li><li data-key="menus">菜单管理</li><li data-key="rbac_groups">角色管理</li><li data-key="rbac_permissions">权限管理</li><li data-key="rbac_assign">RBAC分配</li>
+    </ul>
+    <div class="group-title">经营分析</div>
+    <ul class="menu-tree simple"><li data-key="department_stats">部门统计</li></ul>
   </aside>
-  <div v-if="isMobile && sidebarOpen" class="sidebar-overlay" @click="sidebarOpen=false"></div>
-
-  <main class="oa-main">
+  <div class="content-shell">
     <header class="oa-header">
-      <button v-if="isMobile" class="menu-toggle" @click="toggleSidebar" aria-label="切换菜单">☰</button>
-      <h1>OA 系统管理台</h1>
-      <div class="header-actions">
-        <button class="btn-secondary" @click="reloadAll">刷新数据</button>
-        <button class="btn-danger" @click="logout">退出登录</button>
-      </div>
+      <h1 id="pageTitle">OA 系统管理台</h1>
+      <div class="header-actions"><button class="btn-secondary" id="refreshBtn">刷新当前页</button><button class="btn-danger" id="logoutBtn">退出登录</button></div>
     </header>
-
-    <section class="content-card" v-if="activeTab==='overview'">
-      <h2>数据总览</h2>
-      <div class="cards">
-        <div class="stat"><span>学员数</span><strong>{{ summary.students }}</strong></div><div class="stat"><span>线索数</span><strong>{{ summary.leads || 0 }}</strong></div>
-        <div class="stat"><span>课程数</span><strong>{{ summary.courses }}</strong></div>
-        <div class="stat"><span>订单数</span><strong>{{ summary.orders }}</strong></div><div class="stat"><span>收款单</span><strong>{{ summary.receipts || 0 }}</strong></div>
-        <div class="stat"><span>待办未完成</span><strong>{{ summary.todos_open }}</strong></div>
-        <div class="stat"><span>未读通知</span><strong>{{ summary.notifications_unread }}</strong></div>
-      </div>
-    </section>
-
-    <section class="content-card" v-if="activeTab==='students'">
-      <h2>学员管理</h2>
-      <form class="inline-form" @submit.prevent="loadStudents"><input v-model.trim="studentKeyword" placeholder="搜索姓名/手机/顾问"><select v-model="studentCategory"><option value="">全部</option><option value="lead">线索</option><option value="pending_payment">待缴费学员</option><option value="active">正式学员</option></select><button type="submit" class="btn-secondary">查询</button></form>
-      <form class="inline-form" @submit.prevent="saveStudent">
-        <label>姓名（必填）<input v-model.trim="studentForm.name" placeholder="例如：张三" required></label>
-        <label>性别（男/女）<select v-model="studentForm.gender"><option value="">请选择</option><option value="男">男</option><option value="女">女</option></select></label>
-        <label>出生日期（YYYY-MM-DD）<input v-model="studentForm.birthday" type="date"></label>
-        <label>手机号（必填）<input v-model.trim="studentForm.phone" placeholder="用于联系" required></label>
-        <label>微信ID（必填）<input v-model.trim="studentForm.wechat" placeholder="学员微信ID" required></label>
-        <label>身份证号（可选）<input v-model.trim="studentForm.id_no" placeholder="实名信息"></label>
-        <label>学员等级（A1/B2）<input v-model.trim="studentForm.level" placeholder="学习等级"></label>
-        <label>意向等级（高/中/低）<input v-model.trim="studentForm.intention_level" placeholder="转化意向"></label>
-        <label>跟进状态（跟进中/已报名）<input v-model.trim="studentForm.follow_status" placeholder="当前状态"></label>
-        <label>来源渠道（抖音/转介绍）<input v-model.trim="studentForm.source" placeholder="获客来源"></label>
-        <label>报课名称（数组，逗号分隔）<input v-model.trim="studentForm.enrolled_courses_text" placeholder="Python全栈训练营,就业辅导课"></label>
-        <label>顾问（招生负责人）<input v-model.trim="studentForm.consultant" placeholder="顾问姓名"></label>
-        <label>交付教练（带班教练）<input v-model.trim="studentForm.delivery_coach" placeholder="教练姓名"></label>
-        <label>监护人姓名（未成年）<input v-model.trim="studentForm.guardian_name" placeholder="可留空"></label>
-        <label>监护人电话（可选）<input v-model.trim="studentForm.guardian_phone" placeholder="紧急联系"></label>
-        <label>联系地址（可选）<input v-model.trim="studentForm.address" placeholder="详细地址"></label>
-        <label>备注（学习目标）<input v-model.trim="studentForm.remark" placeholder="个性化记录"></label>
-        <button>{{ studentForm.id ? '保存学员' : '新增学员' }}</button>
-        <button type="button" class="btn-secondary" @click="resetStudentForm">重置</button>
-      </form>
-      <table class="table"><thead><tr><th>ID</th><th>姓名</th><th>性别</th><th>手机号</th><th>报课名称</th><th>顾问/教练</th><th>操作</th></tr></thead><tbody><tr v-for="s in students" :key="s.id"><td>{{s.id}}</td><td>{{s.name||s.wechat}}</td><td>{{s.gender}}</td><td>{{s.phone}}</td><td>{{ formatCourses(s.enrolled_courses) }}</td><td>{{s.consultant}} / {{s.delivery_coach}}</td><td><button class="btn-mini" @click="editStudent(s)">编辑</button></td></tr></tbody></table>
-    </section>
-
-    <section class="content-card" v-if="activeTab==='courses'">
-      <h2>课程管理</h2>
-      <form class="inline-form" @submit.prevent="saveCourse"><input v-model.trim="courseForm.course_name" placeholder="课程名" required><input v-model.trim="courseForm.coach_name" placeholder="讲师" required><input v-model.number="courseForm.period_weeks" type="number" placeholder="周期周数"><input v-model.number="courseForm.price" type="number" step="0.01" placeholder="价格"><button>{{courseForm.id?'保存课程':'新增课程'}}</button><button type="button" class="btn-secondary" @click="resetCourseForm">重置</button></form>
-      <table class="table"><thead><tr><th>ID</th><th>课程</th><th>讲师</th><th>周期</th><th>价格</th><th>操作</th></tr></thead><tbody><tr v-for="c in courses" :key="c.id"><td>{{c.id}}</td><td>{{c.course_name}}</td><td>{{c.coach_name}}</td><td>{{c.period_weeks}}周</td><td>¥{{c.price}}</td><td><button class="btn-mini" @click="editCourse(c)">编辑</button></td></tr></tbody></table>
-    </section>
-
-    <section class="content-card" v-if="activeTab==='orders'">
-      <h2>订单管理</h2>
-      <form class="inline-form" @submit.prevent="loadOrders"><input v-model.trim="orderKeyword" placeholder="搜索学员/课程/推荐者"><button type="submit" class="btn-secondary">查询</button></form>
-      <form class="inline-form" @submit.prevent="saveOrder">
-        <select v-model.number="orderForm.student_id" required><option value="">选择学员</option><option v-for="s in students" :value="Number(s.id)">{{s.name}}</option></select>
-        <select v-model.number="orderForm.course_id" required><option value="">选择课程</option><option v-for="c in courses" :value="Number(c.id)">{{c.course_name}}</option></select>
-        <select v-model="orderForm.payment_stage"><option value="deposit">定金</option><option value="middle">中期款</option><option value="final">尾款</option><option value="full">全款</option></select>
-        <input v-model.number="orderForm.total_amount" type="number" step="0.01" placeholder="订单总额">
-        <input v-model.number="orderForm.paid_amount" type="number" step="0.01" placeholder="本次实收">
-        <input v-model.number="orderForm.sales_commission_amount" type="number" step="0.01" placeholder="销售分成"><select v-model.number="orderForm.seller_user_id"><option :value="0">销售归属人</option><option v-for="u in users.filter(x=>['顾问','教练','班主任'].includes(x.role))" :value="Number(u.id)">{{u.real_name}}({{u.role}})</option></select><select v-model="orderForm.seller_role"><option value="">销售角色自动</option><option value="顾问">顾问</option><option value="教练">教练</option><option value="班主任">班主任</option></select><input v-model.number="orderForm.seller_commission_amount" type="number" step="0.01" placeholder="销售核算分成"><input v-model.trim="orderForm.student_wechat_name" placeholder="学员微信名"><input v-model.trim="orderForm.student_mobile" placeholder="学员手机号"><input v-model.trim="orderForm.student_address" placeholder="学员地址"><input v-model="orderForm.payment_time" type="datetime-local" placeholder="付款时间"><input v-model="orderForm.receipt_time" type="datetime-local" placeholder="收款时间"><input v-model="orderForm.refund_time" type="datetime-local" placeholder="退款时间"><input v-model.number="orderForm.refund_amount" type="number" step="0.01" placeholder="退款金额"><input v-model.trim="orderForm.remark" placeholder="备注">
-        <select v-model.number="orderForm.referrer_id"><option :value="0">无推荐者</option><option v-for="r in referrers" :value="Number(r.id)">{{r.name}}</option></select>
-        <input v-model.number="orderForm.referrer_commission_amount" type="number" step="0.01" placeholder="推荐者分成">
-        <select v-model.number="orderForm.pay_status"><option :value="0">待支付</option><option :value="1">已支付</option></select>
-        <button>{{orderForm.id?'保存订单':'新增订单'}}</button><button type="button" class="btn-secondary" @click="resetOrderForm">重置</button>
-      </form>
-      <table class="table"><thead><tr><th>ID</th><th>学员</th><th>课程</th><th>付款阶段</th><th>总额/实收</th><th>销售归属</th><th>销售分成</th><th>推荐者分成</th><th>状态</th><th>操作</th></tr></thead><tbody><tr v-for="o in orders" :key="o.id"><td>{{o.id}}</td><td>{{o.student_name}}</td><td>{{o.course_name}}</td><td>{{paymentStageLabel(o.payment_stage)}}</td><td>¥{{o.total_amount||o.amount}} / ¥{{o.paid_amount||o.amount}}</td><td>{{o.seller_name||'-'}}/{{o.seller_role||'-'}}</td><td>¥{{o.seller_commission_amount||o.sales_commission_amount||0}}</td><td>{{o.referrer_name||'-'}} / ¥{{o.referrer_commission_amount||0}}</td><td>{{Number(o.pay_status)===1?'已支付':'待支付'}}</td><td><button class="btn-mini" @click="editOrder(o)">编辑</button></td></tr></tbody></table>
-    </section>
-
-    <section class="content-card" v-if="activeTab==='referrers'">
-      <h2>推荐者管理</h2>
-      <form class="inline-form" @submit.prevent="loadReferrers"><input v-model.trim="referrerKeyword" placeholder="搜索姓名/手机号/渠道"><button type="submit" class="btn-secondary">查询</button></form>
-      <form class="inline-form" @submit.prevent="saveReferrer"><input v-model.trim="referrerForm.name" placeholder="推荐者姓名" required><input v-model.trim="referrerForm.wechat_name" placeholder="微信名"><input v-model.trim="referrerForm.phone" placeholder="手机号" required><input v-model.trim="referrerForm.channel" placeholder="渠道"><select v-model="referrerForm.commission_type"><option value="rate">比例</option><option value="fixed">固定金额</option></select><input v-model.number="referrerForm.commission_rate" type="number" step="0.01" min="0" max="100" placeholder="分成比例%"><input v-model.number="referrerForm.fixed_amount" type="number" step="0.01" placeholder="固定金额"><input v-model.trim="referrerForm.payout_detail" placeholder="发放方式详情"><input v-model.trim="referrerForm.remark" placeholder="备注"><select v-model.number="referrerForm.status"><option :value="1">启用</option><option :value="0">禁用</option></select><button>{{referrerForm.id?'保存推荐者':'新增推荐者'}}</button><button type="button" class="btn-secondary" @click="resetReferrerForm">重置</button></form>
-      <table class="table"><thead><tr><th>ID</th><th>姓名</th><th>手机</th><th>渠道</th><th>分成比例</th><th>状态</th><th>操作</th></tr></thead><tbody><tr v-for="r in referrers" :key="r.id"><td>{{r.id}}</td><td>{{r.name}}</td><td>{{r.phone}}</td><td>{{r.channel}}</td><td>{{r.commission_rate}}%</td><td>{{Number(r.status)===1?'启用':'禁用'}}</td><td><button class="btn-mini" @click="editReferrer(r)">编辑</button></td></tr></tbody></table>
-    </section>
-
-
-    <section class="content-card" v-if="activeTab==='receipts'">
-      <h2>收款单管理</h2>
-      <form class="inline-form" @submit.prevent="saveReceipt"><select v-model.number="receiptForm.order_id" required><option value="">选择订单</option><option v-for="o in orders" :value="Number(o.id)">#{{o.id}} {{o.student_name}}/{{o.course_name}}</option></select><input v-model.trim="receiptForm.receipt_no" placeholder="收款单号" required><input v-model.number="receiptForm.amount" type="number" step="0.01" placeholder="金额" required><select v-model="receiptForm.channel"><option value="">收款渠道</option><option v-for="x in receiptChannelOptions" :key="x" :value="x">{{x}}</option></select><select v-model.number="receiptForm.receiver_user_id"><option :value="0">收款人(员工)</option><option v-for="u in users" :value="Number(u.id)">{{u.real_name}}</option></select><input v-model="receiptForm.pay_time" type="datetime-local"><input v-model="receiptForm.refund_time" type="datetime-local"><input v-model.number="receiptForm.refund_amount" type="number" step="0.01" placeholder="退款金额"><select v-model.number="receiptForm.verified_status"><option :value="0">未核销</option><option :value="1">已核销</option></select><input v-model.trim="receiptForm.remark" placeholder="备注"><button>{{receiptForm.id?'保存收款单':'新增收款单'}}</button><button type="button" class="btn-secondary" @click="resetReceiptForm">重置</button></form>
-      <table class="table"><thead><tr><th>单号</th><th>订单</th><th>学员/课程</th><th>金额</th><th>核销</th><th>操作</th></tr></thead><tbody><tr v-for="r in receipts" :key="r.id"><td>{{r.receipt_no}}</td><td>#{{r.order_id}}</td><td>{{r.student_name}}/{{r.course_name}}</td><td>¥{{r.amount}}</td><td>{{Number(r.verified_status)===1?'已核销':'未核销'}}</td><td><button class="btn-mini" @click="editReceipt(r)">编辑</button></td></tr></tbody></table>
-    </section>
-
-    <section class="content-card" v-if="activeTab==='delivery_logs'">
-      <h2>交付记录</h2>
-      <form class="inline-form" @submit.prevent="saveDeliveryLog"><select v-model.number="deliveryLogForm.student_id" required><option value="">选择学员</option><option v-for="s in students" :value="Number(s.id)">{{s.name||s.wechat}}</option></select><select v-model.number="deliveryLogForm.coach_user_id"><option :value="0">选择教练</option><option v-for="u in users.filter(x=>x.role==='教练')" :value="Number(u.id)">{{u.real_name}}</option></select><input v-model.trim="deliveryLogForm.progress_stage" placeholder="阶段(开班/中期/结课)"><input v-model="deliveryLogForm.log_date" type="date" required><input v-model.trim="deliveryLogForm.content" placeholder="交付记录" required><button>{{deliveryLogForm.id?'保存记录':'新增记录'}}</button><button type="button" class="btn-secondary" @click="resetDeliveryLogForm">重置</button></form>
-      <table class="table"><thead><tr><th>学员</th><th>教练</th><th>阶段</th><th>日期</th><th>内容</th><th>操作</th></tr></thead><tbody><tr v-for="l in deliveryLogs" :key="l.id"><td>{{l.student_name}}</td><td>{{l.coach_name||'-'}}</td><td>{{l.progress_stage}}</td><td>{{l.log_date}}</td><td>{{l.content}}</td><td><button class="btn-mini" @click="editDeliveryLog(l)">编辑</button></td></tr></tbody></table>
-    </section>
-
-    <section class="content-card" v-if="activeTab==='department_stats'">
-      <h2>部门统计</h2>
-      <table class="table"><thead><tr><th>部门</th><th>人员</th><th>学员</th><th>订单</th><th>实收</th><th>销售分成</th><th>教练销售分成</th><th>推荐分成</th></tr></thead><tbody><tr v-for="d in departmentStats" :key="d.department"><td>{{d.department||'未分配'}}</td><td>{{d.user_count}}</td><td>{{d.student_count}}</td><td>{{d.order_count}}</td><td>¥{{d.paid_amount}}</td><td>¥{{d.sales_commission}}</td><td>¥{{d.coach_sales_commission||0}}</td><td>¥{{d.referrer_commission}}</td></tr></tbody></table>
-    </section>
-
-    <section class="content-card" v-if="activeTab==='finance'">
-      <h2>财务管理</h2>
-      <div class="cards"><div class="stat"><span>收入</span><strong>¥{{ finance.summary.income || 0 }}</strong></div><div class="stat"><span>支出</span><strong>¥{{ finance.summary.expense || 0 }}</strong></div><div class="stat"><span>结余</span><strong>¥{{ finance.summary.balance || 0 }}</strong></div></div>
-      <form class="inline-form" @submit.prevent="saveFinance"><select v-model="financeForm.record_type"><option value="income">收入</option><option value="expense">支出</option></select><input v-model.trim="financeForm.item_name" placeholder="项目名" required><input v-model.number="financeForm.amount" type="number" step="0.01" placeholder="金额" required><input v-model="financeForm.record_date" type="date" required><button>{{financeForm.id?'保存记录':'新增记录'}}</button><button type="button" class="btn-secondary" @click="resetFinanceForm">重置</button></form>
-      <table class="table"><thead><tr><th>类型</th><th>项目</th><th>金额</th><th>日期</th><th>操作</th></tr></thead><tbody><tr v-for="f in finance.list" :key="f.id"><td>{{f.record_type}}</td><td>{{f.item_name}}</td><td>¥{{f.amount}}</td><td>{{f.record_date}}</td><td><button class="btn-mini" @click="editFinance(f)">编辑</button></td></tr></tbody></table>
-    </section>
-
-    <section class="content-card" v-if="activeTab==='todos'">
-      <h2>待办管理</h2>
-      <form class="inline-form" @submit.prevent="saveTodo"><input v-model.trim="todoForm.title" placeholder="待办事项" required><select v-model="todoForm.priority"><option>高</option><option>中</option><option>低</option></select><select v-model="todoForm.status"><option value="todo">todo</option><option value="doing">doing</option><option value="done">done</option></select><input v-model="todoForm.due_date" type="date"><button>{{todoForm.id?'保存待办':'新增待办'}}</button><button type="button" class="btn-secondary" @click="resetTodoForm">重置</button></form>
-      <table class="table"><thead><tr><th>事项</th><th>优先级</th><th>状态</th><th>截止日</th><th>操作</th></tr></thead><tbody><tr v-for="t in todos" :key="t.id"><td>{{t.title}}</td><td>{{t.priority}}</td><td>{{t.status}}</td><td>{{t.due_date}}</td><td><button class="btn-mini" @click="editTodo(t)">编辑</button></td></tr></tbody></table>
-    </section>
-
-    <section class="content-card" v-if="activeTab==='notifications'">
-      <h2>通知管理</h2>
-      <form class="inline-form" @submit.prevent="saveNotification"><input v-model.trim="notificationForm.title" placeholder="标题" required><input v-model.trim="notificationForm.content" placeholder="内容" required><select v-model.number="notificationForm.is_read"><option :value="0">未读</option><option :value="1">已读</option></select><button>{{notificationForm.id?'保存通知':'发送通知'}}</button><button type="button" class="btn-secondary" @click="resetNotificationForm">重置</button></form>
-      <table class="table"><thead><tr><th>标题</th><th>内容</th><th>状态</th><th>操作</th></tr></thead><tbody><tr v-for="n in notifications" :key="n.id"><td>{{n.title}}</td><td>{{n.content}}</td><td>{{Number(n.is_read)===1?'已读':'未读'}}</td><td><button class="btn-mini" @click="editNotification(n)">编辑</button></td></tr></tbody></table>
-    </section>
-
-    <section class="content-card" v-if="activeTab==='users'">
-      <h2>员工管理（RBAC）</h2>
-      <form class="inline-form" @submit.prevent="loadUsers"><input v-model.trim="userKeyword" placeholder="搜索用户名/姓名/手机"><button type="submit" class="btn-secondary">查询</button></form>
-      <form class="inline-form" @submit.prevent="saveUser">
-        <input v-model.trim="userForm.username" placeholder="登录账号" :disabled="!!userForm.id" required>
-        <input v-model.trim="userForm.employee_no" placeholder="员工编号">
-        <input v-model.trim="userForm.company_name" placeholder="所在公司">
-        <input v-model.trim="userForm.real_name" placeholder="姓名" required>
-        <select v-model="userForm.role" required><option value="">角色</option><option v-for="x in roleOptions" :key="'r'+x" :value="x">{{x}}</option></select>
-        <select v-model="userForm.department"><option value="">部门</option><option v-for="x in departmentOptions" :key="'d'+x" :value="x">{{x}}</option></select>
-        <select v-model="userForm.position"><option value="">职位</option><option v-for="x in positionOptions" :key="'p'+x" :value="x">{{x}}</option></select>
-        <input v-model.trim="userForm.mobile" placeholder="手机号">
-        <input v-model.trim="userForm.social_city" placeholder="社保缴纳城市">
-        <input v-model.trim="userForm.hukou_place" placeholder="户籍地">
-        <select v-model="userForm.hukou_type"><option value="">户籍性质</option><option>城镇</option><option>农村</option></select>
-        <input v-model.trim="userForm.id_no" placeholder="身份证号">
-        <input v-model="userForm.birth_date" type="date" placeholder="出生日期">
-        <input v-model.number="userForm.age" type="number" placeholder="年龄">
-        <select v-model="userForm.gender"><option value="">性别</option><option value="男">男</option><option value="女">女</option></select>
-        <input v-model.trim="userForm.native_place" placeholder="籍贯"><input v-model.trim="userForm.ethnicity" placeholder="民族">
-        <input v-model.trim="userForm.marital_status" placeholder="婚姻状况">
-        <input v-model.trim="userForm.home_address" placeholder="现家庭住址">
-        <input v-model.trim="userForm.emergency_contact" placeholder="紧急联系人及电话">
-        <input v-model.trim="userForm.education" placeholder="学历"><input v-model.trim="userForm.graduation_school" placeholder="毕业学校"><input v-model.trim="userForm.major" placeholder="专业">
-        <input v-model="userForm.hire_date" type="date" placeholder="入职日期"><input v-model.trim="userForm.contract_years" placeholder="签订年限"><input v-model.number="userForm.working_days" type="number" placeholder="在职天数"><input v-model="userForm.contract_end_date" type="date" placeholder="合同截止日期">
-        <select v-model.number="userForm.is_probation"><option :value="1">试用期</option><option :value="0">已转正</option></select>
-        <input v-model.number="userForm.probation_salary" type="number" step="0.01" placeholder="试用期工资"><input v-model="userForm.regular_date" type="date" placeholder="转正日期"><input v-model.number="userForm.regular_salary" type="number" step="0.01" placeholder="转正工资">
-        <input v-model.trim="userForm.bank_name" placeholder="开户行"><input v-model.trim="userForm.bank_card_no" placeholder="工资卡号">
-        <input v-model.trim="userForm.salary_adjust_records" placeholder="调薪记录">
-        <select v-model="userForm.employment_status"><option>在职</option><option>离职</option></select><input v-model="userForm.leave_date" type="date" placeholder="离职时间">
-        <input v-model.trim="userForm.remark" placeholder="备注">
-        <input v-if="!userForm.id" v-model="userForm.password" type="password" placeholder="初始密码" required>
-        <button>{{ userForm.id ? '保存员工' : '新增员工' }}</button>
-        <button type="button" class="btn-secondary" @click="resetUserForm">重置</button>
-      </form>
-      <table class="table"><thead><tr><th>ID</th><th>员工编号</th><th>姓名</th><th>角色</th><th>部门</th><th>职位</th><th>手机</th><th>状态</th><th>操作</th></tr></thead><tbody><tr v-for="u in users" :key="u.id"><td>{{u.id}}</td><td>{{u.employee_no}}</td><td>{{u.real_name}}</td><td>{{u.role}}</td><td>{{u.department}}</td><td>{{u.position}}</td><td>{{u.mobile}}</td><td>{{Number(u.status)===1?'启用':'禁用'}}</td><td><button class="btn-mini" @click="editUser(u)">编辑</button></td></tr></tbody></table>
-    </section>
-
-    <section class="content-card" v-if="activeTab==='departments'">
-      <h2>部门管理</h2>
-      <form class="inline-form" @submit.prevent="saveDepartment"><input v-model.trim="departmentForm.dept_name" placeholder="部门名称" required><input v-model.trim="departmentForm.dept_code" placeholder="部门编码" required><input v-model.trim="departmentForm.parent_name" placeholder="上级部门"><input v-model.number="departmentForm.sort_no" type="number" placeholder="排序"><button>{{departmentForm.id?'保存部门':'新增部门'}}</button><button type="button" class="btn-secondary" @click="resetDepartmentForm">重置</button></form>
-      <table class="table"><thead><tr><th>ID</th><th>部门</th><th>编码</th><th>上级</th><th>操作</th></tr></thead><tbody><tr v-for="d in departments" :key="d.id"><td>{{d.id}}</td><td>{{d.dept_name}}</td><td>{{d.dept_code}}</td><td>{{d.parent_name}}</td><td><button class="btn-mini" @click="editDepartment(d)">编辑</button></td></tr></tbody></table>
-    </section>
-
-    <section class="content-card" v-if="activeTab==='menus'">
-      <h2>菜单管理（与左侧菜单对应）</h2>
-      <form class="inline-form" @submit.prevent="saveMenu"><input v-model.trim="menuForm.parent_name" placeholder="一级菜单" required><input v-model.trim="menuForm.menu_name" placeholder="二级菜单名" required><input v-model.trim="menuForm.menu_key" placeholder="菜单key" required><input v-model.trim="menuForm.path" placeholder="路径" required><button>{{menuForm.id?'保存菜单':'新增菜单'}}</button><button type="button" class="btn-secondary" @click="resetMenuForm">重置</button></form>
-      <table class="table"><thead><tr><th>一级</th><th>二级</th><th>KEY</th><th>PATH</th><th>操作</th></tr></thead><tbody><tr v-for="m in menus" :key="m.id"><td>{{m.parent_name}}</td><td>{{m.menu_name}}</td><td>{{m.menu_key}}</td><td>{{m.path}}</td><td><button class="btn-mini" @click="editMenu(m)">编辑</button></td></tr></tbody></table>
-    </section>
-
-    <section class="content-card" v-if="activeTab==='rbac_groups'">
-      <h2>系统管理 / 角色管理</h2>
-      <form class="inline-form" @submit.prevent="saveGroup"><input v-model.trim="groupForm.group_name" placeholder="角色名" required><input v-model.trim="groupForm.group_code" placeholder="组编码" required><input v-model.trim="groupForm.remark" placeholder="备注"><button>{{groupForm.id?'保存角色':'新增角色'}}</button><button type="button" class="btn-secondary" @click="resetGroupForm">重置</button></form>
-      <table class="table"><thead><tr><th>ID</th><th>角色名</th><th>编码</th><th>备注</th><th>操作</th></tr></thead><tbody><tr v-for="g in groups" :key="g.id"><td>{{g.id}}</td><td>{{g.group_name}}</td><td>{{g.group_code}}</td><td>{{g.remark}}</td><td><button class="btn-mini" @click="editGroup(g)">编辑</button></td></tr></tbody></table>
-    </section>
-
-    <section class="content-card" v-if="activeTab==='rbac_permissions'">
-      <h2>系统管理 / 权限管理</h2>
-      <form class="inline-form" @submit.prevent="savePerm"><input v-model.trim="permForm.perm_name" placeholder="权限名称" required><input v-model.trim="permForm.perm_code" placeholder="权限编码" required><input v-model.trim="permForm.module_name" placeholder="模块名"><button>{{permForm.id?'保存权限':'新增权限'}}</button><button type="button" class="btn-secondary" @click="resetPermForm">重置</button></form>
-      <table class="table"><thead><tr><th>ID</th><th>权限名</th><th>编码</th><th>模块</th><th>操作</th></tr></thead><tbody><tr v-for="p in perms" :key="p.id"><td>{{p.id}}</td><td>{{p.perm_name}}</td><td>{{p.perm_code}}</td><td>{{p.module_name}}</td><td><button class="btn-mini" @click="editPerm(p)">编辑</button></td></tr></tbody></table>
-    </section>
-
-    <section class="content-card" v-if="activeTab==='rbac_assign'">
-      <h2>系统管理 / 权限组分配</h2>
-      <div class="cards">
-        <div>
-          <h3>用户 -> 角色</h3>
-          <form class="inline-form" @submit.prevent="assignUserGroup"><select v-model.number="assignForm.user_id" required><option value="">选择用户</option><option v-for="u in users" :value="Number(u.id)">{{u.username}}</option></select><select v-model.number="assignForm.group_id" required><option value="">选择角色</option><option v-for="g in groups" :value="Number(g.id)">{{g.group_name}}</option></select><button>分配</button></form>
-          <table class="table"><thead><tr><th>用户</th><th>角色</th><th></th></tr></thead><tbody><tr v-for="x in assignData.user_groups" :key="'ug'+x.id"><td>{{x.username}}</td><td>{{x.group_name}}</td><td><button class="btn-mini btn-danger" @click="delAssign('user_group',x.id)">删除</button></td></tr></tbody></table>
-        </div>
-        <div>
-          <h3>角色 -> 权限</h3>
-          <form class="inline-form" @submit.prevent="assignGroupPerm"><select v-model.number="assignForm2.group_id" required><option value="">选择角色</option><option v-for="g in groups" :value="Number(g.id)">{{g.group_name}}</option></select><select v-model.number="assignForm2.perm_id" required><option value="">选择权限</option><option v-for="p in perms" :value="Number(p.id)">{{p.perm_name}}</option></select><button>分配</button></form>
-          <table class="table"><thead><tr><th>组</th><th>权限</th><th></th></tr></thead><tbody><tr v-for="x in assignData.group_perms" :key="'gp'+x.id"><td>{{x.group_name}}</td><td>{{x.perm_name}}</td><td><button class="btn-mini btn-danger" @click="delAssign('group_perm',x.id)">删除</button></td></tr></tbody></table>
-        </div>
-      </div>
-    </section>
-
-    <p v-if="error" class="error global-error">{{ error }}</p>
-  </main>
+    <iframe id="pageFrame" class="page-frame" src="about:blank"></iframe>
+  </div>
 </div>
 <script>
-const { createApp, ref, reactive, onMounted, onBeforeUnmount } = Vue;
-createApp({
-  setup() {
-    const activeTab = ref('overview');
-    const error = ref('');
-    const user = ref({});
-    const summary = ref({ students: 0, courses: 0, orders: 0, todos_open: 0, notifications_unread: 0 });
-    const students=ref([]),courses=ref([]),orders=ref([]),referrers=ref([]),receipts=ref([]),deliveryLogs=ref([]),departmentStats=ref([]),todos=ref([]),notifications=ref([]),users=ref([]),departments=ref([]),menus=ref([]),groups=ref([]),perms=ref([]);
-    const finance=ref({list:[],summary:{income:0,expense:0,balance:0}});
-    const assignData=ref({user_groups:[],group_perms:[]});
-    const groupedMenus=ref([]);
-    const studentKeyword=ref(''),studentCategory=ref(''),orderKeyword=ref(''),referrerKeyword=ref(''),userKeyword=ref('');
-    const departmentOptions=ref([]),positionOptions=ref([]),roleOptions=ref([]),receiptChannelOptions=ref([]);
-
-    const studentForm=reactive({id:0,name:'',gender:'',birthday:'',phone:'',wechat:'',id_no:'',level:'',intention_level:'',follow_status:'',source:'',enrolled_courses_text:'',consultant:'',delivery_coach:'',guardian_name:'',guardian_phone:'',address:'',remark:''});
-    const courseForm=reactive({id:0,course_name:'',coach_name:'',period_weeks:0,price:0,status:1});
-    const orderForm=reactive({id:0,student_id:'',course_id:'',payment_stage:'full',total_amount:0,paid_amount:0,sales_commission_amount:0,seller_user_id:0,seller_role:'',seller_commission_amount:0,referrer_id:0,referrer_commission_amount:0,student_wechat_name:'',student_mobile:'',student_address:'',payment_time:'',receipt_time:'',refund_time:'',refund_amount:0,remark:'',pay_status:0});
-    const financeForm=reactive({id:0,record_type:'income',item_name:'',amount:0,record_date:''});
-    const referrerForm=reactive({id:0,name:'',wechat_name:'',phone:'',channel:'',commission_type:'rate',commission_rate:0,fixed_amount:0,payout_detail:'',remark:'',status:1});
-    const receiptForm=reactive({id:0,order_id:'',receipt_no:'',amount:0,channel:'',receiver_user_id:0,pay_method:'',pay_time:'',refund_time:'',refund_amount:0,verified_status:0,remark:''});
-    const deliveryLogForm=reactive({id:0,student_id:'',coach_user_id:0,progress_stage:'',content:'',log_date:''});
-    const todoForm=reactive({id:0,title:'',priority:'中',status:'todo',due_date:''});
-    const notificationForm=reactive({id:0,title:'',content:'',is_read:0});
-    const userForm=reactive({id:0,username:'',employee_no:'',company_name:'',real_name:'',birthday:'',role:'',gender:'',mobile:'',email:'',social_city:'',hukou_place:'',hukou_type:'',id_no:'',birth_date:'',age:0,native_place:'',ethnicity:'',marital_status:'',home_address:'',emergency_contact:'',education:'',graduation_school:'',major:'',department:'',position:'',hire_date:'',contract_years:'',working_days:0,contract_end_date:'',is_probation:1,probation_salary:0,regular_date:'',regular_salary:0,bank_name:'',bank_card_no:'',salary_adjust_records:'',employment_status:'在职',leave_date:'',remark:'',status:1,password:''});
-    const departmentForm=reactive({id:0,dept_name:'',dept_code:'',parent_name:'',sort_no:99,status:1,remark:''});
-    const menuForm=reactive({id:0,parent_name:'系统管理',menu_name:'',menu_key:'',path:'',icon:'',sort_no:99,status:1});
-    const groupForm=reactive({id:0,group_name:'',group_code:'',remark:'',status:1});
-    const permForm=reactive({id:0,perm_name:'',perm_code:'',module_name:'系统管理',remark:'',status:1});
-    const assignForm=reactive({user_id:'',group_id:''});
-    const assignForm2=reactive({group_id:'',perm_id:''});
-    const sidebarOpen=ref(false);
-    const isMobile=ref(window.innerWidth<980);
-
-    const api=async(url,opt={})=>{let r;try{r=await fetch(url,{headers:{'Content-Type':'application/json'},...opt});}catch(e){throw new Error(`请求失败：网络异常（${url}）`);}const text=await r.text();let j={};try{j=text?JSON.parse(text):{};}catch(_){j={};}if(!r.ok||j.code!==0){const detail=(j&&j.message)||(text||'').slice(0,160);throw new Error(detail||`请求失败（HTTP ${r.status} ${r.statusText}）`);}if(!text)return null;return Object.prototype.hasOwnProperty.call(j,'data')?j.data:j;};
-    const loadSummary=async()=>{const q=new URLSearchParams(); if(user.value?.id) q.set('user_id',String(user.value.id)); summary.value=await api(`/api/dashboard_summary.php?${q.toString()}`);};
-    const loadStudents=async()=>{const q=new URLSearchParams(); if(studentKeyword.value) q.set('keyword',studentKeyword.value); if(studentCategory.value) q.set('student_category',studentCategory.value); if(user.value?.id) q.set('user_id',String(user.value.id)); students.value=await api(`/api/students.php?${q.toString()}`);};
-    const loadCourses=async()=>courses.value=await api('/api/courses.php');
-    const loadOrders=async()=>{const q=new URLSearchParams(); if(orderKeyword.value) q.set('keyword',orderKeyword.value); if(user.value?.id) q.set('user_id',String(user.value.id)); orders.value=await api(`/api/orders.php?${q.toString()}`);};
-    const loadReferrers=async()=>{const q=referrerKeyword.value?`?keyword=${encodeURIComponent(referrerKeyword.value)}`:'';referrers.value=await api(`/api/referrers.php${q}`);};
-    const loadFinance=async()=>finance.value=await api('/api/finance.php');
-    const loadReceipts=async()=>receipts.value=await api('/api/receipts.php');
-    const loadDeliveryLogs=async()=>{const q=new URLSearchParams(); if(user.value?.id) q.set('user_id',String(user.value.id)); deliveryLogs.value=await api(`/api/delivery_logs.php?${q.toString()}`);};
-    const loadDepartmentStats=async()=>{const q=new URLSearchParams(); if(user.value?.id) q.set('user_id',String(user.value.id)); try{departmentStats.value=await api(`/api/department_stats.php?${q.toString()}`);}catch(e){departmentStats.value=[];}};
-    const loadTodos=async()=>todos.value=await api('/api/todos.php');
-    const loadNotifications=async()=>notifications.value=await api('/api/notifications.php');
-    const loadUsers=async()=>{const q=userKeyword.value?`?keyword=${encodeURIComponent(userKeyword.value)}`:'';users.value=await api(`/api/users.php${q}`);};
-    const loadDepartments=async()=>departments.value=await api('/api/departments.php');
-    const loadMetaOptions=async()=>{const x=await api('/api/meta_options.php');departmentOptions.value=x.departments||[];positionOptions.value=x.positions||[];roleOptions.value=x.roles||[];receiptChannelOptions.value=x.receipt_channels||[];};
-    const loadMenus=async()=>{const uid=Number(user.value?.id||0);menus.value=uid?await api(`/api/user_menus.php?user_id=${uid}`):await api('/api/menu.php'); const m={}; menus.value.forEach(x=>{const p=x.parent_name||'其他';(m[p]=m[p]||[]).push(x)}); groupedMenus.value=Object.keys(m).map(k=>({parent:k,children:m[k]})); if(menus.value.length && !menus.value.some(x=>x.menu_key===activeTab.value)){activeTab.value=menus.value[0].menu_key;}};
-    const loadGroups=async()=>groups.value=await api('/api/rbac_groups.php');
-    const loadPerms=async()=>perms.value=await api('/api/rbac_permissions.php');
-    const loadAssign=async()=>assignData.value=await api('/api/rbac_assign.php');
-
-    const createHelper=async(url,form,loader)=>{error.value=''; try{await api(url,{method:'POST',body:JSON.stringify(form)}); await loader();}catch(e){error.value=e.message;}};
-
-    const formatCourses=(val)=>{try{const arr=Array.isArray(val)?val:JSON.parse(val||'[]');return Array.isArray(arr)?arr.join(','):'';}catch(e){return String(val||'');}};
-    const paymentStageLabel=(v)=>({deposit:'定金',middle:'中期款',final:'尾款',full:'全款'}[v]||'全款');
-    const saveStudent=async()=>{error.value='';try{const payload={...studentForm,enrolled_courses:(studentForm.enrolled_courses_text||'').split(',').map(x=>x.trim()).filter(Boolean)};if(studentForm.id){await api('/api/students.php',{method:'PUT',body:JSON.stringify(payload)});}else{await api('/api/students.php',{method:'POST',body:JSON.stringify(payload)});}resetStudentForm();await loadStudents();}catch(e){error.value=e.message;}};
-    
-    const resetStudentForm=()=>Object.assign(studentForm,{id:0,name:'',gender:'',birthday:'',phone:'',wechat:'',id_no:'',level:'',intention_level:'',follow_status:'',source:'',enrolled_courses_text:'',consultant:'',delivery_coach:'',guardian_name:'',guardian_phone:'',address:'',remark:''});
-    const editStudent=(row)=>Object.assign(studentForm,{id:Number(row.id),name:row.name||'',gender:row.gender||'',birthday:row.birthday||'',phone:row.phone||'',wechat:row.wechat||'',id_no:row.id_no||'',level:row.level||'',intention_level:row.intention_level||'',follow_status:row.follow_status||'',source:row.source||'',enrolled_courses_text:formatCourses(row.enrolled_courses),consultant:row.consultant||'',delivery_coach:row.delivery_coach||'',guardian_name:row.guardian_name||'',guardian_phone:row.guardian_phone||'',address:row.address||'',remark:row.remark||''});
-    const resetUserForm=()=>Object.assign(userForm,{id:0,username:'',employee_no:'',company_name:'',real_name:'',birthday:'',role:'',gender:'',mobile:'',email:'',social_city:'',hukou_place:'',hukou_type:'',id_no:'',birth_date:'',age:0,native_place:'',ethnicity:'',marital_status:'',home_address:'',emergency_contact:'',education:'',graduation_school:'',major:'',department:'',position:'',hire_date:'',contract_years:'',working_days:0,contract_end_date:'',is_probation:1,probation_salary:0,regular_date:'',regular_salary:0,bank_name:'',bank_card_no:'',salary_adjust_records:'',employment_status:'在职',leave_date:'',remark:'',status:1,password:''});
-    const editUser=(row)=>Object.assign(userForm,{id:Number(row.id),username:row.username||'',employee_no:row.employee_no||'',company_name:row.company_name||'',real_name:row.real_name||'',birthday:row.birthday||'',role:row.role||'',gender:row.gender||'',mobile:row.mobile||'',email:row.email||'',social_city:row.social_city||'',hukou_place:row.hukou_place||'',hukou_type:row.hukou_type||'',id_no:row.id_no||'',birth_date:row.birth_date||'',age:Number(row.age||0),native_place:row.native_place||'',ethnicity:row.ethnicity||'',marital_status:row.marital_status||'',home_address:row.home_address||'',emergency_contact:row.emergency_contact||'',education:row.education||'',graduation_school:row.graduation_school||'',major:row.major||'',department:row.department||'',position:row.position||'',hire_date:row.hire_date||'',contract_years:row.contract_years||'',working_days:Number(row.working_days||0),contract_end_date:row.contract_end_date||'',is_probation:Number(row.is_probation??1),probation_salary:Number(row.probation_salary||0),regular_date:row.regular_date||'',regular_salary:Number(row.regular_salary||0),bank_name:row.bank_name||'',bank_card_no:row.bank_card_no||'',salary_adjust_records:row.salary_adjust_records||'',employment_status:row.employment_status||'在职',leave_date:row.leave_date||'',remark:row.remark||'',status:Number(row.status||1),password:''});
-
-    const resetCourseForm=()=>Object.assign(courseForm,{id:0,course_name:'',coach_name:'',period_weeks:0,price:0,status:1});
-    const editCourse=(row)=>Object.assign(courseForm,{id:Number(row.id),course_name:row.course_name||'',coach_name:row.coach_name||'',period_weeks:Number(row.period_weeks||0),price:Number(row.price||0),status:Number(row.status||1)});
-    const saveCourse=async()=>{error.value='';try{if(courseForm.id){await api('/api/courses.php',{method:'PUT',body:JSON.stringify(courseForm)});}else{await api('/api/courses.php',{method:'POST',body:JSON.stringify(courseForm)});}resetCourseForm();await loadCourses();}catch(e){error.value=e.message;}};
-
-    const resetOrderForm=()=>Object.assign(orderForm,{id:0,student_id:'',course_id:'',payment_stage:'full',total_amount:0,paid_amount:0,sales_commission_amount:0,seller_user_id:0,seller_role:'',seller_commission_amount:0,referrer_id:0,referrer_commission_amount:0,student_wechat_name:'',student_mobile:'',student_address:'',payment_time:'',receipt_time:'',refund_time:'',refund_amount:0,remark:'',pay_status:0});
-    const editOrder=(row)=>Object.assign(orderForm,{id:Number(row.id),student_id:Number(row.student_id||0),course_id:Number(row.course_id||0),payment_stage:row.payment_stage||'full',total_amount:Number(row.total_amount||row.amount||0),paid_amount:Number(row.paid_amount||row.amount||0),sales_commission_amount:Number(row.sales_commission_amount||0),seller_user_id:Number(row.seller_user_id||0),seller_role:row.seller_role||'',seller_commission_amount:Number(row.seller_commission_amount||0),referrer_id:Number(row.referrer_id||0),referrer_commission_amount:Number(row.referrer_commission_amount||0),student_wechat_name:row.student_wechat_name||'',student_mobile:row.student_mobile||'',student_address:row.student_address||'',payment_time:(row.payment_time||'').replace(' ','T'),receipt_time:(row.receipt_time||'').replace(' ','T'),refund_time:(row.refund_time||'').replace(' ','T'),refund_amount:Number(row.refund_amount||0),remark:row.remark||'',pay_status:Number(row.pay_status||0)});
-    const saveOrder=async()=>{error.value='';try{const payload={...orderForm,payment_time:orderForm.payment_time?orderForm.payment_time.replace('T',' '):'',receipt_time:orderForm.receipt_time?orderForm.receipt_time.replace('T',' '):'',refund_time:orderForm.refund_time?orderForm.refund_time.replace('T',' '):''};if(orderForm.id){await api('/api/orders.php',{method:'PUT',body:JSON.stringify(payload)});}else{await api('/api/orders.php',{method:'POST',body:JSON.stringify(payload)});}resetOrderForm();await loadOrders();}catch(e){error.value=e.message;}};
-
-    const resetFinanceForm=()=>Object.assign(financeForm,{id:0,record_type:'income',item_name:'',amount:0,record_date:''});
-    const editFinance=(row)=>Object.assign(financeForm,{id:Number(row.id),record_type:row.record_type||'income',item_name:row.item_name||'',amount:Number(row.amount||0),record_date:row.record_date||''});
-    const saveFinance=async()=>{error.value='';try{if(financeForm.id){await api('/api/finance.php',{method:'PUT',body:JSON.stringify(financeForm)});}else{await api('/api/finance.php',{method:'POST',body:JSON.stringify(financeForm)});}resetFinanceForm();await loadFinance();}catch(e){error.value=e.message;}};
-
-    const resetTodoForm=()=>Object.assign(todoForm,{id:0,title:'',priority:'中',status:'todo',due_date:''});
-    const editTodo=(row)=>Object.assign(todoForm,{id:Number(row.id),title:row.title||'',priority:row.priority||'中',status:row.status||'todo',due_date:row.due_date||''});
-    const saveTodo=async()=>{error.value='';try{if(todoForm.id){await api('/api/todos.php',{method:'PUT',body:JSON.stringify(todoForm)});}else{await api('/api/todos.php',{method:'POST',body:JSON.stringify(todoForm)});}resetTodoForm();await loadTodos();}catch(e){error.value=e.message;}};
-
-    const resetNotificationForm=()=>Object.assign(notificationForm,{id:0,title:'',content:'',is_read:0});
-    const editNotification=(row)=>Object.assign(notificationForm,{id:Number(row.id),title:row.title||'',content:row.content||'',is_read:Number(row.is_read||0)});
-    const saveNotification=async()=>{error.value='';try{if(notificationForm.id){await api('/api/notifications.php',{method:'PUT',body:JSON.stringify(notificationForm)});}else{await api('/api/notifications.php',{method:'POST',body:JSON.stringify(notificationForm)});}resetNotificationForm();await loadNotifications();}catch(e){error.value=e.message;}};
-
-    const resetReferrerForm=()=>Object.assign(referrerForm,{id:0,name:'',wechat_name:'',phone:'',channel:'',commission_type:'rate',commission_rate:0,fixed_amount:0,payout_detail:'',remark:'',status:1});
-    const editReferrer=(row)=>Object.assign(referrerForm,{id:Number(row.id),name:row.name||'',wechat_name:row.wechat_name||'',phone:row.phone||'',channel:row.channel||'',commission_type:row.commission_type||'rate',commission_rate:Number(row.commission_rate||0),fixed_amount:Number(row.fixed_amount||0),payout_detail:row.payout_detail||'',remark:row.remark||'',status:Number(row.status||1)});
-    const saveReferrer=async()=>{error.value='';try{if(referrerForm.id){await api('/api/referrers.php',{method:'PUT',body:JSON.stringify(referrerForm)});}else{await api('/api/referrers.php',{method:'POST',body:JSON.stringify(referrerForm)});}resetReferrerForm();await loadReferrers();}catch(e){error.value=e.message;}};
-
-    const resetReceiptForm=()=>Object.assign(receiptForm,{id:0,order_id:'',receipt_no:'',amount:0,channel:'',receiver_user_id:0,pay_method:'',pay_time:'',refund_time:'',refund_amount:0,verified_status:0,remark:''});
-    const editReceipt=(row)=>Object.assign(receiptForm,{id:Number(row.id),order_id:Number(row.order_id||0),receipt_no:row.receipt_no||'',amount:Number(row.amount||0),channel:row.channel||'',receiver_user_id:Number(row.receiver_user_id||0),pay_method:row.pay_method||'',pay_time:(row.pay_time||'').replace(' ','T'),refund_time:(row.refund_time||'').replace(' ','T'),refund_amount:Number(row.refund_amount||0),verified_status:Number(row.verified_status||0),remark:row.remark||''});
-    const saveReceipt=async()=>{error.value='';try{const payload={...receiptForm,pay_time:receiptForm.pay_time?receiptForm.pay_time.replace('T',' '):'',refund_time:receiptForm.refund_time?receiptForm.refund_time.replace('T',' '):''}; if(receiptForm.id){await api('/api/receipts.php',{method:'PUT',body:JSON.stringify(payload)});}else{await api('/api/receipts.php',{method:'POST',body:JSON.stringify(payload)});}resetReceiptForm();await loadReceipts();}catch(e){error.value=e.message;}};
-
-    const resetDeliveryLogForm=()=>Object.assign(deliveryLogForm,{id:0,student_id:'',coach_user_id:0,progress_stage:'',content:'',log_date:''});
-    const editDeliveryLog=(row)=>Object.assign(deliveryLogForm,{id:Number(row.id),student_id:Number(row.student_id||0),coach_user_id:Number(row.coach_user_id||0),progress_stage:row.progress_stage||'',content:row.content||'',log_date:row.log_date||''});
-    const saveDeliveryLog=async()=>{error.value='';try{if(deliveryLogForm.id){await api('/api/delivery_logs.php',{method:'PUT',body:JSON.stringify(deliveryLogForm)});}else{await api('/api/delivery_logs.php',{method:'POST',body:JSON.stringify(deliveryLogForm)});}resetDeliveryLogForm();await loadDeliveryLogs();}catch(e){error.value=e.message;}};
-
-    const resetDepartmentForm=()=>Object.assign(departmentForm,{id:0,dept_name:'',dept_code:'',parent_name:'',sort_no:99,status:1,remark:''});
-    const editDepartment=(row)=>Object.assign(departmentForm,{id:Number(row.id),dept_name:row.dept_name||'',dept_code:row.dept_code||'',parent_name:row.parent_name||'',sort_no:Number(row.sort_no||99),status:Number(row.status||1),remark:row.remark||''});
-    const saveDepartment=async()=>{error.value='';try{if(departmentForm.id){await api('/api/departments.php',{method:'PUT',body:JSON.stringify(departmentForm)});}else{await api('/api/departments.php',{method:'POST',body:JSON.stringify(departmentForm)});}resetDepartmentForm();await Promise.all([loadDepartments(),loadMetaOptions()]);}catch(e){error.value=e.message;}};
-
-    const saveUser=async()=>{error.value='';try{if(userForm.id){await api('/api/users.php',{method:'PUT',body:JSON.stringify(userForm)});}else{await api('/api/users.php',{method:'POST',body:JSON.stringify(userForm)});}resetUserForm();await loadUsers();}catch(e){error.value=e.message;}};
-
-    const resetMenuForm=()=>Object.assign(menuForm,{id:0,parent_name:'系统管理',menu_name:'',menu_key:'',path:'',icon:'',sort_no:99,status:1});
-    const editMenu=(row)=>Object.assign(menuForm,{id:Number(row.id),parent_name:row.parent_name||'',menu_name:row.menu_name||'',menu_key:row.menu_key||'',path:row.path||'',icon:row.icon||'',sort_no:Number(row.sort_no||99),status:Number(row.status||1)});
-    const saveMenu=async()=>{error.value='';try{if(menuForm.id){await api('/api/menu.php',{method:'PUT',body:JSON.stringify(menuForm)});}else{await api('/api/menu.php',{method:'POST',body:JSON.stringify(menuForm)});}resetMenuForm();await loadMenus();}catch(e){error.value=e.message;}};
-
-    const resetGroupForm=()=>Object.assign(groupForm,{id:0,group_name:'',group_code:'',remark:'',status:1});
-    const editGroup=(row)=>Object.assign(groupForm,{id:Number(row.id),group_name:row.group_name||'',group_code:row.group_code||'',remark:row.remark||'',status:Number(row.status||1)});
-    const saveGroup=async()=>{error.value='';try{if(groupForm.id){await api('/api/rbac_groups.php',{method:'PUT',body:JSON.stringify(groupForm)});}else{await api('/api/rbac_groups.php',{method:'POST',body:JSON.stringify(groupForm)});}resetGroupForm();await loadGroups();}catch(e){error.value=e.message;}};
-
-    const resetPermForm=()=>Object.assign(permForm,{id:0,perm_name:'',perm_code:'',module_name:'系统管理',remark:'',status:1});
-    const editPerm=(row)=>Object.assign(permForm,{id:Number(row.id),perm_name:row.perm_name||'',perm_code:row.perm_code||'',module_name:row.module_name||'系统管理',remark:row.remark||'',status:Number(row.status||1)});
-    const savePerm=async()=>{error.value='';try{if(permForm.id){await api('/api/rbac_permissions.php',{method:'PUT',body:JSON.stringify(permForm)});}else{await api('/api/rbac_permissions.php',{method:'POST',body:JSON.stringify(permForm)});}resetPermForm();await loadPerms();}catch(e){error.value=e.message;}};
-
-    const assignUserGroup=()=>createHelper('/api/rbac_assign.php',{type:'user_group',...assignForm},loadAssign);
-    const assignGroupPerm=()=>createHelper('/api/rbac_assign.php',{type:'group_perm',...assignForm2},loadAssign);
-    const delAssign=async(type,id)=>{try{await api(`/api/rbac_assign.php?type=${type}&id=${id}`,{method:'DELETE'}); await loadAssign();}catch(e){error.value=e.message;}};
-
-    const reloadAll=async()=>{error.value=''; try{await Promise.all([loadSummary(),loadStudents(),loadCourses(),loadOrders(),loadReferrers(),loadReceipts(),loadDeliveryLogs(),loadDepartmentStats(),loadFinance(),loadTodos(),loadNotifications(),loadUsers(),loadDepartments(),loadMetaOptions(),loadMenus(),loadGroups(),loadPerms(),loadAssign()]);}catch(e){error.value=e.message;}};
-    const toggleSidebar=()=>{sidebarOpen.value=!sidebarOpen.value;};
-    const selectMenu=(menuKey)=>{activeTab.value=menuKey; if(isMobile.value) sidebarOpen.value=false;};
-    const logout=()=>{localStorage.removeItem('oa_token');localStorage.removeItem('oa_user');location.href='./login.html';};
-
-    const onResize=()=>{isMobile.value=window.innerWidth<980; if(!isMobile.value){sidebarOpen.value=false;}};
-    onMounted(async()=>{window.addEventListener('resize',onResize);const t=localStorage.getItem('oa_token');const u=localStorage.getItem('oa_user');if(!t||!u){location.href='./login.html';return;}user.value=JSON.parse(u||'{}');await reloadAll();});
-    onBeforeUnmount(()=>window.removeEventListener('resize',onResize));
-
-    return {activeTab,error,user,summary,students,courses,orders,referrers,receipts,deliveryLogs,departmentStats,finance,todos,notifications,users,departments,menus,groups,perms,assignData,groupedMenus,departmentOptions,positionOptions,roleOptions,receiptChannelOptions,studentKeyword,studentCategory,orderKeyword,referrerKeyword,userKeyword,sidebarOpen,isMobile,toggleSidebar,selectMenu,
-      studentForm,courseForm,orderForm,financeForm,referrerForm,receiptForm,deliveryLogForm,todoForm,notificationForm,userForm,departmentForm,menuForm,groupForm,permForm,assignForm,assignForm2,
-      formatCourses,paymentStageLabel,saveStudent,editStudent,resetStudentForm,saveCourse,editCourse,resetCourseForm,saveOrder,editOrder,resetOrderForm,saveFinance,editFinance,resetFinanceForm,resetReferrerForm,editReferrer,saveReferrer,resetReceiptForm,editReceipt,saveReceipt,resetDeliveryLogForm,editDeliveryLog,saveDeliveryLog,saveTodo,editTodo,resetTodoForm,saveNotification,editNotification,resetNotificationForm,saveDepartment,editDepartment,resetDepartmentForm,saveUser,editUser,resetUserForm,saveMenu,editMenu,resetMenuForm,saveGroup,editGroup,resetGroupForm,savePerm,editPerm,resetPermForm,assignUserGroup,assignGroupPerm,delAssign,reloadAll,logout};
-  }
-}).mount('#app');
+  const pageMap={overview:'overview.html',students:'students.html',courses:'courses.html',orders:'orders.html',referrers:'referrers.html',external_contacts:'external_contacts.html',external_contacts_local:'external_contacts_local.html',external_contacts_local_notes:'external_contacts_local_account_notes.html',receipts:'receipts.html',delivery_logs:'delivery_logs.html',department_stats:'department_stats.html',finance:'finance.html',todos:'todos.html',notifications:'notifications.html',users:'users.html',departments:'departments.html',menus:'menus.html',rbac_groups:'rbac_groups.html',rbac_permissions:'rbac_permissions.html',rbac_assign:'rbac_assign.html',materials:'materials.html',material_campaigns:'material_campaigns.html',material_claims:'material_claims.html',contracts:'contracts.html',invoice_profiles:'invoice_profiles.html',invoices:'invoices.html',class_terms:'class_terms.html',student_terms:'student_terms.html',shipments:'shipments.html',certificate_templates:'certificate_templates.html',certificate_issues:'certificate_issues.html',commission_scopes:'commission_scopes.html',commission_rules:'commission_rules.html',commission_calcs:'commission_calcs.html',commission_adjustments:'commission_adjustments.html',payroll_periods:'payroll_periods.html',payroll_slips:'payroll_slips.html',payment_callback_logs:'payment_callback_logs.html'};
+  const titleMap={overview:'数据总览',students:'学员管理',courses:'课程管理',orders:'订单管理',referrers:'推荐者管理',external_contacts:'外部联系人列表',external_contacts_local:'企微外部联系人本地版',external_contacts_local_notes:'添加人账号备注映射',receipts:'收款单管理',delivery_logs:'交付记录',department_stats:'部门统计',finance:'财务管理',todos:'待办',notifications:'通知管理',users:'员工管理',departments:'部门管理',menus:'菜单管理',rbac_groups:'角色管理',rbac_permissions:'权限管理',rbac_assign:'RBAC分配',materials:'资料库',material_campaigns:'资料投放',material_claims:'资料领取',contracts:'合同管理',invoice_profiles:'开票档案',invoices:'发票管理',class_terms:'班期管理',student_terms:'学员班期',shipments:'寄送管理',certificate_templates:'证书模板',certificate_issues:'证书发放',commission_scopes:'分成范围',commission_rules:'分成规则',commission_calcs:'分成结算',commission_adjustments:'分成调整',payroll_periods:'工资期次',payroll_slips:'工资单',payment_callback_logs:'企微收款'};
+  const frame=document.getElementById('pageFrame');
+  const titleEl=document.getElementById('pageTitle');
+  const userBox=document.getElementById('userBox');
+  const params=new URLSearchParams(location.search);
+  const key=params.get('page')||'todos';
+  const select=(k)=>{const file=pageMap[k]||pageMap.todos;frame.src='./'+file+'?embedded=1';titleEl.textContent=titleMap[k]||'OA 系统管理台';history.replaceState(null,'','./index.html?page='+k);document.querySelectorAll('.menu-tree li').forEach(li=>li.classList.toggle('active',li.dataset.key===k));};
+  document.querySelectorAll('.menu-tree li').forEach(li=>li.addEventListener('click',()=>select(li.dataset.key)));
+  document.getElementById('refreshBtn').addEventListener('click',()=>{try{frame.contentWindow.location.reload();}catch(_){frame.src=frame.src;}});
+  document.getElementById('logoutBtn').addEventListener('click',async()=>{const token=localStorage.getItem('oa_token')||'';try{if(token){await fetch('/api/logout.php',{method:'POST',headers:{Authorization:'Bearer '+token}});}}catch(_){ }localStorage.removeItem('oa_token');localStorage.removeItem('oa_user');location.href='./login.html';});
+  try{const u=JSON.parse(localStorage.getItem('oa_user')||'{}');if(u&& (u.real_name||u.username)){userBox.textContent=`${u.real_name||u.username}（${u.role||'访客'}）`;}}catch(_){ }
+  if(!localStorage.getItem('oa_token')){location.href='./login.html';}
+  select(key);
 </script>
 </body>
 </html>
