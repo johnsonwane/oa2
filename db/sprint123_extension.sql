@@ -365,3 +365,41 @@ INSERT INTO oa_salary_payment_log (period_id, user_id, paid_amount, paid_at, cha
 
 INSERT INTO oa_expense_voucher (expense_no, item_name, amount, dept_name, expense_date, payer_user_id, pay_channel, invoice_no, remark) VALUES
 ('EXP-2026-0001', '投流成本-抖音', 3000.00, '运营部', CURDATE(), 4, 'corporate_alipay', 'INV-EXP-0001', '3月首周投流');
+
+ALTER TABLE oa_receipt ADD COLUMN channel_txn_id VARCHAR(80) DEFAULT NULL AFTER channel;
+ALTER TABLE oa_receipt ADD UNIQUE KEY uk_receipt_channel_txn (channel, channel_txn_id);
+
+
+CREATE TABLE IF NOT EXISTS oa_refund_request (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  order_id INT UNSIGNED NOT NULL,
+  amount DECIMAL(10,2) NOT NULL,
+  reason VARCHAR(255) NOT NULL,
+  status VARCHAR(20) NOT NULL DEFAULT 'pending',
+  requested_by_user_id INT UNSIGNED DEFAULT NULL,
+  approved_by_user_id INT UNSIGNED DEFAULT NULL,
+  paid_by_user_id INT UNSIGNED DEFAULT NULL,
+  requested_at DATETIME NOT NULL,
+  approved_at DATETIME DEFAULT NULL,
+  paid_at DATETIME DEFAULT NULL,
+  remark VARCHAR(255) DEFAULT '',
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_refund_order (order_id),
+  KEY idx_refund_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS oa_refund_reversal_task (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  refund_request_id INT UNSIGNED NOT NULL,
+  order_id INT UNSIGNED NOT NULL,
+  user_id INT UNSIGNED DEFAULT NULL,
+  reversal_type VARCHAR(20) NOT NULL,
+  amount DECIMAL(10,2) NOT NULL,
+  status VARCHAR(20) NOT NULL DEFAULT 'pending',
+  remark VARCHAR(255) DEFAULT '',
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_rrt_refund (refund_request_id),
+  KEY idx_rrt_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

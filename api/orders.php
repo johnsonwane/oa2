@@ -3,6 +3,7 @@ require_once __DIR__ . '/common.php';
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/order_referrer_bootstrap.php';
 require_once __DIR__ . '/business_bootstrap.php';
+require_once __DIR__ . '/settlement.php';
 
 function orders_scope(PDO $pdo, string $orderAlias = 'o', string $studentAlias = 's'): array
 {
@@ -226,7 +227,9 @@ try {
             if (in_array($payStatus, [1, 2], true)) {
                 $pdo->prepare("UPDATE oa_student SET is_student=1, student_stage='active', follow_status='已报名', converted_at=COALESCE(converted_at,NOW()) WHERE id=?")->execute([$studentId]);
             }
-            json_response(0, 'created', ['id' => (int)$pdo->lastInsertId()]);
+            $newId = (int)$pdo->lastInsertId();
+            $snap = settlement_reconcile_order($pdo, $newId);
+            json_response(0, 'created', ['id' => $newId, 'finance_snapshot' => $snap]);
         }
 
         $stmt = $pdo->prepare('UPDATE oa_order SET student_id=?,course_id=?,amount=?,total_amount=?,paid_amount=?,pay_status=?,payment_stage=?,sales_commission_amount=?,seller_user_id=?,seller_role=?,seller_commission_amount=?,referrer_id=?,referrer_commission_amount=?,student_wechat_name=?,student_mobile=?,student_address=?,payment_time=?,receipt_time=?,refund_time=?,refund_amount=?,remark=? WHERE id=?');
@@ -234,7 +237,8 @@ try {
         if (in_array($payStatus, [1, 2], true)) {
             $pdo->prepare("UPDATE oa_student SET is_student=1, student_stage='active', follow_status='已报名', converted_at=COALESCE(converted_at,NOW()) WHERE id=?")->execute([$studentId]);
         }
-        json_response(0, 'updated');
+        $snap = settlement_reconcile_order($pdo, $id);
+        json_response(0, 'updated', ['finance_snapshot' => $snap]);
     }
 
     if ($m === 'DELETE') {

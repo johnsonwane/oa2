@@ -87,6 +87,7 @@ try {
         'rbac_assign' => ['rbac_assign'],
         'departments' => ['group_manage','menu_departments','menu_manage'],
         'receipts' => ['menu_receipts','menu_finance'],
+        'refund_requests' => ['menu_receipts','menu_finance'],
         'delivery_logs' => ['menu_delivery_logs'],
         'department_stats' => ['menu_department_stats'],
         'materials' => ['menu_overview', 'menu_todos', 'menu_manage'],
@@ -114,12 +115,6 @@ try {
 
     $visible = [];
     foreach ($allMenus as $menu) {
-        $parentName = trim((string)($menu['parent_name'] ?? ''));
-        if ($parentName === 'Sprint123') {
-            $visible[] = $menu;
-            continue;
-        }
-
         $key = (string)$menu['menu_key'];
         $need = $menuPermMap[$key] ?? [];
         if (empty($need)) {

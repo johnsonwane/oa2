@@ -30,7 +30,8 @@
 - `GET/POST/PUT/DELETE /api/departments.php` 部门 CRUD
 - `GET /api/meta_options.php` 下拉选项（角色/部门/职位/收款渠道）
 - `GET/POST/PUT/DELETE /api/referrers.php` 推荐者 CRUD
-- `GET/POST/PUT/DELETE /api/receipts.php` 收款单 CRUD（用于订单核对）
+- `GET/POST/PUT/DELETE /api/receipts.php` 收款单 CRUD（用于订单核对，支持渠道流水号幂等）
+- `GET/POST/PUT/DELETE /api/refund_requests.php` 退款申请与审批（含自动反结算任务）
 - `GET/POST/PUT/DELETE /api/delivery_logs.php` 教练交付记录 CRUD
 - `GET /api/department_stats.php?user_id=xx` 部门经营统计（老板看全局，部门经理看本部门）
 - `GET /api/user_menus.php?user_id=xx` 按用户返回可见菜单（RBAC菜单过滤）
@@ -179,3 +180,10 @@ mysql -uroot -p < db/schema.sql
 - 除 `login.php`、`health.php` 外，其他 API 均需携带请求头：`Authorization: Bearer <token>`。
 - 登录后返回的 token 默认 7 天过期。
 - 会话数据存储在 `oa_session` 表中。
+
+
+## 订单-收款-开票一致性
+
+- 收款、退款、开票变更后，系统会自动回写订单的净实收、退款金额、支付状态。
+- 开票金额合计不得超过订单净实收（实收-已退款）。
+- 收款支持 `channel + channel_txn_id` 幂等，防止重复入账。

@@ -233,6 +233,7 @@ CREATE TABLE IF NOT EXISTS oa_receipt (
   receipt_no VARCHAR(60) NOT NULL,
   amount DECIMAL(10,2) NOT NULL,
   channel VARCHAR(50) DEFAULT '',
+  channel_txn_id VARCHAR(80) DEFAULT NULL,
   receiver_user_id INT UNSIGNED DEFAULT NULL,
   pay_method VARCHAR(30) DEFAULT '',
   pay_time DATETIME DEFAULT NULL,
@@ -242,7 +243,43 @@ CREATE TABLE IF NOT EXISTS oa_receipt (
   remark VARCHAR(255) DEFAULT '',
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
-  UNIQUE KEY uk_receipt_no (receipt_no)
+  UNIQUE KEY uk_receipt_no (receipt_no),
+  UNIQUE KEY uk_receipt_channel_txn (channel, channel_txn_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+
+CREATE TABLE IF NOT EXISTS oa_refund_request (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  order_id INT UNSIGNED NOT NULL,
+  amount DECIMAL(10,2) NOT NULL,
+  reason VARCHAR(255) NOT NULL,
+  status VARCHAR(20) NOT NULL DEFAULT 'pending',
+  requested_by_user_id INT UNSIGNED DEFAULT NULL,
+  approved_by_user_id INT UNSIGNED DEFAULT NULL,
+  paid_by_user_id INT UNSIGNED DEFAULT NULL,
+  requested_at DATETIME NOT NULL,
+  approved_at DATETIME DEFAULT NULL,
+  paid_at DATETIME DEFAULT NULL,
+  remark VARCHAR(255) DEFAULT '',
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_refund_order (order_id),
+  KEY idx_refund_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS oa_refund_reversal_task (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  refund_request_id INT UNSIGNED NOT NULL,
+  order_id INT UNSIGNED NOT NULL,
+  user_id INT UNSIGNED DEFAULT NULL,
+  reversal_type VARCHAR(20) NOT NULL,
+  amount DECIMAL(10,2) NOT NULL,
+  status VARCHAR(20) NOT NULL DEFAULT 'pending',
+  remark VARCHAR(255) DEFAULT '',
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_rrt_refund (refund_request_id),
+  KEY idx_rrt_status (status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS oa_finance_record (
