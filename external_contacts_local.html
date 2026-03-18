@@ -55,7 +55,7 @@ createApp({setup(){
   const loadingMore=ref(false),loadedCount=ref(0),remoteTotal=ref(0);
   const expanded=reactive({});
 
-  const req=async(url,opt={})=>{const r=await fetch(url,opt);const t=await r.text();let j={};try{j=t?JSON.parse(t):{}}catch(_ ){}if(!r.ok||j.code!==0) throw new Error(j.message||'请求失败');return j;};
+  const req=async(url,opt={})=>{const token=localStorage.getItem('oa_token')||'';const headers={...(opt.headers||{})};if(token){headers.Authorization='Bearer '+token;headers['X-OA-Token']=token;}const r=await fetch(url,{...opt,headers});const t=await r.text();let j={};try{j=t?JSON.parse(t):{}}catch(_ ){}if(r.status===401){localStorage.removeItem('oa_token');localStorage.removeItem('oa_user');top.location.href='./login.html';throw new Error('登录已过期，请重新登录');}if(!r.ok||j.code!==0) throw new Error(j.message||'请求失败');return j;};
   const fetchPage=async(p,size=100)=>{const j=await req(`/api/external_contacts_local.php?paged=1&page=${p}&page_size=${size}`);const d=j.data||{};return {items:Array.isArray(d.items)?d.items:[],pagination:d.pagination||{}};};
 
   const filteredSortedList=computed(()=>{

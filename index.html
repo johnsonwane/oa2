@@ -54,7 +54,7 @@
   const select=(k)=>{const file=pageMap[k]||pageMap.todos;frame.src='./'+file+'?embedded=1';titleEl.textContent=titleMap[k]||'OA 系统管理台';history.replaceState(null,'','./index.html?page='+k);document.querySelectorAll('.menu-tree li').forEach(li=>li.classList.toggle('active',li.dataset.key===k));};
   document.querySelectorAll('.menu-tree li').forEach(li=>li.addEventListener('click',()=>select(li.dataset.key)));
   document.getElementById('refreshBtn').addEventListener('click',()=>{try{frame.contentWindow.location.reload();}catch(_){frame.src=frame.src;}});
-  document.getElementById('logoutBtn').addEventListener('click',async()=>{const token=localStorage.getItem('oa_token')||'';try{if(token){await fetch('/api/logout.php',{method:'POST',headers:{Authorization:'Bearer '+token}});}}catch(_){ }localStorage.removeItem('oa_token');localStorage.removeItem('oa_user');top.location.href='./login.html';});
+  document.getElementById('logoutBtn').addEventListener('click',async()=>{const token=localStorage.getItem('oa_token')||'';try{if(token){await fetch('/api/logout.php',{method:'POST',headers:{Authorization:'Bearer '+token,'X-OA-Token':token}});}}catch(_){ }localStorage.removeItem('oa_token');localStorage.removeItem('oa_user');top.location.href='./login.html';});
   try{const u=JSON.parse(localStorage.getItem('oa_user')||'{}');if(u&& (u.real_name||u.username)){userBox.textContent=`${u.real_name||u.username}（${u.role||'访客'}）`;}}catch(_){ }
   if(!localStorage.getItem('oa_token')){top.location.href='./login.html';}
   select(key);

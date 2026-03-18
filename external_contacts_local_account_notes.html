@@ -20,7 +20,7 @@ const {createApp,ref,onMounted} = Vue;
 createApp({setup(){
   const list=ref([]),error=ref(''),success=ref('');
   const form=ref({follower_account:'',account_note:''});
-  const req=async(url,opt={})=>{const r=await fetch(url,opt);const t=await r.text();let j={};try{j=t?JSON.parse(t):{}}catch(_ ){}if(!r.ok||j.code!==0) throw new Error(j.message||'请求失败');return j;};
+  const req=async(url,opt={})=>{const token=localStorage.getItem('oa_token')||'';const headers={...(opt.headers||{})};if(token){headers.Authorization='Bearer '+token;headers['X-OA-Token']=token;}const r=await fetch(url,{...opt,headers});const t=await r.text();let j={};try{j=t?JSON.parse(t):{}}catch(_ ){}if(r.status===401){localStorage.removeItem('oa_token');localStorage.removeItem('oa_user');top.location.href='./login.html';throw new Error('登录已过期，请重新登录');}if(!r.ok||j.code!==0) throw new Error(j.message||'请求失败');return j;};
   const load=async()=>{try{error.value='';const j=await req('/api/external_contacts_local_account_notes.php');list.value=j.data||[];}catch(e){error.value=e.message;}};
   const save=async()=>{try{error.value='';success.value='';await req('/api/external_contacts_local_account_notes.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(form.value)});success.value='保存成功';form.value={follower_account:'',account_note:''};await load();}catch(e){error.value=e.message;}};
   const remove=async(id)=>{try{error.value='';success.value='';await req('/api/external_contacts_local_account_notes.php?id='+id,{method:'DELETE'});success.value='删除成功';await load();}catch(e){error.value=e.message;}};
