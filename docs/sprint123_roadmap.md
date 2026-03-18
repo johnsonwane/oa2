@@ -87,7 +87,7 @@
 
 ## 本次代码落地（本次提交）
 
-1. 增加 Sprint123 扩展建表脚本 `db/sprint123_extension.sql`
+1. 将 Sprint123 建表与初始化数据合并进主脚本 `db/schema.sql`
 2. 增加统一 bootstrap：`api/sprint123_bootstrap.php`
 3. 新增 API：
    - `api/materials.php`

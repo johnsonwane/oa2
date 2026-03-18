@@ -24,7 +24,7 @@ function get_db_connection(): PDO
         if (strpos($msg, 'Access denied for user') !== false) {
             throw new RuntimeException(
                 '数据库连接失败：账号授权被拒绝。当前连接目标=' . $host . ':' . $port .
-                '，账号=' . $username . '。请优先配置环境变量 DB_USER / DB_PASS（或 MYSQL_USER / MYSQL_PASSWORD）为已授权业务账号；若使用 root，需在 MySQL 上授权该来源IP。原始错误：' . $msg,
+                '，账号=' . $username . '。请优先配置环境变量 DB_USER / DB_PASS为已授权业务账号；若使用 root，需在 MySQL 上授权该来源IP。原始错误：' . $msg,
                 0,
                 $e
             );
