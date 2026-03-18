@@ -27,7 +27,7 @@ createApp({setup(){
   const activeEditor=ref(false);
   const form=reactive({id:0,contract_no:'',order_id:'',student_id:'',seller_user_id:'',sign_time:'',status:'',contract_url:''});
   const api='/api/contracts.php';
-  const req=async(url,opt={})=>{const r=await fetch(url,{headers:{'Content-Type':'application/json'},...opt});const t=await r.text();let j={};try{j=t?JSON.parse(t):{}}catch(_ ){}if(!r.ok||j.code!==0) throw new Error(j.message||'请求失败');return j.data;};
+  const req=async(url,opt={})=>{const token=localStorage.getItem('oa_token')||'';const baseHeaders={'Content-Type':'application/json'};if(token){baseHeaders.Authorization='Bearer '+token;baseHeaders['X-OA-Token']=token;}const headers={...baseHeaders,...(opt.headers||{})};const r=await fetch(url,{...opt,headers});const t=await r.text();let j={};try{j=t?JSON.parse(t):{}}catch(_ ){}if(!r.ok||j.code!==0) throw new Error(j.message||'请求失败');return j.data;};
   const load=async()=>{try{error.value='';list.value=await req(api)}catch(e){error.value=e.message}};
   const reset=()=>{form.contract_no='';form.order_id='';form.student_id='';form.seller_user_id='';form.sign_time='';form.status='';form.contract_url='';form.id=0;};
   const save=async()=>{try{error.value='';if(form.id){await req(api,{method:'PUT',body:JSON.stringify(form)})}else{await req(api,{method:'POST',body:JSON.stringify(form)})}reset();activeEditor.value=false;await load();}catch(e){error.value=e.message}};
