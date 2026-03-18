@@ -111,8 +111,8 @@
 
 - 默认数据库地址：`10.0.0.7:3306`，数据库名：`oa2`
 
-- 生产建议使用业务账号（例如 `oa_app`），不要直接使用 `root`；若报 `Access denied for user 'xxx'@'10.0.x.x'`，需在 MySQL 为该来源IP授权。
-- 支持环境变量覆盖：`DB_HOST`、`DB_PORT`、`DB_NAME`、`DB_USER`、`DB_PASS`（也兼容 `MYSQL_USER`、`MYSQL_PASSWORD`）
+- 当前默认使用 `root` 连接；若报 `Access denied for user 'root'@'10.0.x.x'`，需在 MySQL 为该来源IP授权。
+- 支持环境变量覆盖：`DB_HOST`、`DB_PORT`、`DB_NAME`、`DB_USER`、`DB_PASS`
 
 ## 初始化与测试数据
 
