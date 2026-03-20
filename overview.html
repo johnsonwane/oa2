@@ -248,7 +248,7 @@ createApp({
     const logout=()=>{localStorage.removeItem('oa_token');localStorage.removeItem('oa_user');top.location.href='./login.html';};
 
     const onResize=()=>{isMobile.value=window.innerWidth<980; if(!isMobile.value){sidebarOpen.value=false;}};
-    onMounted(async()=>{window.addEventListener('resize',onResize);const t=localStorage.getItem('oa_token');const u=localStorage.getItem('oa_user');if(!t||!u){top.location.href='./login.html';return;}user.value=JSON.parse(u||'{}');await reloadAll();});
+    onMounted(async()=>{window.addEventListener('resize',onResize);const t=localStorage.getItem('oa_token');const u=localStorage.getItem('oa_user');if(!t){top.location.href='./login.html';return;}try{user.value=JSON.parse(u||'{}');}catch(_){user.value={};}await reloadAll();});
     onBeforeUnmount(()=>window.removeEventListener('resize',onResize));
 
     return {activeTab,error,user,summary,students,courses,orders,referrers,receipts,deliveryLogs,departmentStats,finance,todos,notifications,users,departments,menus,groups,perms,assignData,groupedMenus,departmentOptions,positionOptions,roleOptions,receiptChannelOptions,studentKeyword,studentCategory,orderKeyword,referrerKeyword,userKeyword,sidebarOpen,isMobile,detailDialog,activeEditor,importFileRef,toggleSidebar,selectMenu,viewRecord,closeDetailDialog,openEditor,closeEditor,canImportExportTab,exportCurrentTab,triggerImport,handleImportFile,decodeImportFile,
