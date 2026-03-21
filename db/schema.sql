@@ -189,6 +189,40 @@ CREATE TABLE IF NOT EXISTS oa_referrer (
   UNIQUE KEY uk_referrer_phone (phone)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+CREATE TABLE IF NOT EXISTS oa_external_contacts_local (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  customer_name VARCHAR(120) NOT NULL DEFAULT '',
+  description_text VARCHAR(255) NOT NULL DEFAULT '',
+  follower_name VARCHAR(80) NOT NULL DEFAULT '',
+  follower_account VARCHAR(80) NOT NULL DEFAULT '',
+  follower_department VARCHAR(120) NOT NULL DEFAULT '',
+  follow_time DATETIME DEFAULT NULL,
+  source VARCHAR(80) NOT NULL DEFAULT '',
+  mobile VARCHAR(40) NOT NULL DEFAULT '',
+  enterprise VARCHAR(120) NOT NULL DEFAULT '',
+  email VARCHAR(120) NOT NULL DEFAULT '',
+  address VARCHAR(255) NOT NULL DEFAULT '',
+  job_title VARCHAR(120) NOT NULL DEFAULT '',
+  phone VARCHAR(40) NOT NULL DEFAULT '',
+  tag_group1_student_level VARCHAR(80) NOT NULL DEFAULT '',
+  tag_group2_source VARCHAR(80) NOT NULL DEFAULT '',
+  row_hash CHAR(64) NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_external_contacts_local_row_hash (row_hash),
+  KEY idx_external_contacts_local_follow_time (follow_time),
+  KEY idx_external_contacts_local_follower_account (follower_account)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS oa_external_contacts_local_account_note (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  follower_account VARCHAR(80) NOT NULL,
+  account_note VARCHAR(120) NOT NULL DEFAULT '',
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_external_contacts_local_account_note (follower_account)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 CREATE TABLE IF NOT EXISTS oa_order (
   id INT UNSIGNED NOT NULL AUTO_INCREMENT,
   student_id INT UNSIGNED NOT NULL,

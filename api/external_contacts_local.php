@@ -4,13 +4,24 @@ require_once __DIR__ . '/db.php';
 
 function ensure_external_contacts_local_table(PDO $pdo): void
 {
-    // P0 稳定性整改：禁止运行时建表/补列。
+    if (!table_exists_in_current_db($pdo, 'oa_external_contacts_local')) {
+        json_response(500, '缺少数据表 oa_external_contacts_local，请先执行 db/schema.sql 完成初始化', null, 500);
+    }
 }
 
 
 function ensure_external_contacts_local_note_table(PDO $pdo): void
 {
-    // P0 稳定性整改：禁止运行时建表/补列。
+    if (!table_exists_in_current_db($pdo, 'oa_external_contacts_local_account_note')) {
+        json_response(500, '缺少数据表 oa_external_contacts_local_account_note，请先执行 db/schema.sql 完成初始化', null, 500);
+    }
+}
+
+function table_exists_in_current_db(PDO $pdo, string $tableName): bool
+{
+    $stmt = $pdo->prepare('SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?');
+    $stmt->execute([$tableName]);
+    return (int)$stmt->fetchColumn() > 0;
 }
 
 function local_select_sql(): string
