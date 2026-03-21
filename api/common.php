@@ -215,4 +215,61 @@ function auth_require_roles(array $roles): void
     }
 }
 
+function order_handoff_ready_check(PDO $pdo, int $orderId): array
+{
+    $sql = 'SELECT o.id,o.pay_status,o.payment_stage,o.student_id,s.name student_name,s.phone,s.wechat_name,s.intention_level,
+                   c.contract_no,c.status contract_status
+            FROM oa_order o
+            LEFT JOIN oa_student s ON s.id=o.student_id
+            LEFT JOIN oa_contract c ON c.order_id=o.id
+            WHERE o.id=?
+            ORDER BY c.id DESC
+            LIMIT 1';
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute([$orderId]);
+    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+    if (!$row) {
+        return ['ok' => false, 'missing' => ['订单不存在']];
+    }
+
+    $missing = [];
+    if (trim((string)($row['student_name'] ?? '')) === '') $missing[] = '学员姓名';
+    if (trim((string)($row['phone'] ?? '')) === '') $missing[] = '学员手机号';
+    if (trim((string)($row['wechat_name'] ?? '')) === '') $missing[] = '学员微信名';
+    if (trim((string)($row['intention_level'] ?? '')) === '') $missing[] = '意向等级';
+
+    $payStatus = (int)($row['pay_status'] ?? 0);
+    if ($payStatus <= 0) $missing[] = '成交节点(pay_status需>0)';
+    if (trim((string)($row['payment_stage'] ?? '')) === '') $missing[] = '付款节点(payment_stage)';
+
+    if (trim((string)($row['contract_no'] ?? '')) === '') {
+        $missing[] = '合同号';
+    }
+
+    return [
+        'ok' => empty($missing),
+        'missing' => $missing,
+        'student_id' => (int)($row['student_id'] ?? 0),
+    ];
+}
+
+function assert_order_handoff_ready(PDO $pdo, int $orderId, string $scene): void
+{
+    $x = order_handoff_ready_check($pdo, $orderId);
+    if (!($x['ok'] ?? false)) {
+        json_response(422, $scene . '前置字段不完整：' . implode('、', $x['missing'] ?? []), ['order_id' => $orderId, 'missing' => $x['missing'] ?? []], 422);
+    }
+}
+
+function assert_student_delivery_ready(PDO $pdo, int $studentId): void
+{
+    $stmt = $pdo->prepare('SELECT id FROM oa_order WHERE student_id=? ORDER BY id DESC LIMIT 1');
+    $stmt->execute([$studentId]);
+    $orderId = (int)$stmt->fetchColumn();
+    if ($orderId <= 0) {
+        json_response(422, '交付前置校验失败：该学员暂无订单，不能入班', ['student_id' => $studentId], 422);
+    }
+    assert_order_handoff_ready($pdo, $orderId, '交付流转');
+}
+
 require_auth_session();
