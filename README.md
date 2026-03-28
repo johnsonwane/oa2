@@ -3,8 +3,7 @@
 培训公司 OA 样例（前后端分离）：
 
 - 后端：`api/`（原生 PHP）
-- H5 前端页面：`uniapp/`（uni-app Vue3 工程）
-- 兼容静态页面：仓库根目录（由 uni-app 容器页承载，保持现有功能与界面）
+- H5 前端页面：仓库根目录
 - 数据库脚本：`db/schema.sql`
 
 ## H5 页面入口
@@ -15,18 +14,6 @@
 - 独立菜单页面（按模块拆分）：`overview.html`、`students.html`、`courses.html`、`orders.html`、`referrers.html`、`receipts.html`、`delivery_logs.html`、`department_stats.html`、`finance.html`、`todos.html`、`notifications.html`、`users.html`、`departments.html`、`menus.html`、`rbac_groups.html`、`rbac_permissions.html`、`rbac_assign.html`
 - Sprint123 扩展页面（本轮新增 17 个）：`materials.html`、`material_campaigns.html`、`material_claims.html`、`contracts.html`、`invoice_profiles.html`、`invoices.html`、`class_terms.html`、`student_terms.html`、`shipments.html`、`certificate_templates.html`、`certificate_issues.html`、`commission_rules.html`、`commission_scopes.html`、`commission_calcs.html`、`commission_adjustments.html`、`payroll_periods.html`、`payroll_slips.html`
 
-
-## uni-app(Vue3) 前端
-
-前端已切换为 HBuilderX uni-app Vue3 形态，工程目录为 `uniapp/`：
-
-- 页面入口：`src/pages/login/login.vue`、`src/pages/index/index.vue`
-- 通用容器：`src/components/LegacyFrame.vue`（H5 用 iframe、非 H5 用 web-view）
-- 运行命令：
-  - `cd uniapp && npm install`
-  - `npm run dev:h5`
-
-说明：为保持现有功能与界面一致，uni-app 页面以容器方式承载原有页面（`/login.html`、`/index.html`）。
 
 ## API 接口
 
