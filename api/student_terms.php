@@ -23,7 +23,14 @@ try {
 
     if ($m === 'GET') {
         auth_require_roles(['班主任', '教练', '顾问', '财务', '部门经理']);
-        json_response(0, 'ok', crud_list($pdo, 'oa_student_term_rel'));
+        $items = crud_list($pdo, 'oa_student_term_rel');
+        // 补充分成快照信息
+        foreach ($items as &$item) {
+            if (!empty($item['commission_info'])) {
+                $item['commission_info'] = json_decode($item['commission_info'], true);
+            }
+        }
+        json_response(0, 'ok', $items);
     }
 
     if ($m === 'POST') {
@@ -76,7 +83,19 @@ try {
         $payload = $d;
         $payload['status'] = $status;
         crud_update($pdo, 'oa_student_term_rel', $id, ['student_id', 'term_id', 'joined_at', 'status'], $payload);
-        json_response(0, 'updated');
+
+        // 班期销课（completed）时，触发分成计算
+        $commissionResult = null;
+        if ($status === 'completed') {
+            require_once __DIR__ . '/commission_engine.php';
+            $commissionResult = calc_commission_for_term_rel($pdo, $id);
+        }
+
+        $response = ['id' => $id, 'status' => $status];
+        if ($commissionResult !== null) {
+            $response['commission'] = $commissionResult;
+        }
+        json_response(0, 'updated', $response);
     }
 
     if ($m === 'DELETE') {

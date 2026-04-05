@@ -102,6 +102,13 @@ try {
             $params[':kw'] = "%{$keyword}%";
         }
 
+        // 新增：订单类型筛选
+        $orderType = trim((string)($_GET['order_type'] ?? ''));
+        if ($orderType !== '' && in_array($orderType, ['first', 'renewal', 'upgrade'], true)) {
+            $where[] = 'o.order_type = :order_type';
+            $params[':order_type'] = $orderType;
+        }
+
         $baseSql = ' FROM oa_order o
             LEFT JOIN oa_student s ON s.id=o.student_id
             LEFT JOIN oa_course c ON c.id=o.course_id
@@ -109,6 +116,7 @@ try {
             LEFT JOIN oa_user su ON su.id=o.seller_user_id';
 
         $whereSql = ' WHERE ' . implode(' AND ', $where);
+        $selectFields = 'o.id,o.student_id,s.name student_name,o.course_id,c.course_name,o.amount,o.total_amount,o.paid_amount,o.pay_status,o.payment_stage,o.order_type,o.sales_commission_amount,o.seller_user_id,o.seller_role,o.seller_commission_amount,o.referrer_id,r.name referrer_name,o.referrer_commission_amount,o.student_wechat_name,o.student_mobile,o.student_address,o.payment_time,o.receipt_time,o.refund_time,o.refund_amount,o.remark,o.created_at, su.real_name seller_name';
 
         if (paged_mode($_GET)) {
             $p = parse_pagination($_GET);
@@ -116,8 +124,7 @@ try {
             $countStmt->execute($params);
             $total = (int)$countStmt->fetchColumn();
 
-            $sql = 'SELECT o.id,o.student_id,s.name student_name,o.course_id,c.course_name,o.amount,o.total_amount,o.paid_amount,o.pay_status,o.payment_stage,o.sales_commission_amount,o.seller_user_id,o.seller_role,o.seller_commission_amount,o.referrer_id,r.name referrer_name,o.referrer_commission_amount,o.student_wechat_name,o.student_mobile,o.student_address,o.payment_time,o.receipt_time,o.refund_time,o.refund_amount,o.remark,o.created_at, su.real_name seller_name'
-                . $baseSql . $whereSql . ' ORDER BY o.id DESC LIMIT :limit OFFSET :offset';
+            $sql = 'SELECT ' . $selectFields . $baseSql . $whereSql . ' ORDER BY o.id DESC LIMIT :limit OFFSET :offset';
             $stmt = $pdo->prepare($sql);
             foreach ($params as $k => $v) {
                 $stmt->bindValue($k, $v);
@@ -129,8 +136,7 @@ try {
             json_response(0, 'ok', ['items' => $stmt->fetchAll(), 'pagination' => ['page' => $p['page'], 'page_size' => $p['page_size'], 'total' => $total]]);
         }
 
-        $sql = 'SELECT o.id,o.student_id,s.name student_name,o.course_id,c.course_name,o.amount,o.total_amount,o.paid_amount,o.pay_status,o.payment_stage,o.sales_commission_amount,o.seller_user_id,o.seller_role,o.seller_commission_amount,o.referrer_id,r.name referrer_name,o.referrer_commission_amount,o.student_wechat_name,o.student_mobile,o.student_address,o.payment_time,o.receipt_time,o.refund_time,o.refund_amount,o.remark,o.created_at, su.real_name seller_name'
-            . $baseSql . $whereSql . ' ORDER BY o.id DESC';
+        $sql = 'SELECT ' . $selectFields . $baseSql . $whereSql . ' ORDER BY o.id DESC';
         $stmt = $pdo->prepare($sql);
         $stmt->execute($params);
         json_response(0, 'ok', $stmt->fetchAll());
@@ -185,13 +191,30 @@ try {
         $paymentStage = trim((string)($d['payment_stage'] ?? 'full'));
         orders_validate_payment_stage($paymentStage);
 
+        // 订单类型：首单/续单/增课
+        $orderType = trim((string)($d['order_type'] ?? 'first'));
+        if (!in_array($orderType, ['first', 'renewal', 'upgrade'], true)) {
+            $orderType = 'first';
+        }
+
         $sellerUserId = (int)($d['seller_user_id'] ?? 0);
         if ($sellerUserId <= 0) $sellerUserId = auth_user_id();
         $sellerRole = trim((string)($d['seller_role'] ?? auth_user_role()));
 
-        $defaultRate = 0.10;
-        if ($sellerRole === '教练') $defaultRate = 0.08;
-        if ($sellerRole === '班主任') $defaultRate = 0.06;
+        // 根据角色和订单类型计算分成比例
+        $defaultRate = 0.10; // 顾问首单 10%
+        if ($sellerRole === '顾问') {
+            if ($orderType === 'renewal') $defaultRate = 0.05;
+            elseif ($orderType === 'upgrade') $defaultRate = 0.08;
+            else $defaultRate = 0.10;
+        } elseif ($sellerRole === '教练') {
+            if ($orderType === 'renewal') $defaultRate = 0.04;
+            elseif ($orderType === 'upgrade') $defaultRate = 0.06;
+            else $defaultRate = 0.08;
+        } elseif ($sellerRole === '班主任') {
+            $defaultRate = 0.06; // 班主任固定 6%，不区分订单类型
+        }
+
         $salesCommission = isset($d['sales_commission_amount']) && $d['sales_commission_amount'] !== '' ? (float)$d['sales_commission_amount'] : round($paidAmount * $defaultRate, 2);
         $sellerCommission = isset($d['seller_commission_amount']) && $d['seller_commission_amount'] !== '' ? (float)$d['seller_commission_amount'] : $salesCommission;
         if ($salesCommission < 0 || $sellerCommission < 0) json_response(400, '分成金额不能为负数', null, 400);
@@ -222,23 +245,88 @@ try {
         $orderRemark = trim((string)($d['remark'] ?? ''));
 
         if ($m === 'POST') {
-            $stmt = $pdo->prepare('INSERT INTO oa_order(student_id,course_id,amount,total_amount,paid_amount,pay_status,payment_stage,sales_commission_amount,seller_user_id,seller_role,seller_commission_amount,referrer_id,referrer_commission_amount,student_wechat_name,student_mobile,student_address,payment_time,receipt_time,refund_time,refund_amount,remark) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
-            $stmt->execute([$studentId, $courseId, $totalAmount, $totalAmount, $paidAmount, $payStatus, $paymentStage, $salesCommission, $sellerUserId, $sellerRole, $sellerCommission, $referrerId, $referrerCommission, $studentWechatName, $studentMobile, $studentAddress, $paymentTime, $receiptTime, $refundTime, $refundAmount, $orderRemark]);
+            $stmt = $pdo->prepare('INSERT INTO oa_order(student_id,course_id,amount,total_amount,paid_amount,pay_status,payment_stage,order_type,sales_commission_amount,seller_user_id,seller_role,seller_commission_amount,referrer_id,referrer_commission_amount,student_wechat_name,student_mobile,student_address,payment_time,receipt_time,refund_time,refund_amount,remark) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
+            $stmt->execute([$studentId, $courseId, $totalAmount, $totalAmount, $paidAmount, $payStatus, $paymentStage, $orderType, $salesCommission, $sellerUserId, $sellerRole, $sellerCommission, $referrerId, $referrerCommission, $studentWechatName, $studentMobile, $studentAddress, $paymentTime, $receiptTime, $refundTime, $refundAmount, $orderRemark]);
             if (in_array($payStatus, [1, 2], true)) {
                 $pdo->prepare("UPDATE oa_student SET is_student=1, student_stage='active', follow_status='已报名', converted_at=COALESCE(converted_at,NOW()) WHERE id=?")->execute([$studentId]);
             }
             $newId = (int)$pdo->lastInsertId();
             $snap = settlement_reconcile_order($pdo, $newId);
-            json_response(0, 'created', ['id' => $newId, 'finance_snapshot' => $snap]);
+            // 自动生成财务收款记录
+            if ($paidAmount > 0 && in_array($payStatus, [1, 2], true)) {
+                $orderTypeLabel = ['first' => '首单', 'renewal' => '续单', 'upgrade' => '增课'][$orderType] ?? '';
+                $stuNameStmt = $pdo->prepare('SELECT name FROM oa_student WHERE id=? LIMIT 1');
+                $stuNameStmt->execute([$studentId]);
+                $stuName = (string)$stuNameStmt->fetchColumn();
+                $courseNameStmt = $pdo->prepare('SELECT course_name FROM oa_course WHERE id=? LIMIT 1');
+                $courseNameStmt->execute([$courseId]);
+                $courseName = (string)$courseNameStmt->fetchColumn();
+                $itemName = "学费收款({$orderTypeLabel})-{$stuName}-{$courseName}";
+                $checkStmt = $pdo->prepare("SELECT id FROM oa_finance_record WHERE source_type='order_payment' AND source_id=? LIMIT 1");
+                $checkStmt->execute([$newId]);
+                if (!$checkStmt->fetchColumn()) {
+                    $pdo->prepare("INSERT INTO oa_finance_record(record_type,item_name,amount,record_date,remark,source_type,source_id,operator_user_id) VALUES('income',?,?,CURDATE(),?,?,?,?)")
+                        ->execute([$itemName, $paidAmount, "订单#{$newId}自动入账", 'order_payment', $newId, auth_user_id()]);
+                }
+                // 订单付款时，创建预提分成记录（pending，待班期销课时终算）
+                if ($paidAmount > 0 && $sellerUserId > 0) {
+                    $roleTypeMap = ['顾问' => 'consultant', '教练' => 'coach', '班主任' => 'headteacher'];
+                    $commissionRole = $roleTypeMap[$sellerRole] ?? null;
+                    if ($commissionRole) {
+                        // 预提：使用当前规则比例（兜底档），待月底终算
+                        $preFinalRate = $defaultRate;
+                        $preFinalAmount = round($paidAmount * $preFinalRate, 2);
+                        $checkCalc = $pdo->prepare("SELECT id FROM oa_commission_calc WHERE order_id=? AND user_id=? AND calc_status='pending' LIMIT 1");
+                        $checkCalc->execute([$newId, $sellerUserId]);
+                        if (!$checkCalc->fetchColumn()) {
+                            $pdo->prepare("INSERT INTO oa_commission_calc (order_id, user_id, role_type, base_amount, commission_amount, rate, calc_status, pay_status, calc_time) VALUES (?, ?, ?, ?, ?, ?, 'pending', 'pending', NOW())")
+                                ->execute([$newId, $sellerUserId, $commissionRole, $paidAmount, $preFinalAmount, $preFinalRate]);
+                        }
+                    }
+                }
+            }
+            json_response(0, 'created', ['id' => $newId, 'order_type' => $orderType, 'commission_rate' => $defaultRate, 'finance_snapshot' => $snap]);
         }
 
-        $stmt = $pdo->prepare('UPDATE oa_order SET student_id=?,course_id=?,amount=?,total_amount=?,paid_amount=?,pay_status=?,payment_stage=?,sales_commission_amount=?,seller_user_id=?,seller_role=?,seller_commission_amount=?,referrer_id=?,referrer_commission_amount=?,student_wechat_name=?,student_mobile=?,student_address=?,payment_time=?,receipt_time=?,refund_time=?,refund_amount=?,remark=? WHERE id=?');
-        $stmt->execute([$studentId, $courseId, $totalAmount, $totalAmount, $paidAmount, $payStatus, $paymentStage, $salesCommission, $sellerUserId, $sellerRole, $sellerCommission, $referrerId, $referrerCommission, $studentWechatName, $studentMobile, $studentAddress, $paymentTime, $receiptTime, $refundTime, $refundAmount, $orderRemark, $id]);
+        $stmt = $pdo->prepare('UPDATE oa_order SET student_id=?,course_id=?,amount=?,total_amount=?,paid_amount=?,pay_status=?,payment_stage=?,order_type=?,sales_commission_amount=?,seller_user_id=?,seller_role=?,seller_commission_amount=?,referrer_id=?,referrer_commission_amount=?,student_wechat_name=?,student_mobile=?,student_address=?,payment_time=?,receipt_time=?,refund_time=?,refund_amount=?,remark=? WHERE id=?');
+        $stmt->execute([$studentId, $courseId, $totalAmount, $totalAmount, $paidAmount, $payStatus, $paymentStage, $orderType, $salesCommission, $sellerUserId, $sellerRole, $sellerCommission, $referrerId, $referrerCommission, $studentWechatName, $studentMobile, $studentAddress, $paymentTime, $receiptTime, $refundTime, $refundAmount, $orderRemark, $id]);
         if (in_array($payStatus, [1, 2], true)) {
             $pdo->prepare("UPDATE oa_student SET is_student=1, student_stage='active', follow_status='已报名', converted_at=COALESCE(converted_at,NOW()) WHERE id=?")->execute([$studentId]);
+            // 付款时创建预提分成记录
+            if ($paidAmount > 0 && $sellerUserId > 0) {
+                $roleTypeMap = ['顾问' => 'consultant', '教练' => 'coach', '班主任' => 'headteacher'];
+                $commissionRole = $roleTypeMap[$sellerRole] ?? null;
+                if ($commissionRole) {
+                    $preFinalRate = $defaultRate;
+                    $preFinalAmount = round($paidAmount * $preFinalRate, 2);
+                    $checkCalc = $pdo->prepare("SELECT id FROM oa_commission_calc WHERE order_id=? AND user_id=? AND calc_status='pending' LIMIT 1");
+                    $checkCalc->execute([$id, $sellerUserId]);
+                    if (!$checkCalc->fetchColumn()) {
+                        $pdo->prepare("INSERT INTO oa_commission_calc (order_id, user_id, role_type, base_amount, commission_amount, rate, calc_status, pay_status, calc_time) VALUES (?, ?, ?, ?, ?, ?, 'pending', 'pending', NOW())")
+                            ->execute([$id, $sellerUserId, $commissionRole, $paidAmount, $preFinalAmount, $preFinalRate]);
+                    }
+                }
+            }
         }
         $snap = settlement_reconcile_order($pdo, $id);
-        json_response(0, 'updated', ['finance_snapshot' => $snap]);
+        // 更新时如变为已付款，自动补全财务记录
+        if ($paidAmount > 0 && in_array($payStatus, [1, 2], true)) {
+            $checkStmt = $pdo->prepare("SELECT id FROM oa_finance_record WHERE source_type='order_payment' AND source_id=? LIMIT 1");
+            $checkStmt->execute([$id]);
+            if (!$checkStmt->fetchColumn()) {
+                $orderTypeLabel = ['first' => '首单', 'renewal' => '续单', 'upgrade' => '增课'][$orderType] ?? '';
+                $stuNameStmt = $pdo->prepare('SELECT name FROM oa_student WHERE id=? LIMIT 1');
+                $stuNameStmt->execute([$studentId]);
+                $stuName = (string)$stuNameStmt->fetchColumn();
+                $courseNameStmt = $pdo->prepare('SELECT course_name FROM oa_course WHERE id=? LIMIT 1');
+                $courseNameStmt->execute([$courseId]);
+                $courseName = (string)$courseNameStmt->fetchColumn();
+                $itemName = "学费收款({$orderTypeLabel})-{$stuName}-{$courseName}";
+                $pdo->prepare("INSERT INTO oa_finance_record(record_type,item_name,amount,record_date,remark,source_type,source_id,operator_user_id) VALUES('income',?,?,CURDATE(),?,?,?,?)")
+                    ->execute([$itemName, $paidAmount, "订单#{$id}自动入账", 'order_payment', $id, auth_user_id()]);
+            }
+        }
+        json_response(0, 'updated', ['order_type' => $orderType, 'commission_rate' => $defaultRate, 'finance_snapshot' => $snap]);
     }
 
     if ($m === 'DELETE') {

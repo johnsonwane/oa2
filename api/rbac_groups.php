@@ -36,6 +36,12 @@ try {
         if ($id <= 0) json_response(400, 'id非法', null, 400);
         $pdo->prepare('DELETE FROM oa_user_group_rel WHERE group_id=?')->execute([$id]);
         $pdo->prepare('DELETE FROM oa_group_permission_rel WHERE group_id=?')->execute([$id]);
+        // 同步清理角色菜单绑定（避免数据孤岛）
+        try {
+            $pdo->prepare('DELETE FROM oa_role_menu_rel WHERE group_id=?')->execute([$id]);
+        } catch (Throwable $_) {
+            // oa_role_menu_rel 表不存在时忽略
+        }
         $pdo->prepare('DELETE FROM oa_user_group WHERE id=?')->execute([$id]);
         json_response(0, 'deleted');
     }

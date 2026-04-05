@@ -859,3 +859,83 @@ INSERT INTO oa_salary_payment_log (period_id, user_id, paid_amount, paid_at, cha
 
 INSERT INTO oa_expense_voucher (expense_no, item_name, amount, dept_name, expense_date, payer_user_id, pay_channel, invoice_no, remark) VALUES
 ('EXP-2026-0001', '投流成本-抖音', 3000.00, '运营部', CURDATE(), 4, 'corporate_alipay', 'INV-EXP-0001', '3月首周投流');
+
+-- =====================================================
+-- v2 优化：新增字段与数据
+-- 注意：schema.sql 是全量建库脚本，用于初始化新库，无需 IF NOT EXISTS。
+-- 若需在已有库上执行增量变更，请使用 db/patch_v2.sql（已做幂等处理）。
+-- =====================================================
+
+-- oa_student 增加引流追踪字段
+ALTER TABLE oa_student
+  ADD COLUMN campaign_id INT UNSIGNED DEFAULT NULL COMMENT '引流活动ID',
+  ADD COLUMN lead_source_type VARCHAR(30) DEFAULT '' COMMENT '线索来源类型';
+
+-- oa_order 增加订单类型
+ALTER TABLE oa_order
+  ADD COLUMN order_type ENUM('first','renewal','upgrade') NOT NULL DEFAULT 'first' COMMENT '订单类型';
+
+-- oa_finance_record 增加来源追踪
+ALTER TABLE oa_finance_record
+  ADD COLUMN source_type VARCHAR(30) DEFAULT 'manual' COMMENT '来源类型',
+  ADD COLUMN source_id INT UNSIGNED DEFAULT NULL COMMENT '来源ID',
+  ADD COLUMN operator_user_id INT UNSIGNED DEFAULT NULL COMMENT '操作人ID',
+  ADD COLUMN created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP;
+
+-- 新增运营角色组
+INSERT INTO oa_user_group (group_name, group_code, remark, status) VALUES
+('运营', 'ops_role', '负责公域引流、资料投放和推广活动', 1)
+ON DUPLICATE KEY UPDATE group_name=VALUES(group_name), remark=VALUES(remark), status=VALUES(status);
+
+-- 新增运营测试账号
+INSERT INTO oa_user (username, password_hash, real_name, role, gender, mobile, email, department, position, hire_date, remark, status) VALUES
+('ops01', '$2y$12$rVtPrImk7H.Q6rvIHF4Ql.z8/SgRl3OChjDcGMQG.aXn4Cn7RTxDO', '运营小王', '运营', '女', '13800000060', 'ops01@oa2.local', '运营部', '运营专员', '2024-04-01', '负责抖音/小红书引流投放', 1)
+ON DUPLICATE KEY UPDATE real_name=VALUES(real_name), role=VALUES(role), mobile=VALUES(mobile), department=VALUES(department), position=VALUES(position), status=VALUES(status);
+
+INSERT IGNORE INTO oa_user_group_rel (user_id, group_id)
+SELECT u.id, g.id FROM oa_user u, oa_user_group g WHERE u.username='ops01' AND g.group_code='ops_role';
+
+-- 新增运营/老板/顾问扩展权限
+INSERT INTO oa_permission (perm_name, perm_code, module_name, remark, status) VALUES
+('菜单运营管理', 'menu_ops', '菜单可见性', '可见运营管理模块', 1),
+('菜单资料库', 'menu_materials', '菜单可见性', '可见资料库', 1),
+('菜单资料投放', 'menu_material_campaigns', '菜单可见性', '可见资料投放', 1),
+('菜单资料领取', 'menu_material_claims', '菜单可见性', '可见资料领取', 1),
+('菜单引流漏斗', 'menu_leads_funnel', '菜单可见性', '可见引流漏斗统计', 1),
+('菜单老板看板', 'menu_boss_dashboard', '菜单可见性', '可见老板专用看板', 1)
+ON DUPLICATE KEY UPDATE perm_name=VALUES(perm_name), module_name=VALUES(module_name), remark=VALUES(remark), status=VALUES(status);
+
+INSERT IGNORE INTO oa_group_permission_rel (group_id, perm_id)
+SELECT g.id, p.id FROM oa_user_group g, oa_permission p
+WHERE g.group_code='ops_role'
+AND p.perm_code IN ('menu_overview','menu_todos','menu_materials','menu_material_campaigns','menu_material_claims','menu_leads_funnel','menu_ops');
+
+INSERT IGNORE INTO oa_group_permission_rel (group_id, perm_id)
+SELECT g.id, p.id FROM oa_user_group g, oa_permission p
+WHERE g.group_code='boss_role'
+AND p.perm_code IN ('menu_boss_dashboard','menu_leads_funnel','menu_department_stats');
+
+INSERT IGNORE INTO oa_group_permission_rel (group_id, perm_id)
+SELECT g.id, p.id FROM oa_user_group g, oa_permission p
+WHERE g.group_code='consultant_role'
+AND p.perm_code IN ('menu_orders','menu_courses','menu_referrers');
+
+-- 新增菜单
+INSERT INTO oa_menu (parent_name, menu_name, menu_key, path, icon, sort_no, status) VALUES
+('经营分析', '引流漏斗', 'leads_funnel', '/leads_funnel', '📈', 31, 1),
+('经营分析', '老板看板', 'boss_dashboard', '/boss_dashboard', '👑', 32, 1),
+('运营管理', '资料库', 'materials_ops', '/materials', '📦', 41, 1),
+('运营管理', '资料投放', 'material_campaigns_ops', '/material_campaigns', '📡', 42, 1),
+('运营管理', '资料领取', 'material_claims_ops', '/material_claims', '📥', 43, 1)
+ON DUPLICATE KEY UPDATE menu_name=VALUES(menu_name), parent_name=VALUES(parent_name), path=VALUES(path), icon=VALUES(icon), sort_no=VALUES(sort_no), status=VALUES(status);
+
+-- 更新分成规则
+INSERT INTO oa_commission_rule (rule_name, role_type, calc_base, commission_type, rate, fixed_amount, priority_no, start_date, end_date, status) VALUES
+('顾问首单分成', 'consultant', 'order', 'rate', 0.1000, 0, 10, '2026-01-01', NULL, 1),
+('顾问续单分成', 'consultant_renewal', 'order', 'rate', 0.0500, 0, 11, '2026-01-01', NULL, 1),
+('顾问增课分成', 'consultant_upgrade', 'order', 'rate', 0.0800, 0, 12, '2026-01-01', NULL, 1),
+('教练首单分成', 'coach_first', 'order', 'rate', 0.0800, 0, 20, '2026-01-01', NULL, 1),
+('教练续单分成', 'coach_renewal', 'order', 'rate', 0.0400, 0, 21, '2026-01-01', NULL, 1),
+('教练增课分成', 'coach_upgrade', 'order', 'rate', 0.0600, 0, 22, '2026-01-01', NULL, 1),
+('班主任分成', 'headteacher', 'order', 'rate', 0.0600, 0, 30, '2026-01-01', NULL, 1)
+ON DUPLICATE KEY UPDATE rate=VALUES(rate), priority_no=VALUES(priority_no), start_date=VALUES(start_date), status=VALUES(status);

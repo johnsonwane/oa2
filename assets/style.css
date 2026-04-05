@@ -57,3 +57,37 @@ button:disabled{opacity:.65}.btn-secondary{background:#6b7280}.btn-danger{backgr
 .role-tip{margin:8px 0 12px;padding:10px 12px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;color:#1e3a8a;font-size:13px;line-height:1.6}
 .role-tip strong{margin-right:6px}
 
+/* 订单类型标签 */
+.tag-first,.tag-renewal,.tag-upgrade,.tag-lead-source{display:inline-block;padding:2px 8px;border-radius:10px;font-size:12px;font-weight:600;white-space:nowrap}
+.tag-first{background:#dbeafe;color:#1d4ed8}
+.tag-renewal{background:#d1fae5;color:#065f46}
+.tag-upgrade{background:#fef3c7;color:#92400e}
+.tag-lead-source{background:#f3e8ff;color:#6b21a8}
+
+/* 漏斗图表样式 */
+.funnel-wrap{display:flex;flex-direction:column;gap:8px;margin:12px 0}
+.funnel-bar{display:flex;align-items:center;gap:10px}
+.funnel-label{width:80px;font-size:13px;color:var(--muted);text-align:right;flex-shrink:0}
+.funnel-track{flex:1;background:#f3f4f6;border-radius:8px;overflow:hidden;height:26px}
+.funnel-fill{height:100%;border-radius:8px;transition:width .4s ease;display:flex;align-items:center;justify-content:flex-end;padding-right:8px;font-size:12px;color:#fff;font-weight:600}
+.funnel-fill.f-clue{background:#6366f1}
+.funnel-fill.f-intent{background:#3b82f6}
+.funnel-fill.f-consult{background:#0ea5e9}
+.funnel-fill.f-deal{background:#10b981}
+.funnel-fill.f-pay{background:#f59e0b}
+
+/* 看板卡片 */
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:12px 0}
+.kpi-card{background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;padding:14px 16px}
+.kpi-card .kpi-label{font-size:12px;color:var(--muted);margin-bottom:4px}
+.kpi-card .kpi-value{font-size:24px;font-weight:700;color:var(--text)}
+.kpi-card .kpi-sub{font-size:11px;color:var(--muted);margin-top:2px}
+.kpi-card.kpi-up .kpi-value{color:#059669}
+.kpi-card.kpi-down .kpi-value{color:#dc2626}
+
+/* 趋势迷你图 */
+.sparkline-wrap{display:flex;align-items:flex-end;gap:3px;height:36px}
+.sparkline-bar{flex:1;background:#bfdbfe;border-radius:3px 3px 0 0;min-height:4px;transition:height .3s}
+.sparkline-bar.active{background:#2563eb}
+
+

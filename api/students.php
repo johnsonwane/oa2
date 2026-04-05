@@ -14,6 +14,11 @@ function students_scope(PDO $pdo, string $alias = 'oa_student'): array
         return ['sql' => '1=1', 'params' => []];
     }
 
+    // 运营角色：可查看所有来源于自己负责活动的线索，以及所有学员（方便分析）
+    if ($role === '运营') {
+        return ['sql' => '1=1', 'params' => []];
+    }
+
     if ($role === '顾问') {
         return ['sql' => "({$alias}.owner_consultant_user_id = :uid OR {$alias}.consultant = :uname)", 'params' => [':uid' => $uid, ':uname' => $name]];
     }
@@ -60,11 +65,34 @@ try {
     $m = $_SERVER['REQUEST_METHOD'];
 
     if ($m === 'GET') {
+        // 特殊子路由：引流转化统计（用于运营漏斗）
+        if (isset($_GET['stat']) && $_GET['stat'] === 'campaign_funnel') {
+            auth_require_roles(['运营', '部门经理', '财务']);
+            $sql = "SELECT
+                        mc.id campaign_id,
+                        mc.campaign_name,
+                        mc.channel,
+                        COUNT(DISTINCT s.id) total_leads,
+                        SUM(s.is_student) converted_count,
+                        ROUND(IFNULL(SUM(s.is_student)/NULLIF(COUNT(s.id),0)*100,0),1) conversion_rate,
+                        IFNULL(SUM(o.paid_amount),0) total_revenue,
+                        IFNULL(AVG(NULLIF(o.paid_amount,0)),0) avg_order_amount
+                    FROM oa_material_campaign mc
+                    LEFT JOIN oa_student s ON s.campaign_id = mc.id
+                    LEFT JOIN oa_order o ON o.student_id = s.id AND o.pay_status > 0
+                    GROUP BY mc.id, mc.campaign_name, mc.channel
+                    ORDER BY total_leads DESC";
+            $stmt = $pdo->query($sql);
+            json_response(0, 'ok', $stmt->fetchAll());
+        }
+
         $where = [];
         $params = [];
         $keyword = trim((string)($_GET['keyword'] ?? ''));
         $status = trim((string)($_GET['follow_status'] ?? ''));
         $category = trim((string)($_GET['student_category'] ?? ''));
+        $campaignId = (int)($_GET['campaign_id'] ?? 0);
+        $leadSourceType = trim((string)($_GET['lead_source_type'] ?? ''));
 
         $scope = students_scope($pdo, 'oa_student');
         $where[] = '(' . $scope['sql'] . ')';
@@ -78,6 +106,14 @@ try {
             $where[] = 'follow_status = :follow_status';
             $params[':follow_status'] = $status;
         }
+        if ($campaignId > 0) {
+            $where[] = 'campaign_id = :campaign_id';
+            $params[':campaign_id'] = $campaignId;
+        }
+        if ($leadSourceType !== '') {
+            $where[] = 'lead_source_type = :lead_source_type';
+            $params[':lead_source_type'] = $leadSourceType;
+        }
 
         if ($category !== '') {
             if ($category === 'lead') {
@@ -89,6 +125,8 @@ try {
             }
         }
 
+        $selectFields = 'id, name, gender, birthday, phone, wechat_name, wechat, id_no, level, intention_level, follow_status, source, source_channel, miniapp_openid, is_student, student_stage, lead_registered_at, converted_at, owner_consultant_user_id, headteacher_user_id, coach_user_id, enrolled_courses, consultant, delivery_coach, address, remark, created_at, campaign_id, lead_source_type';
+
         $whereSql = $where ? (' WHERE ' . implode(' AND ', $where)) : '';
 
         if (paged_mode($_GET)) {
@@ -97,7 +135,7 @@ try {
             $countStmt->execute($params);
             $total = (int)$countStmt->fetchColumn();
 
-            $sql = 'SELECT id, name, gender, birthday, phone, wechat_name, wechat, id_no, level, intention_level, follow_status, source, source_channel, miniapp_openid, is_student, student_stage, lead_registered_at, converted_at, owner_consultant_user_id, headteacher_user_id, coach_user_id, enrolled_courses, consultant, delivery_coach, address, remark, created_at FROM oa_student'
+            $sql = 'SELECT ' . $selectFields . ' FROM oa_student'
                 . $whereSql . ' ORDER BY id DESC LIMIT :limit OFFSET :offset';
             $stmt = $pdo->prepare($sql);
             foreach ($params as $k => $v) {
@@ -116,13 +154,13 @@ try {
             ]);
         }
 
-        $stmt = $pdo->prepare('SELECT id, name, gender, birthday, phone, wechat_name, wechat, id_no, level, intention_level, follow_status, source, source_channel, miniapp_openid, is_student, student_stage, lead_registered_at, converted_at, owner_consultant_user_id, headteacher_user_id, coach_user_id, enrolled_courses, consultant, delivery_coach, address, remark, created_at FROM oa_student' . $whereSql . ' ORDER BY id DESC');
+        $stmt = $pdo->prepare('SELECT ' . $selectFields . ' FROM oa_student' . $whereSql . ' ORDER BY id DESC');
         $stmt->execute($params);
         json_response(0, 'ok', $stmt->fetchAll());
     }
 
     if ($m === 'POST') {
-        auth_require_roles(['顾问', '班主任', '教练']);
+        auth_require_roles(['顾问', '班主任', '教练', '运营']);
 
         $d = request_body();
         require_fields($d, ['wechat_name', 'phone']);
@@ -152,9 +190,21 @@ try {
         } elseif ($role === '教练') {
             $coachUserId = $uid;
             if ($deliveryCoach === '') $deliveryCoach = $uname;
+        } elseif ($role === '运营') {
+            // 运营创建线索时，记录引流来源
+            if ($ownerConsultantId === null) {
+                // 运营创建的线索暂不归属顾问，等待分配
+            }
         }
 
-        $stmt = $pdo->prepare('INSERT INTO oa_student(name, gender, birthday, phone, wechat_name, wechat, id_no, level, intention_level, follow_status, source, source_channel, miniapp_openid, is_student, student_stage, lead_registered_at, converted_at, owner_consultant_user_id, headteacher_user_id, coach_user_id, enrolled_courses, consultant, delivery_coach, address, remark) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
+        // 引流追踪字段
+        $campaignId = (int)($d['campaign_id'] ?? 0) ?: null;
+        $leadSourceType = trim((string)($d['lead_source_type'] ?? ''));
+        if ($leadSourceType === '' && $campaignId !== null) {
+            $leadSourceType = 'campaign';
+        }
+
+        $stmt = $pdo->prepare('INSERT INTO oa_student(name, gender, birthday, phone, wechat_name, wechat, id_no, level, intention_level, follow_status, source, source_channel, miniapp_openid, is_student, student_stage, lead_registered_at, converted_at, owner_consultant_user_id, headteacher_user_id, coach_user_id, enrolled_courses, consultant, delivery_coach, address, remark, campaign_id, lead_source_type) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
         $stmt->execute([
             trim((string)($d['name'] ?? '')),
             trim((string)($d['gender'] ?? '')),
@@ -181,12 +231,14 @@ try {
             $deliveryCoach,
             trim((string)($d['address'] ?? '')),
             trim((string)($d['remark'] ?? '')),
+            $campaignId,
+            $leadSourceType,
         ]);
         json_response(0, 'created', ['id' => (int)$pdo->lastInsertId()]);
     }
 
     if ($m === 'PUT') {
-        auth_require_roles(['顾问', '班主任', '教练']);
+        auth_require_roles(['顾问', '班主任', '教练', '运营']);
 
         $d = request_body();
         $id = (int)($d['id'] ?? 0);
@@ -203,7 +255,10 @@ try {
             json_response(409, '手机号已存在', null, 409);
         }
 
-        $stmt = $pdo->prepare('UPDATE oa_student SET name=?, gender=?, birthday=?, phone=?, wechat_name=?, wechat=?, id_no=?, level=?, intention_level=?, follow_status=?, source=?, source_channel=?, miniapp_openid=?, is_student=?, student_stage=?, lead_registered_at=?, converted_at=?, owner_consultant_user_id=?, headteacher_user_id=?, coach_user_id=?, enrolled_courses=?, consultant=?, delivery_coach=?, address=?, remark=? WHERE id=?');
+        $campaignId = (int)($d['campaign_id'] ?? 0) ?: null;
+        $leadSourceType = trim((string)($d['lead_source_type'] ?? ''));
+
+        $stmt = $pdo->prepare('UPDATE oa_student SET name=?, gender=?, birthday=?, phone=?, wechat_name=?, wechat=?, id_no=?, level=?, intention_level=?, follow_status=?, source=?, source_channel=?, miniapp_openid=?, is_student=?, student_stage=?, lead_registered_at=?, converted_at=?, owner_consultant_user_id=?, headteacher_user_id=?, coach_user_id=?, enrolled_courses=?, consultant=?, delivery_coach=?, address=?, remark=?, campaign_id=?, lead_source_type=? WHERE id=?');
         $stmt->execute([
             trim((string)($d['name'] ?? '')),
             trim((string)($d['gender'] ?? '')),
@@ -230,6 +285,8 @@ try {
             trim((string)($d['delivery_coach'] ?? '')),
             trim((string)($d['address'] ?? '')),
             trim((string)($d['remark'] ?? '')),
+            $campaignId,
+            $leadSourceType,
             $id
         ]);
         json_response(0, 'updated');

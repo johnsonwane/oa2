@@ -37,8 +37,13 @@
 
     <section class="content-card" v-if="activeTab==='students'">
       <h2>学员管理</h2>
-      <p class="role-tip"><strong>岗位引导：</strong>顾问先建线索并完善学员信息；班主任补充期次与服务信息；教练只维护自己负责学员的交付相关信息。</p>
-      <form class="inline-form" @submit.prevent="loadStudents"><input v-model.trim="studentKeyword" placeholder="搜索姓名/手机/顾问"><select v-model="studentCategory"><option value="">全部</option><option value="lead">线索</option><option value="pending_payment">待缴费学员</option><option value="active">正式学员</option></select><button type="submit" class="btn-secondary">查询</button></form>
+      <p class="role-tip"><strong>岗位引导：</strong>顾问先建线索并完善学员信息；班主任补充期次与服务信息；教练只维护自己负责学员的交付相关信息。运营人员可从资料领取中追踪线索来源。</p>
+      <form class="inline-form" @submit.prevent="loadStudents">
+        <input v-model.trim="studentKeyword" placeholder="搜索姓名/手机/顾问">
+        <select v-model="studentCategory"><option value="">全部分类</option><option value="lead">线索</option><option value="pending_payment">待缴费学员</option><option value="active">正式学员</option></select>
+        <select v-model="studentLeadSourceType"><option value="">全部来源类型</option><option value="campaign">活动引流</option><option value="referral">转介绍</option><option value="direct">直接来访</option><option value="organic">自然流量</option></select>
+        <button type="submit" class="btn-secondary">查询</button>
+      </form>
       <div class="section-actions"><button type="button" @click="openEditor('student', false)">新增学员</button></div><form :class="['inline-form','editor-form',{show:activeEditor==='student'}]" @submit.prevent="saveStudent">
         <label>姓名（选填）<input v-model.trim="studentForm.name" placeholder="例如：张三"></label>
         <label>性别（男/女）<select v-model="studentForm.gender"><option value="">请选择</option><option value="男">男</option><option value="女">女</option></select></label>
@@ -79,7 +84,7 @@ createApp({
     const finance=ref({list:[],summary:{income:0,expense:0,balance:0}});
     const assignData=ref({user_groups:[],group_perms:[]});
     const groupedMenus=ref([]);
-    const studentKeyword=ref(''),studentCategory=ref(''),orderKeyword=ref(''),referrerKeyword=ref(''),userKeyword=ref('');
+    const studentKeyword=ref(''),studentCategory=ref(''),studentLeadSourceType=ref(''),orderKeyword=ref(''),referrerKeyword=ref(''),userKeyword=ref('');
     const departmentOptions=ref([]),positionOptions=ref([]),roleOptions=ref([]),receiptChannelOptions=ref([]);
 
     const studentForm=reactive({id:0,name:'',gender:'',birthday:'',phone:'',wechat_name:'',wechat:'',id_no:'',level:'',intention_level:'',follow_status:'',source:'',enrolled_courses_text:'',consultant:'',delivery_coach:'',address:'',remark:''});
@@ -106,7 +111,7 @@ createApp({
 
     const api=async(url,opt={})=>{const token=localStorage.getItem('oa_token')||'';const baseHeaders={'Content-Type':'application/json'};if(token){baseHeaders.Authorization='Bearer '+token;baseHeaders['X-OA-Token']=token;}const headers={...baseHeaders,...(opt.headers||{})};let r;try{r=await fetch(url,{...opt,headers});}catch(e){throw new Error(`请求失败：网络异常（${url}）`);}const text=await r.text();let j={};try{j=text?JSON.parse(text):{};}catch(_){j={};}if(r.status===401){localStorage.removeItem('oa_token');localStorage.removeItem('oa_user');top.location.href='./login.html';throw new Error('登录已过期，请重新登录');}if(!r.ok||j.code!==0){const detail=(j&&j.message)||(text||'').slice(0,160);throw new Error(detail||`请求失败（HTTP ${r.status} ${r.statusText}）`);}if(!text)return null;return Object.prototype.hasOwnProperty.call(j,'data')?j.data:j;};
     const loadSummary=async()=>{const q=new URLSearchParams(); if(user.value?.id) q.set('user_id',String(user.value.id)); summary.value=await api(`/api/dashboard_summary.php?${q.toString()}`);};
-    const loadStudents=async()=>{const q=new URLSearchParams(); if(studentKeyword.value) q.set('keyword',studentKeyword.value); if(studentCategory.value) q.set('student_category',studentCategory.value); if(user.value?.id) q.set('user_id',String(user.value.id)); students.value=await api(`/api/students.php?${q.toString()}`);};
+    const loadStudents=async()=>{const q=new URLSearchParams(); if(studentKeyword.value) q.set('keyword',studentKeyword.value); if(studentCategory.value) q.set('student_category',studentCategory.value); if(studentLeadSourceType.value) q.set('lead_source_type',studentLeadSourceType.value); if(user.value?.id) q.set('user_id',String(user.value.id)); students.value=await api(`/api/students.php?${q.toString()}`);};
     const loadCourses=async()=>courses.value=await api('/api/courses.php');
     const loadOrders=async()=>{const q=new URLSearchParams(); if(orderKeyword.value) q.set('keyword',orderKeyword.value); if(user.value?.id) q.set('user_id',String(user.value.id)); orders.value=await api(`/api/orders.php?${q.toString()}`);};
     const loadReferrers=async()=>{const q=referrerKeyword.value?`?keyword=${encodeURIComponent(referrerKeyword.value)}`:'';referrers.value=await api(`/api/referrers.php${q}`);};
@@ -266,7 +271,7 @@ createApp({
     onMounted(async()=>{window.addEventListener('resize',onResize);const t=localStorage.getItem('oa_token');const u=localStorage.getItem('oa_user');if(!t){top.location.href='./login.html';return;}try{user.value=JSON.parse(u||'{}');}catch(_){user.value={};}await reloadAll();});
     onBeforeUnmount(()=>window.removeEventListener('resize',onResize));
 
-    return {activeTab,error,user,summary,students,courses,orders,referrers,receipts,deliveryLogs,departmentStats,finance,todos,notifications,users,departments,menus,groups,perms,assignData,groupedMenus,departmentOptions,positionOptions,roleOptions,receiptChannelOptions,studentKeyword,studentCategory,orderKeyword,referrerKeyword,userKeyword,sidebarOpen,isMobile,detailDialog,activeEditor,importFileRef,toggleSidebar,selectMenu,viewRecord,closeDetailDialog,openEditor,closeEditor,canImportExportTab,exportCurrentTab,triggerImport,handleImportFile,decodeImportFile,
+    return {activeTab,error,user,summary,students,courses,orders,referrers,receipts,deliveryLogs,departmentStats,finance,todos,notifications,users,departments,menus,groups,perms,assignData,groupedMenus,departmentOptions,positionOptions,roleOptions,receiptChannelOptions,studentKeyword,studentCategory,studentLeadSourceType,orderKeyword,referrerKeyword,userKeyword,sidebarOpen,isMobile,detailDialog,activeEditor,importFileRef,toggleSidebar,selectMenu,viewRecord,closeDetailDialog,openEditor,closeEditor,canImportExportTab,exportCurrentTab,triggerImport,handleImportFile,decodeImportFile,
       studentForm,courseForm,orderForm,financeForm,referrerForm,receiptForm,deliveryLogForm,todoForm,notificationForm,userForm,departmentForm,menuForm,groupForm,permForm,assignForm,assignForm2,
       formatCourses,paymentStageLabel,saveStudent,editStudent,resetStudentForm,saveCourse,editCourse,resetCourseForm,saveOrder,editOrder,resetOrderForm,saveFinance,editFinance,resetFinanceForm,resetReferrerForm,editReferrer,saveReferrer,resetReceiptForm,editReceipt,saveReceipt,resetDeliveryLogForm,editDeliveryLog,saveDeliveryLog,saveTodo,editTodo,resetTodoForm,saveNotification,editNotification,resetNotificationForm,saveDepartment,editDepartment,resetDepartmentForm,saveUser,editUser,resetUserForm,saveMenu,editMenu,resetMenuForm,saveGroup,editGroup,resetGroupForm,savePerm,editPerm,resetPermForm,assignUserGroup,assignGroupPerm,delAssign,reloadAll,logout};
   }

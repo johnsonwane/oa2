@@ -12,52 +12,201 @@
     .oa-header{padding:12px 20px;background:linear-gradient(180deg,#f8fbff,#f3f6fb);position:sticky;top:0;z-index:30;border-bottom:1px solid #e5e7eb}
     .oa-header h1{margin:0;font-size:22px}
     .oa-sidebar{box-shadow:inset -1px 0 0 rgba(255,255,255,.08)}
-      </style>
+    /* 菜单加载骨架 */
+    .menu-skeleton{padding:10px 16px;}
+    .skeleton-item{height:14px;background:linear-gradient(90deg,#e8edf5 25%,#d0d8e8 50%,#e8edf5 75%);background-size:200% 100%;border-radius:4px;margin-bottom:10px;animation:skeletonAnim 1.4s infinite;}
+    .skeleton-item:nth-child(2){width:70%;}
+    .skeleton-item:nth-child(3){width:85%;}
+    .skeleton-item:nth-child(4){width:60%;}
+    @keyframes skeletonAnim{0%{background-position:200% 0}100%{background-position:-200% 0}}
+    /* 无权限提示 */
+    .no-perm-tip{padding:20px 16px;text-align:center;color:#aaa;font-size:13px;}
+  </style>
 </head>
 <body>
 <div class="app-shell">
-  <aside class="oa-sidebar">
+  <aside class="oa-sidebar" id="sidebar">
     <div class="brand">培训公司 OA</div>
     <div class="user-box" id="userBox">未登录</div>
-    <div class="group-title">总览</div>
-    <ul class="menu-tree simple">
-      <li data-key="overview">数据总览</li>
-      <li data-key="todos">待办</li>
-    </ul>
-    <div class="group-title">业务管理</div>
-    <ul class="menu-tree simple">
-      <li data-key="students">学员管理</li><li data-key="courses">课程管理</li><li data-key="orders">订单管理</li><li data-key="finance">财务管理</li><li data-key="notifications">通知管理</li><li data-key="referrers">推荐者管理</li><li data-key="external_contacts">外部联系人列表</li><li data-key="external_contacts_local">企微外部联系人本地版</li><li data-key="external_contacts_local_notes">添加人账号备注映射</li><li data-key="receipts">收款单管理</li><li data-key="payment_callback_logs">企微收款</li><li data-key="delivery_logs">交付记录</li><li data-key="materials">资料库</li><li data-key="material_campaigns">资料投放</li><li data-key="material_claims">资料领取</li><li data-key="contracts">合同管理</li><li data-key="invoice_profiles">开票档案</li><li data-key="invoices">发票管理</li><li data-key="class_terms">班期管理</li><li data-key="student_terms">学员班期</li><li data-key="shipments">寄送管理</li><li data-key="certificate_templates">证书模板</li><li data-key="certificate_issues">证书发放</li><li data-key="commission_scopes">分成范围</li><li data-key="commission_rules">分成规则</li><li data-key="commission_calcs">分成结算</li><li data-key="commission_adjustments">分成调整</li><li data-key="payroll_periods">工资期次</li><li data-key="payroll_slips">工资单</li>
-    </ul>
-    <div class="group-title">系统管理</div>
-    <ul class="menu-tree simple">
-      <li data-key="users">员工管理</li><li data-key="departments">部门管理</li><li data-key="menus">菜单管理</li><li data-key="rbac_groups">角色管理</li><li data-key="rbac_permissions">权限管理</li><li data-key="rbac_assign">RBAC分配</li>
-    </ul>
-    <div class="group-title">经营分析</div>
-    <ul class="menu-tree simple"><li data-key="department_stats">部门统计</li></ul>
+    <!-- 菜单由 JS 动态渲染 -->
+    <div id="sidebarMenu">
+      <div class="menu-skeleton">
+        <div class="skeleton-item"></div>
+        <div class="skeleton-item"></div>
+        <div class="skeleton-item"></div>
+        <div class="skeleton-item"></div>
+      </div>
+    </div>
   </aside>
   <div class="content-shell">
     <header class="oa-header">
       <h1 id="pageTitle">OA 系统管理台</h1>
-      <div class="header-actions"><button class="btn-secondary" id="refreshBtn">刷新当前页</button><button class="btn-danger" id="logoutBtn">退出登录</button></div>
+      <div class="header-actions">
+        <button class="btn-secondary" id="refreshBtn">刷新当前页</button>
+        <button class="btn-danger" id="logoutBtn">退出登录</button>
+      </div>
     </header>
     <iframe id="pageFrame" class="page-frame" src="about:blank"></iframe>
   </div>
 </div>
 <script>
-  const pageMap={overview:'overview.html',students:'students.html',courses:'courses.html',orders:'orders.html',referrers:'referrers.html',external_contacts:'external_contacts.html',external_contacts_local:'external_contacts_local.html',external_contacts_local_notes:'external_contacts_local_account_notes.html',receipts:'receipts.html',delivery_logs:'delivery_logs.html',department_stats:'department_stats.html',finance:'finance.html',todos:'todos.html',notifications:'notifications.html',users:'users.html',departments:'departments.html',menus:'menus.html',rbac_groups:'rbac_groups.html',rbac_permissions:'rbac_permissions.html',rbac_assign:'rbac_assign.html',materials:'materials.html',material_campaigns:'material_campaigns.html',material_claims:'material_claims.html',contracts:'contracts.html',invoice_profiles:'invoice_profiles.html',invoices:'invoices.html',class_terms:'class_terms.html',student_terms:'student_terms.html',shipments:'shipments.html',certificate_templates:'certificate_templates.html',certificate_issues:'certificate_issues.html',commission_scopes:'commission_scopes.html',commission_rules:'commission_rules.html',commission_calcs:'commission_calcs.html',commission_adjustments:'commission_adjustments.html',payroll_periods:'payroll_periods.html',payroll_slips:'payroll_slips.html',payment_callback_logs:'payment_callback_logs.html'};
-  const titleMap={overview:'数据总览',students:'学员管理',courses:'课程管理',orders:'订单管理',referrers:'推荐者管理',external_contacts:'外部联系人列表',external_contacts_local:'企微外部联系人本地版',external_contacts_local_notes:'添加人账号备注映射',receipts:'收款单管理',delivery_logs:'交付记录',department_stats:'部门统计',finance:'财务管理',todos:'待办',notifications:'通知管理',users:'员工管理',departments:'部门管理',menus:'菜单管理',rbac_groups:'角色管理',rbac_permissions:'权限管理',rbac_assign:'RBAC分配',materials:'资料库',material_campaigns:'资料投放',material_claims:'资料领取',contracts:'合同管理',invoice_profiles:'开票档案',invoices:'发票管理',class_terms:'班期管理',student_terms:'学员班期',shipments:'寄送管理',certificate_templates:'证书模板',certificate_issues:'证书发放',commission_scopes:'分成范围',commission_rules:'分成规则',commission_calcs:'分成结算',commission_adjustments:'分成调整',payroll_periods:'工资期次',payroll_slips:'工资单',payment_callback_logs:'企微收款'};
-  const frame=document.getElementById('pageFrame');
-  const titleEl=document.getElementById('pageTitle');
-  const userBox=document.getElementById('userBox');
-  const params=new URLSearchParams(location.search);
-  const key=params.get('page')||'todos';
-  const select=(k)=>{const file=pageMap[k]||pageMap.todos;frame.src='./'+file+'?embedded=1';titleEl.textContent=titleMap[k]||'OA 系统管理台';history.replaceState(null,'','./index.html?page='+k);document.querySelectorAll('.menu-tree li').forEach(li=>li.classList.toggle('active',li.dataset.key===k));};
-  document.querySelectorAll('.menu-tree li').forEach(li=>li.addEventListener('click',()=>select(li.dataset.key)));
-  document.getElementById('refreshBtn').addEventListener('click',()=>{try{frame.contentWindow.location.reload();}catch(_){frame.src=frame.src;}});
-  document.getElementById('logoutBtn').addEventListener('click',async()=>{const token=localStorage.getItem('oa_token')||'';try{if(token){await fetch('/api/logout.php',{method:'POST',headers:{Authorization:'Bearer '+token,'X-OA-Token':token}});}}catch(_){ }localStorage.removeItem('oa_token');localStorage.removeItem('oa_user');top.location.href='./login.html';});
-  try{const u=JSON.parse(localStorage.getItem('oa_user')||'{}');if(u&& (u.real_name||u.username)){userBox.textContent=`${u.real_name||u.username}（${u.role||'访客'}）`;}}catch(_){ }
-  if(!localStorage.getItem('oa_token')){top.location.href='./login.html';}
-  select(key);
+// ── 页面跳转映射（menu_key → html文件）──────────────────────────────────
+const pageMap = {
+  overview:'overview.html', students:'students.html', courses:'courses.html',
+  orders:'orders.html', referrers:'referrers.html',
+  external_contacts:'external_contacts.html',
+  external_contacts_local:'external_contacts_local.html',
+  external_contacts_local_notes:'external_contacts_local_account_notes.html',
+  receipts:'receipts.html', delivery_logs:'delivery_logs.html',
+  department_stats:'department_stats.html', leads_funnel:'leads_funnel.html',
+  boss_dashboard:'boss_dashboard.html', finance:'finance.html',
+  todos:'todos.html', notifications:'notifications.html',
+  users:'users.html', departments:'departments.html', menus:'menus.html',
+  rbac_groups:'rbac_groups.html', rbac_permissions:'rbac_permissions.html',
+  rbac_assign:'rbac_assign.html',
+  materials:'materials.html', material_campaigns:'material_campaigns.html',
+  material_claims:'material_claims.html',
+  contracts:'contracts.html', invoice_profiles:'invoice_profiles.html',
+  invoices:'invoices.html', class_terms:'class_terms.html',
+  student_terms:'student_terms.html', shipments:'shipments.html',
+  certificate_templates:'certificate_templates.html',
+  certificate_issues:'certificate_issues.html',
+  commission_scopes:'commission_scopes.html',
+  commission_rules:'commission_rules.html',
+  commission_calcs:'commission_calcs.html',
+  commission_adjustments:'commission_adjustments.html',
+  payroll_periods:'payroll_periods.html', payroll_slips:'payroll_slips.html',
+  payment_callback_logs:'payment_callback_logs.html',
+  refund_requests:'refund_requests.html',
+};
+
+let currentKey = '';
+const frame   = document.getElementById('pageFrame');
+const titleEl = document.getElementById('pageTitle');
+const userBox = document.getElementById('userBox');
+
+// 切换页面
+const select = (k) => {
+  const file = pageMap[k];
+  if (!file) return;
+  currentKey = k;
+  frame.src = './' + file + '?embedded=1';
+  titleEl.textContent = document.querySelector(`[data-key="${k}"]`)?.textContent?.trim() || 'OA 系统管理台';
+  history.replaceState(null, '', './index.html?page=' + k);
+  document.querySelectorAll('.menu-tree li').forEach(li =>
+    li.classList.toggle('active', li.dataset.key === k)
+  );
+};
+
+// ── 动态渲染侧边栏菜单 ────────────────────────────────────────────────────
+const renderSidebar = (menus) => {
+  const container = document.getElementById('sidebarMenu');
+  if (!menus || menus.length === 0) {
+    container.innerHTML = '<div class="no-perm-tip">暂无可用菜单</div>';
+    return;
+  }
+
+  // 按 parent_name 分组
+  const groups = {};
+  menus.forEach(m => {
+    const p = m.parent_name || '其他';
+    (groups[p] = groups[p] || []).push(m);
+  });
+
+  let html = '';
+  Object.keys(groups).forEach(groupName => {
+    html += `<div class="group-title">${groupName}</div>`;
+    html += `<ul class="menu-tree simple">`;
+    groups[groupName].forEach(m => {
+      // 只有 pageMap 里有对应 html 的菜单才渲染
+      if (pageMap[m.menu_key]) {
+        html += `<li data-key="${m.menu_key}">${m.menu_name}</li>`;
+      }
+    });
+    html += `</ul>`;
+  });
+
+  container.innerHTML = html;
+
+  // 绑定点击事件
+  container.querySelectorAll('.menu-tree li').forEach(li =>
+    li.addEventListener('click', () => select(li.dataset.key))
+  );
+
+  // 高亮当前激活项
+  if (currentKey) {
+    container.querySelectorAll('.menu-tree li').forEach(li =>
+      li.classList.toggle('active', li.dataset.key === currentKey)
+    );
+  }
+};
+
+// ── 初始化 ────────────────────────────────────────────────────────────────
+(async () => {
+  const token = localStorage.getItem('oa_token');
+  if (!token) { top.location.href = './login.html'; return; }
+
+  // 显示用户名
+  let user = {};
+  try { user = JSON.parse(localStorage.getItem('oa_user') || '{}'); } catch (_) {}
+  if (user.real_name || user.username) {
+    userBox.textContent = `${user.real_name || user.username}（${user.role || '访客'}）`;
+  }
+
+  // 确定要加载的页面 key
+  const params = new URLSearchParams(location.search);
+  currentKey = params.get('page') || 'todos';
+
+  // 先加载目标页
+  const file = pageMap[currentKey];
+  if (file) {
+    frame.src = './' + file + '?embedded=1';
+    titleEl.textContent = currentKey; // 先显示 key，待菜单加载后更新
+    history.replaceState(null, '', './index.html?page=' + currentKey);
+  }
+
+  // 动态拉取该用户有权限的菜单
+  if (user.id) {
+    try {
+      const headers = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token, 'X-OA-Token': token };
+      const resp = await fetch(`/api/user_menus.php?user_id=${user.id}`, { headers });
+      if (resp.status === 401) { localStorage.removeItem('oa_token'); top.location.href = './login.html'; return; }
+      const j = await resp.json();
+      if (j.code === 0 && Array.isArray(j.data)) {
+        renderSidebar(j.data);
+        // 更新页面标题
+        const curMenu = j.data.find(m => m.menu_key === currentKey);
+        if (curMenu) titleEl.textContent = curMenu.menu_name;
+      } else {
+        renderSidebar([]);
+      }
+    } catch (e) {
+      // 网络异常时降级展示无权限提示
+      document.getElementById('sidebarMenu').innerHTML =
+        '<div class="no-perm-tip">菜单加载失败，请刷新重试</div>';
+    }
+  } else {
+    // 无 user.id（老版本 token），降级展示最小菜单
+    renderSidebar([{ menu_key: 'todos', menu_name: '待办', parent_name: '总览' }]);
+  }
+})();
+
+// ── 操作按钮 ──────────────────────────────────────────────────────────────
+document.getElementById('refreshBtn').addEventListener('click', () => {
+  try { frame.contentWindow.location.reload(); } catch (_) { frame.src = frame.src; }
+});
+
+document.getElementById('logoutBtn').addEventListener('click', async () => {
+  const token = localStorage.getItem('oa_token') || '';
+  try {
+    if (token) {
+      await fetch('/api/logout.php', { method: 'POST', headers: { Authorization: 'Bearer ' + token, 'X-OA-Token': token } });
+    }
+  } catch (_) {}
+  localStorage.removeItem('oa_token');
+  localStorage.removeItem('oa_user');
+  top.location.href = './login.html';
+});
 </script>
 </body>
 </html>

@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>老板看板</title>
+  <link rel="stylesheet" href="./assets/style.css" />
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+<style>
+html[data-embedded="1"] .oa-sidebar{display:none!important;}
+html[data-embedded="1"] .oa-layout{display:block!important;}
+html[data-embedded="1"] .oa-main{padding:12px 16px!important;}
+html[data-embedded="1"] .oa-header{position:static!important;padding-left:0!important;}
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;margin:16px 0}
+.kpi-card{background:#fff;border-radius:8px;padding:16px;box-shadow:0 1px 4px rgba(0,0,0,.08);text-align:center}
+.kpi-card .kpi-label{font-size:12px;color:#888;margin-bottom:4px}
+.kpi-card .kpi-value{font-size:26px;font-weight:700;color:#1a56db}
+.kpi-card .kpi-sub{font-size:11px;color:#aaa;margin-top:2px}
+.section-title{font-size:15px;font-weight:600;margin:20px 0 10px;color:#374151;border-left:3px solid #1a56db;padding-left:8px}
+.rank-table{width:100%;border-collapse:collapse;font-size:13px}
+.rank-table th{background:#f3f4f6;padding:8px 10px;text-align:left;font-weight:600;color:#555}
+.rank-table td{padding:8px 10px;border-bottom:1px solid #f0f0f0}
+.rank-table tr:hover td{background:#fafafa}
+.badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px}
+.badge-blue{background:#dbeafe;color:#1d4ed8}
+.badge-green{background:#d1fae5;color:#065f46}
+.badge-orange{background:#fef3c7;color:#92400e}
+.trend-bar{display:flex;align-items:flex-end;gap:4px;height:60px;margin-top:6px}
+.trend-bar-item{display:flex;flex-direction:column;align-items:center;flex:1}
+.trend-bar-item .bar{background:#3b82f6;border-radius:2px 2px 0 0;width:100%;min-height:2px;transition:height .3s}
+.trend-bar-item .label{font-size:9px;color:#999;margin-top:2px;white-space:nowrap}
+</style>
+<script>(function(){var p=new URLSearchParams(location.search);if(p.get("embedded")==="1"){document.documentElement.setAttribute("data-embedded","1");}})();</script>
+</head>
+<body>
+<div id="app" v-cloak>
+  <main style="padding:16px;max-width:1200px">
+    <div v-if="loading" style="text-align:center;padding:40px;color:#888">加载中...</div>
+    <div v-if="error" style="color:#dc2626;padding:12px;background:#fef2f2;border-radius:6px;margin-bottom:12px">{{ error }}</div>
+
+    <div v-if="data">
+      <!-- 今日快报 -->
+      <div class="section-title">📅 今日快报</div>
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-label">新增线索</div>
+          <div class="kpi-value">{{ data.today.new_leads_today }}</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">新成交</div>
+          <div class="kpi-value" style="color:#059669">{{ data.today.new_conversions_today }}</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">新订单</div>
+          <div class="kpi-value">{{ data.today.new_orders_today }}</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">今日收款</div>
+          <div class="kpi-value" style="color:#d97706">¥{{ fmtMoney(data.today.revenue_today) }}</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">退款申请</div>
+          <div class="kpi-value" style="color:#dc2626">{{ data.today.refund_requests_today }}</div>
+        </div>
+      </div>
+
+      <!-- 本月汇总 -->
+      <div class="section-title">📊 本月汇总（{{ data.month.stat_month }}）</div>
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-label">新增线索</div>
+          <div class="kpi-value">{{ data.month.new_leads_month }}</div>
+          <div class="kpi-sub">累计线索 {{ data.month.total_leads }}</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">成交学员</div>
+          <div class="kpi-value" style="color:#059669">{{ data.month.new_conversions_month }}</div>
+          <div class="kpi-sub">累计学员 {{ data.month.total_students }}</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">转化率</div>
+          <div class="kpi-value" style="color:#7c3aed">{{ data.month.conversion_rate_month }}%</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">本月收款</div>
+          <div class="kpi-value" style="color:#d97706">¥{{ fmtMoney(data.month.revenue_month) }}</div>
+          <div class="kpi-sub">累计 ¥{{ fmtMoney(data.month.total_revenue) }}</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">客单价</div>
+          <div class="kpi-value">¥{{ fmtMoney(data.month.avg_order_amount_month) }}</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">退款金额</div>
+          <div class="kpi-value" style="color:#dc2626">¥{{ fmtMoney(data.month.refund_amount_month) }}</div>
+        </div>
+      </div>
+
+      <!-- 财务快照 -->
+      <div class="section-title">💰 本月财务快照</div>
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-label">本月收入</div>
+          <div class="kpi-value" style="color:#059669">¥{{ fmtMoney(data.finance_snapshot.month_income) }}</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">本月支出</div>
+          <div class="kpi-value" style="color:#dc2626">¥{{ fmtMoney(data.finance_snapshot.month_expense) }}</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">本月净利</div>
+          <div class="kpi-value" :style="{color: data.finance_snapshot.month_balance >= 0 ? '#059669' : '#dc2626'}">¥{{ fmtMoney(data.finance_snapshot.month_balance) }}</div>
+        </div>
+      </div>
+
+      <!-- 部门排名 -->
+      <div class="section-title">🏆 部门业绩排名（本月）</div>
+      <table class="rank-table">
+        <thead><tr><th>#</th><th>部门</th><th>线索</th><th>成交</th><th>转化率</th><th>收款额</th><th>订单数</th></tr></thead>
+        <tbody>
+          <tr v-for="(dept, idx) in data.dept_ranking" :key="dept.department">
+            <td><span class="badge" :class="idx===0?'badge-blue':idx===1?'badge-green':'badge-orange'">{{idx+1}}</span></td>
+            <td>{{ dept.department }}</td>
+            <td>{{ dept.leads_count }}</td>
+            <td>{{ dept.converted_count }}</td>
+            <td>{{ dept.conversion_rate }}%</td>
+            <td style="font-weight:600;color:#1a56db">¥{{ fmtMoney(dept.revenue) }}</td>
+            <td>{{ dept.order_count }}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- 热门课程 -->
+      <div class="section-title">📚 热门课程 Top 5</div>
+      <table class="rank-table">
+        <thead><tr><th>#</th><th>课程名称</th><th>标准价</th><th>首单量</th><th>续单量</th><th>总收款</th><th>平均实收</th></tr></thead>
+        <tbody>
+          <tr v-for="(c, idx) in data.top_courses" :key="c.id">
+            <td>{{ idx+1 }}</td>
+            <td>{{ c.course_name }}</td>
+            <td>¥{{ fmtMoney(c.price) }}</td>
+            <td>{{ c.first_orders }}</td>
+            <td>{{ c.renewal_orders }}</td>
+            <td style="font-weight:600;color:#1a56db">¥{{ fmtMoney(c.total_revenue) }}</td>
+            <td>¥{{ fmtMoney(c.avg_paid) }}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- 引流漏斗 -->
+      <div class="section-title">📈 引流漏斗（各渠道）</div>
+      <table class="rank-table">
+        <thead><tr><th>渠道/活动</th><th>线索数</th><th>成交</th><th>转化率</th><th>总收款</th></tr></thead>
+        <tbody>
+          <tr v-for="f in data.funnel" :key="f.campaign_name">
+            <td>{{ f.campaign_name }}<br><small style="color:#888">{{ f.channel }}</small></td>
+            <td>{{ f.total_leads }}</td>
+            <td>{{ f.converted_count }}</td>
+            <td>{{ f.conversion_rate }}%</td>
+            <td style="font-weight:600;color:#1a56db">¥{{ fmtMoney(f.total_revenue) }}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- 最近动态 -->
+      <div class="section-title">🔔 最近动态</div>
+      <ul style="list-style:none;padding:0;margin:0">
+        <li v-for="act in data.activities" :key="act.event_time+act.description" style="padding:8px 0;border-bottom:1px solid #f0f0f0;font-size:13px">
+          <span :class="act.event_type==='new_order'?'badge badge-blue':'badge badge-green'" style="margin-right:8px">{{ act.event_type==='new_order'?'订单':'线索' }}</span>
+          {{ act.description }}
+          <span style="color:#aaa;font-size:11px;margin-left:8px">{{ act.event_time }}</span>
+        </li>
+      </ul>
+
+      <div style="text-align:right;color:#aaa;font-size:11px;margin-top:16px">数据更新时间：{{ data.generated_at }}</div>
+    </div>
+  </main>
+</div>
+<script>
+const { createApp, ref, onMounted } = Vue;
+createApp({
+  setup() {
+    const data = ref(null);
+    const loading = ref(true);
+    const error = ref('');
+
+    const api = async (url) => {
+      const token = localStorage.getItem('oa_token') || '';
+      const r = await fetch(url, { headers: { Authorization: 'Bearer ' + token, 'X-OA-Token': token } });
+      const j = await r.json();
+      if (j.code !== 0) throw new Error(j.message || '接口错误');
+      return j.data;
+    };
+
+    const fmtMoney = (v) => {
+      const n = parseFloat(v) || 0;
+      if (n >= 10000) return (n / 10000).toFixed(1) + '万';
+      return n.toLocaleString('zh-CN', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+    };
+
+    onMounted(async () => {
+      if (!localStorage.getItem('oa_token')) { top.location.href = './login.html'; return; }
+      try {
+        data.value = await api('/api/boss_dashboard.php');
+      } catch (e) {
+        error.value = e.message;
+      } finally {
+        loading.value = false;
+      }
+    });
+
+    return { data, loading, error, fmtMoney };
+  }
+}).mount('#app');
+</script>
+</body>
+</html>

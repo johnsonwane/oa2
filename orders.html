@@ -37,11 +37,25 @@
 
     <section class="content-card" v-if="activeTab==='orders'">
       <h2>订单管理</h2>
-      <p class="role-tip"><strong>岗位引导：</strong>顾问/教练录入订单时必须确认付款阶段（定金/中款/尾款/全款）、合同状态与分成归属，避免财务对账异常。</p>
-      <form class="inline-form" @submit.prevent="loadOrders"><input v-model.trim="orderKeyword" placeholder="搜索学员/课程/推荐者"><button type="submit" class="btn-secondary">查询</button></form>
+      <p class="role-tip"><strong>岗位引导：</strong>顾问/教练录入订单时请选择订单类型（首单/续单/增课），续单分成比例较低。付款阶段（定金/中款/尾款/全款）、合同状态与分成归属必须填写，避免财务对账异常。</p>
+      <form class="inline-form" @submit.prevent="loadOrders">
+        <input v-model.trim="orderKeyword" placeholder="搜索学员/课程/推荐者">
+        <select v-model="orderTypeFilter">
+          <option value="">全部类型</option>
+          <option value="first">首单</option>
+          <option value="renewal">续单</option>
+          <option value="upgrade">增课</option>
+        </select>
+        <button type="submit" class="btn-secondary">查询</button>
+      </form>
       <div class="section-actions"><button type="button" @click="openEditor('order', false)">新增订单</button></div><form :class="['inline-form','editor-form',{show:activeEditor==='order'}]" @submit.prevent="saveOrder">
         <select v-model.number="orderForm.student_id" required><option value="">选择学员</option><option v-for="s in students" :value="Number(s.id)">{{s.name}}</option></select>
         <select v-model.number="orderForm.course_id" required><option value="">选择课程</option><option v-for="c in courses" :value="Number(c.id)">{{c.course_name}}</option></select>
+        <select v-model="orderForm.order_type" title="订单类型">
+          <option value="first">首单（10%顾问/8%教练）</option>
+          <option value="renewal">续单（5%顾问/4%教练）</option>
+          <option value="upgrade">增课（8%顾问/6%教练）</option>
+        </select>
         <select v-model="orderForm.payment_stage"><option value="deposit">定金</option><option value="middle">中期款</option><option value="final">尾款</option><option value="full">全款</option></select>
         <input v-model.number="orderForm.total_amount" type="number" step="0.01" placeholder="订单总额">
         <input v-model.number="orderForm.paid_amount" type="number" step="0.01" placeholder="本次实收">
@@ -51,7 +65,7 @@
         <select v-model.number="orderForm.pay_status"><option :value="0">待支付</option><option :value="1">已支付</option></select>
         <button>{{orderForm.id?'保存订单':'新增订单'}}</button><button type="button" class="btn-secondary" @click="closeEditor">取消</button>
       </form>
-      <table class="table"><thead><tr><th>ID</th><th>学员</th><th>课程</th><th>付款阶段</th><th>总额/实收</th><th>销售归属</th><th>销售分成</th><th>推荐者分成</th><th>状态</th><th>操作</th></tr></thead><tbody><tr v-for="o in orders" :key="o.id"><td>{{o.id}}</td><td>{{o.student_name}}</td><td>{{o.course_name}}</td><td>{{paymentStageLabel(o.payment_stage)}}</td><td>¥{{o.total_amount||o.amount}} / ¥{{o.paid_amount||o.amount}}</td><td>{{o.seller_name||'-'}}/{{o.seller_role||'-'}}</td><td>¥{{o.seller_commission_amount||o.sales_commission_amount||0}}</td><td>{{o.referrer_name||'-'}} / ¥{{o.referrer_commission_amount||0}}</td><td>{{Number(o.pay_status)===1?'已支付':'待支付'}}</td><td><button class="btn-mini btn-secondary" @click="viewRecord('订单详情',o)">查看</button><button class="btn-mini" @click="editOrder(o)">编辑</button></td></tr></tbody></table>
+      <table class="table"><thead><tr><th>ID</th><th>学员</th><th>课程</th><th>类型</th><th>付款阶段</th><th>总额/实收</th><th>销售归属</th><th>销售分成</th><th>推荐者分成</th><th>状态</th><th>操作</th></tr></thead><tbody><tr v-for="o in orders" :key="o.id"><td>{{o.id}}</td><td>{{o.student_name}}</td><td>{{o.course_name}}</td><td><span :class="{'tag-first':o.order_type==='first','tag-renewal':o.order_type==='renewal','tag-upgrade':o.order_type==='upgrade'}">{{orderTypeLabel(o.order_type)}}</span></td><td>{{paymentStageLabel(o.payment_stage)}}</td><td>¥{{o.total_amount||o.amount}} / ¥{{o.paid_amount||o.amount}}</td><td>{{o.seller_name||'-'}}/{{o.seller_role||'-'}}</td><td>¥{{o.seller_commission_amount||o.sales_commission_amount||0}}</td><td>{{o.referrer_name||'-'}} / ¥{{o.referrer_commission_amount||0}}</td><td>{{Number(o.pay_status)===1?'已支付':Number(o.pay_status)===2?'全款':'待支付'}}</td><td><button class="btn-mini btn-secondary" @click="viewRecord('订单详情',o)">查看</button><button class="btn-mini" @click="editOrder(o)">编辑</button></td></tr></tbody></table>
     </section>
 
     <div class="editor-overlay" v-if="activeEditor" @click="closeEditor"></div>
@@ -71,12 +85,12 @@ createApp({
     const finance=ref({list:[],summary:{income:0,expense:0,balance:0}});
     const assignData=ref({user_groups:[],group_perms:[]});
     const groupedMenus=ref([]);
-    const studentKeyword=ref(''),studentCategory=ref(''),orderKeyword=ref(''),referrerKeyword=ref(''),userKeyword=ref('');
+    const studentKeyword=ref(''),studentCategory=ref(''),orderKeyword=ref(''),orderTypeFilter=ref(''),referrerKeyword=ref(''),userKeyword=ref('');
     const departmentOptions=ref([]),positionOptions=ref([]),roleOptions=ref([]),receiptChannelOptions=ref([]);
 
     const studentForm=reactive({id:0,name:'',gender:'',birthday:'',phone:'',wechat_name:'',wechat:'',id_no:'',level:'',intention_level:'',follow_status:'',source:'',enrolled_courses_text:'',consultant:'',delivery_coach:'',address:'',remark:''});
     const courseForm=reactive({id:0,course_name:'',coach_name:'',period_weeks:0,price:0,status:1});
-    const orderForm=reactive({id:0,student_id:'',course_id:'',payment_stage:'full',total_amount:0,paid_amount:0,sales_commission_amount:0,seller_user_id:0,seller_role:'',seller_commission_amount:0,referrer_id:0,referrer_commission_amount:0,student_wechat_name:'',student_mobile:'',student_address:'',payment_time:'',receipt_time:'',refund_time:'',refund_amount:0,remark:'',pay_status:0});
+    const orderForm=reactive({id:0,student_id:'',course_id:'',payment_stage:'full',order_type:'first',total_amount:0,paid_amount:0,sales_commission_amount:0,seller_user_id:0,seller_role:'',seller_commission_amount:0,referrer_id:0,referrer_commission_amount:0,student_wechat_name:'',student_mobile:'',student_address:'',payment_time:'',receipt_time:'',refund_time:'',refund_amount:0,remark:'',pay_status:0});
     const financeForm=reactive({id:0,record_type:'income',item_name:'',amount:0,record_date:''});
     const referrerForm=reactive({id:0,name:'',wechat_name:'',phone:'',channel:'',commission_type:'rate',commission_rate:0,fixed_amount:0,payout_detail:'',remark:'',status:1});
     const receiptForm=reactive({id:0,order_id:'',receipt_no:'',amount:0,channel:'',receiver_user_id:0,pay_method:'',pay_time:'',refund_time:'',refund_amount:0,verified_status:0,remark:''});
@@ -100,7 +114,7 @@ createApp({
     const loadSummary=async()=>{const q=new URLSearchParams(); if(user.value?.id) q.set('user_id',String(user.value.id)); summary.value=await api(`/api/dashboard_summary.php?${q.toString()}`);};
     const loadStudents=async()=>{const q=new URLSearchParams(); if(studentKeyword.value) q.set('keyword',studentKeyword.value); if(studentCategory.value) q.set('student_category',studentCategory.value); if(user.value?.id) q.set('user_id',String(user.value.id)); students.value=await api(`/api/students.php?${q.toString()}`);};
     const loadCourses=async()=>courses.value=await api('/api/courses.php');
-    const loadOrders=async()=>{const q=new URLSearchParams(); if(orderKeyword.value) q.set('keyword',orderKeyword.value); if(user.value?.id) q.set('user_id',String(user.value.id)); orders.value=await api(`/api/orders.php?${q.toString()}`);};
+    const loadOrders=async()=>{const q=new URLSearchParams(); if(orderKeyword.value) q.set('keyword',orderKeyword.value); if(orderTypeFilter.value) q.set('order_type',orderTypeFilter.value); if(user.value?.id) q.set('user_id',String(user.value.id)); orders.value=await api(`/api/orders.php?${q.toString()}`);};
     const loadReferrers=async()=>{const q=referrerKeyword.value?`?keyword=${encodeURIComponent(referrerKeyword.value)}`:'';referrers.value=await api(`/api/referrers.php${q}`);};
     const loadFinance=async()=>finance.value=await api('/api/finance.php');
     const loadReceipts=async()=>receipts.value=await api('/api/receipts.php');
@@ -120,6 +134,7 @@ createApp({
 
     const formatCourses=(val)=>{try{const arr=Array.isArray(val)?val:JSON.parse(val||'[]');return Array.isArray(arr)?arr.join(','):'';}catch(e){return String(val||'');}};
     const paymentStageLabel=(v)=>({deposit:'定金',middle:'中期款',final:'尾款',full:'全款'}[v]||'全款');
+    const orderTypeLabel=(v)=>({first:'首单',renewal:'续单',upgrade:'增课'}[v]||'首单');
     const saveStudent=async()=>{error.value='';try{const payload={...studentForm,enrolled_courses:(studentForm.enrolled_courses_text||'').split(',').map(x=>x.trim()).filter(Boolean)};if(studentForm.id){await api('/api/students.php',{method:'PUT',body:JSON.stringify(payload)});}else{await api('/api/students.php',{method:'POST',body:JSON.stringify(payload)});}resetStudentForm();await loadStudents();closeEditor();}catch(e){error.value=e.message;}};
     
     const resetStudentForm=()=>Object.assign(studentForm,{id:0,name:'',gender:'',birthday:'',phone:'',wechat_name:'',wechat:'',id_no:'',level:'',intention_level:'',follow_status:'',source:'',enrolled_courses_text:'',consultant:'',delivery_coach:'',address:'',remark:''});
@@ -131,8 +146,8 @@ createApp({
     const editCourse=(row)=>{openEditor('course', true);return Object.assign(courseForm,{id:Number(row.id),course_name:row.course_name||'',coach_name:row.coach_name||'',period_weeks:Number(row.period_weeks||0),price:Number(row.price||0),status:Number(row.status||1)});};
     const saveCourse=async()=>{error.value='';try{if(courseForm.id){await api('/api/courses.php',{method:'PUT',body:JSON.stringify(courseForm)});}else{await api('/api/courses.php',{method:'POST',body:JSON.stringify(courseForm)});}resetCourseForm();await loadCourses();closeEditor();}catch(e){error.value=e.message;}};
 
-    const resetOrderForm=()=>Object.assign(orderForm,{id:0,student_id:'',course_id:'',payment_stage:'full',total_amount:0,paid_amount:0,sales_commission_amount:0,seller_user_id:0,seller_role:'',seller_commission_amount:0,referrer_id:0,referrer_commission_amount:0,student_wechat_name:'',student_mobile:'',student_address:'',payment_time:'',receipt_time:'',refund_time:'',refund_amount:0,remark:'',pay_status:0});
-    const editOrder=(row)=>{openEditor('order', true);return Object.assign(orderForm,{id:Number(row.id),student_id:Number(row.student_id||0),course_id:Number(row.course_id||0),payment_stage:row.payment_stage||'full',total_amount:Number(row.total_amount||row.amount||0),paid_amount:Number(row.paid_amount||row.amount||0),sales_commission_amount:Number(row.sales_commission_amount||0),seller_user_id:Number(row.seller_user_id||0),seller_role:row.seller_role||'',seller_commission_amount:Number(row.seller_commission_amount||0),referrer_id:Number(row.referrer_id||0),referrer_commission_amount:Number(row.referrer_commission_amount||0),student_wechat_name:row.student_wechat_name||'',student_mobile:row.student_mobile||'',student_address:row.student_address||'',payment_time:(row.payment_time||'').replace(' ','T'),receipt_time:(row.receipt_time||'').replace(' ','T'),refund_time:(row.refund_time||'').replace(' ','T'),refund_amount:Number(row.refund_amount||0),remark:row.remark||'',pay_status:Number(row.pay_status||0)});};
+    const resetOrderForm=()=>Object.assign(orderForm,{id:0,student_id:'',course_id:'',payment_stage:'full',order_type:'first',total_amount:0,paid_amount:0,sales_commission_amount:0,seller_user_id:0,seller_role:'',seller_commission_amount:0,referrer_id:0,referrer_commission_amount:0,student_wechat_name:'',student_mobile:'',student_address:'',payment_time:'',receipt_time:'',refund_time:'',refund_amount:0,remark:'',pay_status:0});
+    const editOrder=(row)=>{openEditor('order', true);return Object.assign(orderForm,{id:Number(row.id),student_id:Number(row.student_id||0),course_id:Number(row.course_id||0),payment_stage:row.payment_stage||'full',order_type:row.order_type||'first',total_amount:Number(row.total_amount||row.amount||0),paid_amount:Number(row.paid_amount||row.amount||0),sales_commission_amount:Number(row.sales_commission_amount||0),seller_user_id:Number(row.seller_user_id||0),seller_role:row.seller_role||'',seller_commission_amount:Number(row.seller_commission_amount||0),referrer_id:Number(row.referrer_id||0),referrer_commission_amount:Number(row.referrer_commission_amount||0),student_wechat_name:row.student_wechat_name||'',student_mobile:row.student_mobile||'',student_address:row.student_address||'',payment_time:(row.payment_time||'').replace(' ','T'),receipt_time:(row.receipt_time||'').replace(' ','T'),refund_time:(row.refund_time||'').replace(' ','T'),refund_amount:Number(row.refund_amount||0),remark:row.remark||'',pay_status:Number(row.pay_status||0)});};
     const saveOrder=async()=>{error.value='';try{const payload={...orderForm,payment_time:orderForm.payment_time?orderForm.payment_time.replace('T',' '):'',receipt_time:orderForm.receipt_time?orderForm.receipt_time.replace('T',' '):'',refund_time:orderForm.refund_time?orderForm.refund_time.replace('T',' '):''};if(orderForm.id){await api('/api/orders.php',{method:'PUT',body:JSON.stringify(payload)});}else{await api('/api/orders.php',{method:'POST',body:JSON.stringify(payload)});}resetOrderForm();await loadOrders();closeEditor();}catch(e){error.value=e.message;}};
 
     const resetFinanceForm=()=>Object.assign(financeForm,{id:0,record_type:'income',item_name:'',amount:0,record_date:''});
@@ -258,9 +273,9 @@ createApp({
     onMounted(async()=>{window.addEventListener('resize',onResize);const t=localStorage.getItem('oa_token');const u=localStorage.getItem('oa_user');if(!t){top.location.href='./login.html';return;}try{user.value=JSON.parse(u||'{}');}catch(_){user.value={};}await reloadAll();});
     onBeforeUnmount(()=>window.removeEventListener('resize',onResize));
 
-    return {activeTab,error,user,summary,students,courses,orders,referrers,receipts,deliveryLogs,departmentStats,finance,todos,notifications,users,departments,menus,groups,perms,assignData,groupedMenus,departmentOptions,positionOptions,roleOptions,receiptChannelOptions,studentKeyword,studentCategory,orderKeyword,referrerKeyword,userKeyword,sidebarOpen,isMobile,detailDialog,activeEditor,importFileRef,toggleSidebar,selectMenu,viewRecord,closeDetailDialog,openEditor,closeEditor,canImportExportTab,exportCurrentTab,triggerImport,handleImportFile,decodeImportFile,
+    return {activeTab,error,user,summary,students,courses,orders,referrers,receipts,deliveryLogs,departmentStats,finance,todos,notifications,users,departments,menus,groups,perms,assignData,groupedMenus,departmentOptions,positionOptions,roleOptions,receiptChannelOptions,studentKeyword,studentCategory,orderKeyword,orderTypeFilter,referrerKeyword,userKeyword,sidebarOpen,isMobile,detailDialog,activeEditor,importFileRef,toggleSidebar,selectMenu,viewRecord,closeDetailDialog,openEditor,closeEditor,canImportExportTab,exportCurrentTab,triggerImport,handleImportFile,decodeImportFile,
       studentForm,courseForm,orderForm,financeForm,referrerForm,receiptForm,deliveryLogForm,todoForm,notificationForm,userForm,departmentForm,menuForm,groupForm,permForm,assignForm,assignForm2,
-      formatCourses,paymentStageLabel,saveStudent,editStudent,resetStudentForm,saveCourse,editCourse,resetCourseForm,saveOrder,editOrder,resetOrderForm,saveFinance,editFinance,resetFinanceForm,resetReferrerForm,editReferrer,saveReferrer,resetReceiptForm,editReceipt,saveReceipt,resetDeliveryLogForm,editDeliveryLog,saveDeliveryLog,saveTodo,editTodo,resetTodoForm,saveNotification,editNotification,resetNotificationForm,saveDepartment,editDepartment,resetDepartmentForm,saveUser,editUser,resetUserForm,saveMenu,editMenu,resetMenuForm,saveGroup,editGroup,resetGroupForm,savePerm,editPerm,resetPermForm,assignUserGroup,assignGroupPerm,delAssign,reloadAll,logout};
+      formatCourses,paymentStageLabel,orderTypeLabel,saveStudent,editStudent,resetStudentForm,saveCourse,editCourse,resetCourseForm,saveOrder,editOrder,resetOrderForm,saveFinance,editFinance,resetFinanceForm,resetReferrerForm,editReferrer,saveReferrer,resetReceiptForm,editReceipt,saveReceipt,resetDeliveryLogForm,editDeliveryLog,saveDeliveryLog,saveTodo,editTodo,resetTodoForm,saveNotification,editNotification,resetNotificationForm,saveDepartment,editDepartment,resetDepartmentForm,saveUser,editUser,resetUserForm,saveMenu,editMenu,resetMenuForm,saveGroup,editGroup,resetGroupForm,savePerm,editPerm,resetPermForm,assignUserGroup,assignGroupPerm,delAssign,reloadAll,logout};
   }
 }).mount('#app');
 </script>
