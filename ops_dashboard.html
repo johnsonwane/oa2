@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>经营看板</title>
+  <link rel="stylesheet" href="./assets/style.css" />
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <style>
+    html[data-embedded="1"] .oa-sidebar{display:none!important;}
+    html[data-embedded="1"] .oa-layout{display:block!important;}
+    html[data-embedded="1"] .oa-main{padding:12px 16px!important;}
+    html[data-embedded="1"] .oa-header{position:static!important;padding-left:0!important;}
+    html[data-embedded="1"] .header-actions a.btn-secondary{display:none!important;}
+    html[data-embedded="1"] .menu-toggle,html[data-embedded="1"] .sidebar-overlay{display:none!important;}
+    .dashboard-header{margin-bottom:24px;}
+    .dashboard-title{font-size:18px;font-weight:600;color:#1f2937;margin:0 0 8px 0;}
+    .dashboard-subtitle{font-size:14px;color:#6b7280;margin:0;}
+    .cards-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-bottom:24px;}
+    .card{background:#fff;border-radius:12px;padding:20px;box-shadow:0 1px 3px rgba(0,0,0,0.1);transition:transform 0.2s,box-shadow 0.2s;}
+    .card:hover{transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,0,0,0.1);}
+    .card-icon{width:48px;height:48px;border-radius:10px;display:flex;align-items:center;justify-content:center;margin-bottom:12px;font-size:24px;}
+    .card-icon.blue{background:#eff6ff;color:#3b82f6;}
+    .card-icon.green{background:#f0fdf4;color:#22c55e;}
+    .card-icon.red{background:#fef2f2;color:#ef4444;}
+    .card-icon.orange{background:#fff7ed;color:#f97316;}
+    .card-icon.purple{background:#faf5ff;color:#a855f7;}
+    .card-label{font-size:14px;color:#6b7280;margin-bottom:4px;}
+    .card-value{font-size:28px;font-weight:700;color:#1f2937;}
+    .card-value.red{color:#dc2626;}
+    .card-value.green{color:#16a34a;}
+    .card-trend{font-size:13px;margin-top:8px;}
+    .trend-up{color:#dc2626;}
+    .trend-down{color:#16a34a;}
+    .table-section{background:#fff;border-radius:12px;padding:20px;box-shadow:0 1px 3px rgba(0,0,0,0.1);}
+    .section-title{font-size:16px;font-weight:600;color:#1f2937;margin:0 0 16px 0;}
+    table{width:100%;border-collapse:collapse;font-size:14px;}
+    th,td{padding:10px 12px;text-align:left;border-bottom:1px solid #e5e7eb;}
+    th{background:#f9fafb;font-weight:600;color:#374151;white-space:nowrap;}
+    tr:hover{background:#f9fafb;}
+    .trend-badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:4px;font-size:12px;}
+    .trend-badge.up{background:#fef2f2;color:#dc2626;}
+    .trend-badge.down{background:#f0fdf4;color:#16a34a;}
+  </style>
+  <script>
+    (function(){
+      var p = new URLSearchParams(location.search);
+      if (p.get("embedded") === "1") document.documentElement.setAttribute("data-embedded","1");
+    })();
+  </script>
+</head>
+<body>
+<div id="app" class="oa-layout">
+  <main class="oa-main">
+    <header class="oa-header">
+      <h1>经营看板</h1>
+      <div class="header-actions">
+        <button class="btn-secondary" @click="loadData">刷新</button>
+        <button class="btn-danger" @click="logout">退出</button>
+      </div>
+    </header>
+    <section class="content-card">
+      <div v-if="error" class="error-message">{{ error }}</div>
+      <div v-else>
+        <div class="dashboard-header">
+          <h2 class="dashboard-title">实时经营数据</h2>
+          <p class="dashboard-subtitle">最后更新: {{ updateTime }}</p>
+        </div>
+        <div class="cards-grid">
+          <div class="card">
+            <div class="card-icon blue">📊</div>
+            <div class="card-label">今日新线索数</div>
+            <div class="card-value">{{ dashboard.todayLeads }}</div>
+            <div class="card-trend">
+              <span :class="'trend-'+(dashboard.leadsTrend>=0?'up':'down')">{{ dashboard.leadsTrend>=0?'+':'' }}{{ dashboard.leadsTrend }}%</span>
+              <span style="color:#9ca3af;margin-left:4px;">昨日: {{ dashboard.yesterdayLeads }}</span>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-icon green">👥</div>
+            <div class="card-label">本月新增学员</div>
+            <div class="card-value">{{ dashboard.monthNewStudents }}</div>
+            <div class="card-trend">
+              <span :class="'trend-'+(dashboard.studentsTrend>=0?'up':'down')">{{ dashboard.studentsTrend>=0?'+':'' }}{{ dashboard.studentsTrend }}%</span>
+              <span style="color:#9ca3af;margin-left:4px;">上月: {{ dashboard.lastMonthStudents }}</span>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-icon red">💰</div>
+            <div class="card-label">本月GMV</div>
+            <div class="card-value red">¥{{ dashboard.monthGmv.toLocaleString() }}</div>
+            <div class="card-trend">
+              <span :class="'trend-'+(dashboard.gmvTrend>=0?'up':'down')">{{ dashboard.gmvTrend>=0?'+':'' }}{{ dashboard.gmvTrend }}%</span>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-icon orange">💵</div>
+            <div class="card-label">本月回款</div>
+            <div class="card-value">¥{{ dashboard.monthPayment.toLocaleString() }}</div>
+            <div class="card-trend">
+              <span :class="'trend-'+(dashboard.paymentTrend>=0?'up':'down')">{{ dashboard.paymentTrend>=0?'+':'' }}{{ dashboard.paymentTrend }}%</span>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-icon green">📉</div>
+            <div class="card-label">本月退款</div>
+            <div class="card-value green">¥{{ dashboard.monthRefund.toLocaleString() }}</div>
+            <div class="card-trend" style="color:#9ca3af;">退款率: {{ dashboard.refundRate }}%</div>
+          </div>
+          <div class="card">
+            <div class="card-icon purple">📈</div>
+            <div class="card-label">本月净利润</div>
+            <div class="card-value">{{ dashboard.monthProfit>=0?'':'-'}}¥{{ Math.abs(dashboard.monthProfit).toLocaleString() }}</div>
+            <div class="card-trend">
+              <span :class="'trend-'+(dashboard.profitTrend>=0?'up':'down')">{{ dashboard.profitTrend>=0?'+':'' }}{{ dashboard.profitTrend }}%</span>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-icon blue">🎓</div>
+            <div class="card-label">在读学员总数</div>
+            <div class="card-value">{{ dashboard.activeStudents }}</div>
+            <div class="card-trend" style="color:#9ca3af;">占位: {{ dashboard.occupiedSeats }}人</div>
+          </div>
+          <div class="card">
+            <div class="card-icon orange">🔄</div>
+            <div class="card-label">到期应续费学员数</div>
+            <div class="card-value">{{ dashboard.renewalStudents }}</div>
+            <div class="card-trend">
+              <span class="trend-up">续费率: {{ dashboard.renewalRate }}%</span>
+            </div>
+          </div>
+        </div>
+        <div class="table-section">
+          <h3 class="section-title">近7天数据趋势</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>日期</th>
+                <th>新线索</th>
+                <th>新增学员</th>
+                <th>GMV(元)</th>
+                <th>回款(元)</th>
+                <th>退款(元)</th>
+                <th>净利润(元)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="item in trends" :key="item.date">
+                <td>{{ item.date }}</td>
+                <td>
+                  {{ item.leads }}
+                  <span v-if="item.leadsTrend!==0" :class="'trend-badge '+(item.leadsTrend>0?'up':'down')">{{ item.leadsTrend>0?'+':'' }}{{ item.leadsTrend }}%</span>
+                </td>
+                <td>
+                  {{ item.students }}
+                  <span v-if="item.studentsTrend!==0" :class="'trend-badge '+(item.studentsTrend>0?'up':'down')">{{ item.studentsTrend>0?'+':'' }}{{ item.studentsTrend }}%</span>
+                </td>
+                <td>¥{{ item.gmv.toLocaleString() }}</td>
+                <td>¥{{ item.payment.toLocaleString() }}</td>
+                <td>¥{{ item.refund.toLocaleString() }}</td>
+                <td :class="item.profit>=0?'trend-up':'trend-down'">{{ item.profit>=0?'+':'' }}¥{{ Math.abs(item.profit).toLocaleString() }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+<script>
+const { createApp, ref, onMounted } = Vue;
+createApp({
+  setup() {
+    const dashboard = ref({
+      todayLeads: 0, yesterdayLeads: 0, leadsTrend: 0,
+      monthNewStudents: 0, lastMonthStudents: 0, studentsTrend: 0,
+      monthGmv: 0, gmvTrend: 0,
+      monthPayment: 0, paymentTrend: 0,
+      monthRefund: 0, refundRate: 0,
+      monthProfit: 0, profitTrend: 0,
+      activeStudents: 0, occupiedSeats: 0,
+      renewalStudents: 0, renewalRate: 0
+    });
+    const trends = ref([]);
+    const error = ref('');
+    const updateTime = ref('');
+    const api = async(url, opt={}) => {
+      const token = localStorage.getItem('oa_token') || '';
+      const headers = {'Content-Type':'application/json'};
+      if (token) { headers['Authorization'] = 'Bearer ' + token; headers['X-OA-Token'] = token; }
+      let r;
+      try { r = await fetch(url, {...opt, headers}); }
+      catch(e) { throw new Error('网络异常'); }
+      const j = await r.json();
+      if (r.status === 401) { localStorage.removeItem('oa_token'); top.location.href = './login.html'; throw new Error('登录过期'); }
+      if (j.code !== 0) throw new Error(j.message || '请求失败');
+      return j.data;
+    };
+    const loadData = async() => {
+      error.value = '';
+      try {
+        const data = await api('/api/ops_dashboard.php');
+        dashboard.value = data.dashboard;
+        trends.value = data.trends;
+        updateTime.value = new Date().toLocaleString('zh-CN');
+      } catch(e) { error.value = e.message; }
+    };
+    const logout = () => { localStorage.removeItem('oa_token'); localStorage.removeItem('oa_user'); top.location.href = './login.html'; };
+    onMounted(async() => { if (!localStorage.getItem('oa_token')) { top.location.href = './login.html'; return; } await loadData(); });
+    return { dashboard, trends, error, updateTime, loadData, logout };
+  }
+}).mount('#app');
+</script>
+</body>
+</html>

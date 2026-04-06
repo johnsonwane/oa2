@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>作品管理 - OA</title>
+  <link rel="stylesheet" href="./assets/style.css" />
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <style>
+    html[data-embedded="1"] .oa-sidebar{display:none!important;}
+    html[data-embedded="1"] .oa-layout{display:block!important;}
+    html[data-embedded="1"] .oa-main{padding:12px 16px!important;}
+    html[data-embedded="1"] .oa-header{position:static!important;padding-left:0!important;}
+    html[data-embedded="1"] .header-actions a.btn-secondary{display:none!important;}
+    html[data-embedded="1"] .menu-toggle,html[data-embedded="1"] .sidebar-overlay{display:none!important;}
+  </style>
+  <script>
+    (function(){
+      var p = new URLSearchParams(location.search);
+      if (p.get("embedded") === "1") {
+        document.documentElement.setAttribute("data-embedded","1");
+      }
+    })();
+  </script>
+</head>
+<body>
+<div id="app" class="oa-layout">
+  <aside class="oa-sidebar">
+    <div class="brand">OA-1.0.0</div>
+    <div class="user-box">测试用户</div>
+  </aside>
+
+  <main class="oa-main">
+    <header class="oa-header">
+      <h1>作品管理</h1>
+      <div class="header-actions">
+        <button class="btn-secondary" @click="reloadData">刷新数据</button>
+        <button class="btn-danger" @click="logout">退出登录</button>
+      </div>
+    </header>
+
+    <section class="content-card">
+      <h2>引流作品管理</h2>
+      <p class="role-tip"><strong>岗位引导：</strong>运营负责发布作品并追踪各渠道引流效果；教练可查看作品数据辅助内容策划。</p>
+
+      <!-- 筛选栏 -->
+      <div class="filter-bar">
+        <input v-model="keyword" placeholder="搜索标题..." @input="applyFilter" />
+        <select v-model="filterType" @change="applyFilter">
+          <option value="">全部类型</option>
+          <option value="短视频">短视频</option>
+          <option value="图文">图文</option>
+          <option value="直播">直播</option>
+        </select>
+        <select v-model="filterChannel" @change="applyFilter">
+          <option value="">全部渠道</option>
+          <option value="抖音">抖音</option>
+          <option value="小红书">小红书</option>
+          <option value="视频号">视频号</option>
+        </select>
+      </div>
+
+      <!-- 新增按钮 -->
+      <div class="section-actions"><button type="button" @click="openEditor(false)">新增作品</button></div>
+
+      <!-- 编辑表单 -->
+      <form :class="['inline-form','editor-form',{show:showEditor}]" @submit.prevent="saveItem">
+        <input v-model.trim="form.title" placeholder="作品标题" required />
+        <select v-model="form.work_type">
+          <option value="短视频">短视频</option>
+          <option value="图文">图文</option>
+          <option value="直播">直播</option>
+        </select>
+        <select v-model="form.channel">
+          <option value="抖音">抖音</option>
+          <option value="小红书">小红书</option>
+          <option value="视频号">视频号</option>
+        </select>
+        <input v-model="form.publish_time" type="datetime-local" placeholder="发布时间" />
+        <input v-model.number="form.play_count" type="number" placeholder="播放量" />
+        <input v-model.number="form.like_count" type="number" placeholder="点赞量" />
+        <input v-model.number="form.collect_count" type="number" placeholder="收藏量" />
+        <input v-model.number="form.lead_count" type="number" placeholder="引流人数" />
+        <input v-model="form.remark" placeholder="备注" />
+        <button>{{ form.id ? '保存' : '新增' }}</button>
+        <button type="button" class="btn-secondary" @click="closeEditor">取消</button>
+      </form>
+
+      <!-- 数据表格 -->
+      <table class="table">
+        <thead>
+          <tr>
+            <th>ID</th><th>标题</th><th>类型</th><th>渠道</th><th>发布时间</th>
+            <th>播放量</th><th>点赞量</th><th>收藏量</th><th>引流人数</th><th>转化率</th><th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="r in filteredItems" :key="r.id">
+            <td>{{ r.id }}</td>
+            <td>{{ r.title }}</td>
+            <td>{{ r.work_type }}</td>
+            <td>{{ r.channel }}</td>
+            <td>{{ r.publish_time }}</td>
+            <td>{{ r.play_count }}</td>
+            <td>{{ r.like_count }}</td>
+            <td>{{ r.collect_count }}</td>
+            <td>{{ r.lead_count }}</td>
+            <td>{{ r.play_count > 0 ? (r.lead_count / r.play_count * 100).toFixed(2) : '0.00' }}%</td>
+            <td>
+              <button class="btn-mini btn-secondary" @click="viewDetail(r)">查看</button>
+              <button class="btn-mini" @click="openEditor(true, r)">编辑</button>
+              <button class="btn-mini btn-danger" @click="deleteItem(r.id)">删除</button>
+            </td>
+          </tr>
+          <tr v-if="filteredItems.length === 0"><td colspan="11" style="text-align:center;color:#999;">暂无数据</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- 详情弹窗 -->
+    <div class="detail-modal" v-if="detailOpen" @click.self="detailOpen=false">
+      <div class="detail-card">
+        <h3>{{ detailTitle }}</h3>
+        <pre>{{ detailContent }}</pre>
+        <button class="btn-secondary" @click="detailOpen=false">关闭</button>
+      </div>
+    </div>
+
+    <p v-if="error" class="error global-error">{{ error }}</p>
+  </main>
+</div>
+
+<script>
+const { createApp, ref, reactive, computed, onMounted } = Vue;
+createApp({
+  setup() {
+    const items = ref([]);
+    const keyword = ref('');
+    const filterType = ref('');
+    const filterChannel = ref('');
+    const error = ref('');
+    const showEditor = ref(false);
+    const detailOpen = ref(false);
+    const detailTitle = ref('');
+    const detailContent = ref('');
+
+    const form = reactive({
+      id: 0, title: '', work_type: '短视频', channel: '抖音',
+      publish_time: '', play_count: 0, like_count: 0, collect_count: 0,
+      lead_count: 0, remark: ''
+    });
+
+    const api = async (url, opt = {}) => {
+      const token = localStorage.getItem('oa_token') || '';
+      const baseHeaders = { 'Content-Type': 'application/json' };
+      if (token) { baseHeaders.Authorization = 'Bearer ' + token; baseHeaders['X-OA-Token'] = token; }
+      const headers = { ...baseHeaders, ...(opt.headers || {}) };
+      let r;
+      try { r = await fetch(url, { ...opt, headers }); } catch (e) { throw new Error('网络异常（' + url + '）'); }
+      const j = await r.json();
+      if (r.status === 401) { localStorage.removeItem('oa_token'); localStorage.removeItem('oa_user'); top.location.href = './login.html'; throw new Error('登录已过期'); }
+      if (j.code !== 0) throw new Error(j.message || '请求失败');
+      return j.data;
+    };
+
+    const loadData = async () => {
+      error.value = '';
+      try { items.value = await api('/api/works.php'); } catch (e) { error.value = e.message; }
+    };
+
+    const filteredItems = computed(() => {
+      let list = items.value;
+      if (keyword.value) list = list.filter(r => (r.title || '').includes(keyword.value));
+      if (filterType.value) list = list.filter(r => r.work_type === filterType.value);
+      if (filterChannel.value) list = list.filter(r => r.channel === filterChannel.value);
+      return list;
+    });
+
+    const applyFilter = () => {};
+
+    const resetForm = () => Object.assign(form, {
+      id: 0, title: '', work_type: '短视频', channel: '抖音',
+      publish_time: '', play_count: 0, like_count: 0, collect_count: 0,
+      lead_count: 0, remark: ''
+    });
+
+    const openEditor = (isEdit, row) => {
+      if (!isEdit) { resetForm(); }
+      else { Object.assign(form, { id: row.id, title: row.title, work_type: row.work_type, channel: row.channel, publish_time: (row.publish_time || '').replace(' ', 'T'), play_count: row.play_count, like_count: row.like_count, collect_count: row.collect_count, lead_count: row.lead_count, remark: row.remark }); }
+      showEditor.value = true;
+    };
+
+    const closeEditor = () => { showEditor.value = false; };
+
+    const saveItem = async () => {
+      error.value = '';
+      try {
+        const payload = { ...form, publish_time: form.publish_time ? form.publish_time.replace('T', ' ') : '' };
+        if (form.id) { await api('/api/works.php', { method: 'PUT', body: JSON.stringify(payload) }); }
+        else { await api('/api/works.php', { method: 'POST', body: JSON.stringify(payload) }); }
+        await loadData(); closeEditor();
+      } catch (e) { error.value = e.message; }
+    };
+
+    const deleteItem = async (id) => {
+      if (!confirm('确认删除该作品？')) return;
+      error.value = '';
+      try { await api('/api/works.php?id=' + id, { method: 'DELETE' }); await loadData(); } catch (e) { error.value = e.message; }
+    };
+
+    const viewDetail = (r) => { detailTitle.value = '作品详情'; detailContent.value = JSON.stringify(r, null, 2); detailOpen.value = true; };
+    const reloadData = () => loadData();
+    const logout = () => { localStorage.removeItem('oa_token'); localStorage.removeItem('oa_user'); top.location.href = './login.html'; };
+
+    onMounted(async () => {
+      const t = localStorage.getItem('oa_token');
+      if (!t) { top.location.href = './login.html'; return; }
+      await loadData();
+    });
+
+    return { items, keyword, filterType, filterChannel, error, showEditor, form, detailOpen, detailTitle, detailContent, filteredItems, applyFilter, openEditor, closeEditor, saveItem, deleteItem, viewDetail, reloadData, logout };
+  }
+}).mount('#app');
+</script>
+</body>
+</html>

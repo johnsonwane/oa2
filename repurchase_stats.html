@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>二销统计</title>
+  <link rel="stylesheet" href="./assets/style.css" />
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <style>
+    html[data-embedded="1"] .oa-sidebar{display:none!important;}
+    html[data-embedded="1"] .oa-layout{display:block!important;}
+    html[data-embedded="1"] .oa-main{padding:12px 16px!important;}
+    html[data-embedded="1"] .oa-header{position:static!important;padding-left:0!important;}
+    html[data-embedded="1"] .header-actions a.btn-secondary{display:none!important;}
+    html[data-embedded="1"] .menu-toggle,html[data-embedded="1"] .sidebar-overlay{display:none!important;}
+    .stat-value{font-weight:bold;color:#2563eb;}
+    .change-positive{color:#dc2626;}
+    .change-negative{color:#059669;}
+  </style>
+  <script>
+    (function(){
+      var p = new URLSearchParams(location.search);
+      if (p.get("embedded") === "1") document.documentElement.setAttribute("data-embedded","1");
+    })();
+  </script>
+</head>
+<body>
+<div id="app" class="oa-layout">
+  <main class="oa-main">
+    <header class="oa-header">
+      <h1>二销统计</h1>
+      <div class="header-actions">
+        <button class="btn-secondary" @click="loadData">刷新</button>
+        <button class="btn-danger" @click="logout">退出</button>
+      </div>
+    </header>
+    <section class="content-card">
+      <div v-if="error" class="error-message">{{ error }}</div>
+      <div v-if="loading" class="loading">加载中...</div>
+      <table v-if="!loading && items.length > 0" class="data-table">
+        <thead>
+          <tr>
+            <th>统计ID</th>
+            <th>月份/周期</th>
+            <th>二销线索数</th>
+            <th>二销跟进次数</th>
+            <th>二销成单数</th>
+            <th>二销GMV(元)</th>
+            <th>二销转化率(%)</th>
+            <th>二销人均产出(元)</th>
+            <th>TOP1顾问</th>
+            <th>TOP1课程</th>
+            <th>环比变化(%)</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="item in items" :key="item.id">
+            <td>{{ item.id }}</td>
+            <td>{{ item.period }}</td>
+            <td>{{ item.leads }}</td>
+            <td>{{ item.followCount }}</td>
+            <td>{{ item.orders }}</td>
+            <td class="stat-value">{{ item.gmv }}</td>
+            <td>{{ item.conversion }}</td>
+            <td class="stat-value">{{ item.avgOutput }}</td>
+            <td>{{ item.topConsultant }}</td>
+            <td>{{ item.topCourse }}</td>
+            <td :class="{ 'change-positive': item.change > 0, 'change-negative': item.change < 0 }">{{ item.change }}</td>
+            <td>
+              <button class="btn-small" @click="viewDetail(item)">详情</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+  </main>
+</div>
+<script>
+const { createApp, ref, reactive, onMounted } = Vue;
+createApp({
+  setup() {
+    const items = ref([]);
+    const error = ref('');
+    const loading = ref(false);
+    const api = async(url, opt={}) => {
+      const token = localStorage.getItem('oa_token') || '';
+      const headers = {'Content-Type':'application/json'};
+      if (token) { headers['Authorization'] = 'Bearer ' + token; headers['X-OA-Token'] = token; }
+      let r;
+      try { r = await fetch(url, {...opt, headers}); }
+      catch(e) { throw new Error('网络异常'); }
+      const j = await r.json();
+      if (r.status === 401) { localStorage.removeItem('oa_token'); top.location.href = './login.html'; throw new Error('登录过期'); }
+      if (j.code !== 0) throw new Error(j.message || '请求失败');
+      return j.data;
+    };
+    const loadData = async() => {
+      error.value = '';
+      loading.value = true;
+      try {
+        items.value = await api('/api/repurchase_stats.php');
+      } catch(e) {
+        error.value = e.message;
+      } finally {
+        loading.value = false;
+      }
+    };
+    const viewDetail = (item) => {
+      alert('统计详情：\n周期：' + item.period + '\nGMV：' + item.gmv + '元\n转化率：' + item.conversion + '%\nTOP顾问：' + item.topConsultant);
+    };
+    const logout = () => { localStorage.removeItem('oa_token'); localStorage.removeItem('oa_user'); top.location.href = './login.html'; };
+    onMounted(async() => { if (!localStorage.getItem('oa_token')) { top.location.href = './login.html'; return; } await loadData(); });
+    return { items, error, loading, loadData, viewDetail, logout };
+  }
+}).mount('#app');
+</script>
+</body>
+</html>

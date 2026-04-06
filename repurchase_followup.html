@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>二销跟进</title>
+  <link rel="stylesheet" href="./assets/style.css" />
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <style>
+    html[data-embedded="1"] .oa-sidebar{display:none!important;}
+    html[data-embedded="1"] .oa-layout{display:block!important;}
+    html[data-embedded="1"] .oa-main{padding:12px 16px!important;}
+    html[data-embedded="1"] .oa-header{position:static!important;padding-left:0!important;}
+    html[data-embedded="1"] .header-actions a.btn-secondary{display:none!important;}
+    html[data-embedded="1"] .menu-toggle,html[data-embedded="1"] .sidebar-overlay{display:none!important;}
+    .intent-badge{padding:4px 8px;border-radius:4px;font-size:12px;}
+    .intent-high{background:#fee2e2;color:#dc2626;}
+    .intent-medium{background:#fef3c7;color:#d97706;}
+    .intent-low{background:#dbeafe;color:#2563eb;}
+    .intent-none{background:#f3f4f6;color:#6b7280;}
+  </style>
+  <script>
+    (function(){
+      var p = new URLSearchParams(location.search);
+      if (p.get("embedded") === "1") document.documentElement.setAttribute("data-embedded","1");
+    })();
+  </script>
+</head>
+<body>
+<div id="app" class="oa-layout">
+  <main class="oa-main">
+    <header class="oa-header">
+      <h1>二销跟进</h1>
+      <div class="header-actions">
+        <select v-model="filterIntent" @change="loadData" class="rank-select">
+          <option value="">全部意向</option>
+          <option value="高">高</option>
+          <option value="中">中</option>
+          <option value="低">低</option>
+          <option value="无">无</option>
+        </select>
+        <button class="btn-secondary" @click="loadData">刷新</button>
+        <button class="btn-danger" @click="logout">退出</button>
+      </div>
+    </header>
+    <section class="content-card">
+      <div v-if="error" class="error-message">{{ error }}</div>
+      <div v-if="loading" class="loading">加载中...</div>
+      <table v-if="!loading && items.length > 0" class="data-table">
+        <thead>
+          <tr>
+            <th>跟进ID</th>
+            <th>学员姓名</th>
+            <th>购买过的课程</th>
+            <th>最近一单时间</th>
+            <th>二销意向</th>
+            <th>二销目标课程</th>
+            <th>二销负责人</th>
+            <th>最近跟进时间</th>
+            <th>跟进内容</th>
+            <th>下次跟进计划</th>
+            <th>预计复购时间</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="item in items" :key="item.id">
+            <td>{{ item.id }}</td>
+            <td>{{ item.studentName }}</td>
+            <td>{{ item.purchasedCourses }}</td>
+            <td>{{ item.lastOrderTime }}</td>
+            <td>
+              <span :class="'intent-badge intent-' + item.intentClass">{{ item.intent }}</span>
+            </td>
+            <td>{{ item.targetCourse }}</td>
+            <td>{{ item.responsible }}</td>
+            <td>{{ item.lastFollowTime }}</td>
+            <td>{{ item.followContent }}</td>
+            <td>{{ item.nextPlan }}</td>
+            <td>{{ item.expectedRepurchaseTime }}</td>
+            <td>
+              <button class="btn-small" @click="viewDetail(item)">详情</button>
+              <button class="btn-small btn-primary" @click="recordFollow(item)">记录跟进</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <div v-if="showFollowModal" class="modal-overlay" @click="showFollowModal = false">
+        <div class="modal" @click.stop>
+          <h3>记录跟进</h3>
+          <div class="form-group">
+            <label>跟进内容</label>
+            <textarea v-model="followRecord.content" rows="4"></textarea>
+          </div>
+          <div class="form-group">
+            <label>下次跟进计划</label>
+            <textarea v-model="followRecord.nextPlan" rows="3"></textarea>
+          </div>
+          <div class="form-group">
+            <label>预计复购时间</label>
+            <input type="date" v-model="followRecord.expectedTime" />
+          </div>
+          <div class="form-group">
+            <label>二销意向</label>
+            <select v-model="followRecord.intent">
+              <option>高</option>
+              <option>中</option>
+              <option>低</option>
+              <option>无</option>
+            </select>
+          </div>
+          <div class="form-actions">
+            <button class="btn-primary" @click="submitFollow">保存</button>
+            <button class="btn-secondary" @click="showFollowModal = false">取消</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+<script>
+const { createApp, ref, reactive, onMounted } = Vue;
+createApp({
+  setup() {
+    const items = ref([]);
+    const error = ref('');
+    const loading = ref(false);
+    const filterIntent = ref('');
+    const showFollowModal = ref(false);
+    const currentFollow = ref(null);
+    const followRecord = reactive({ content: '', nextPlan: '', expectedTime: '', intent: '中' });
+    const api = async(url, opt={}) => {
+      const token = localStorage.getItem('oa_token') || '';
+      const headers = {'Content-Type':'application/json'};
+      if (token) { headers['Authorization'] = 'Bearer ' + token; headers['X-OA-Token'] = token; }
+      let r;
+      try { r = await fetch(url, {...opt, headers}); }
+      catch(e) { throw new Error('网络异常'); }
+      const j = await r.json();
+      if (r.status === 401) { localStorage.removeItem('oa_token'); top.location.href = './login.html'; throw new Error('登录过期'); }
+      if (j.code !== 0) throw new Error(j.message || '请求失败');
+      return j.data;
+    };
+    const loadData = async() => {
+      error.value = '';
+      loading.value = true;
+      try {
+        let url = '/api/repurchase_followup.php';
+        if (filterIntent.value) url += '?intent=' + filterIntent.value;
+        items.value = await api(url);
+      } catch(e) {
+        error.value = e.message;
+      } finally {
+        loading.value = false;
+      }
+    };
+    const recordFollow = (item) => {
+      currentFollow.value = item;
+      followRecord.content = '';
+      followRecord.nextPlan = '';
+      followRecord.expectedTime = '';
+      followRecord.intent = item.intent;
+      showFollowModal.value = true;
+    };
+    const submitFollow = async() => {
+      if (!followRecord.content) { alert('请填写跟进内容'); return; }
+      try {
+        await api('/api/repurchase_followup.php', { method: 'POST', body: JSON.stringify({ id: currentFollow.value.id, ...followRecord, action: 'follow' }) });
+        alert('跟进记录已保存');
+        showFollowModal.value = false;
+        await loadData();
+      } catch(e) {
+        alert(e.message);
+      }
+    };
+    const viewDetail = (item) => {
+      alert('二销详情：\n学员：' + item.studentName + '\n目标课程：' + item.targetCourse + '\n意向：' + item.intent + '\n负责人：' + item.responsible);
+    };
+    const logout = () => { localStorage.removeItem('oa_token'); localStorage.removeItem('oa_user'); top.location.href = './login.html'; };
+    onMounted(async() => { if (!localStorage.getItem('oa_token')) { top.location.href = './login.html'; return; } await loadData(); });
+    return { items, error, loading, filterIntent, showFollowModal, followRecord, loadData, recordFollow, submitFollow, viewDetail, logout };
+  }
+}).mount('#app');
+</script>
+</body>
+</html>

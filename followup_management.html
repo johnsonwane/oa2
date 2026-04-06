@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>跟进管理</title>
+  <link rel="stylesheet" href="./assets/style.css" />
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <style>
+    html[data-embedded="1"] .oa-sidebar{display:none!important;}
+    html[data-embedded="1"] .oa-layout{display:block!important;}
+    html[data-embedded="1"] .oa-main{padding:12px 16px!important;}
+    html[data-embedded="1"] .oa-header{position:static!important;padding-left:0!important;}
+    html[data-embedded="1"] .header-actions a.btn-secondary{display:none!important;}
+    html[data-embedded="1"] .menu-toggle,html[data-embedded="1"] .sidebar-overlay{display:none!important;}
+    [v-cloak]{display:none;}
+    .toolbar,.inline-search,.editor-actions,.actions{display:flex;flex-wrap:wrap;gap:10px;align-items:center;}
+    .toolbar{justify-content:space-between;margin-bottom:16px;}
+    .inline-search input,.inline-search select,.editor-grid input,.editor-grid select,.editor-grid textarea{padding:10px 12px;border:1px solid #d7deea;border-radius:10px;background:#fff;box-sizing:border-box;}
+    .inline-search input{min-width:300px;}
+    .summary-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:16px;}
+    .summary-card{padding:14px 16px;border:1px solid #e5ebf3;border-radius:14px;background:linear-gradient(180deg,#ffffff,#f8fbff);}
+    .summary-card span{color:#64748b;font-size:13px;}
+    .summary-card strong{display:block;margin-top:8px;font-size:26px;color:#1d4ed8;}
+    .editor-card{margin-bottom:16px;padding:16px;border:1px solid #e5ebf3;border-radius:14px;background:#fbfdff;}
+    .editor-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;}
+    .editor-grid .full{grid-column:1/-1;}
+    .table-wrap{overflow:auto;}
+    .table{min-width:1450px;}
+    .muted{margin:0 0 16px;color:#64748b;font-size:13px;}
+    .error{margin-bottom:16px;padding:10px 12px;border:1px solid #fecaca;border-radius:10px;background:#fef2f2;color:#b91c1c;}
+    .badge{display:inline-flex;align-items:center;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:600;}
+    .badge.待跟进{background:#dbeafe;color:#1d4ed8;}
+    .badge.已完成{background:#dcfce7;color:#166534;}
+    .badge.已放弃{background:#e5e7eb;color:#374151;}
+    .empty-tip{text-align:center;padding:28px 0;color:#64748b;}
+  </style>
+  <script>
+    (function(){
+      var p = new URLSearchParams(location.search);
+      if (p.get("embedded") === "1") document.documentElement.setAttribute("data-embedded","1");
+    })();
+  </script>
+</head>
+<body>
+<div id="app" class="oa-layout" v-cloak>
+  <main class="oa-main">
+    <header class="oa-header">
+      <h1>跟进管理</h1>
+      <div class="header-actions">
+        <button class="btn-secondary" @click="loadData">刷新数据</button>
+        <button class="btn-danger" @click="logout">退出登录</button>
+      </div>
+    </header>
+    <section class="content-card">
+      <p class="muted">集中记录客户跟进历史、跟进方式、沟通摘要与下次跟进计划，便于销售节奏追踪。</p>
+
+      <div class="toolbar">
+        <form class="inline-search" @submit.prevent="loadData">
+          <input v-model.trim="keyword" placeholder="搜索客户姓名/跟进人/沟通摘要" />
+          <select v-model="statusFilter">
+            <option value="">全部状态</option>
+            <option value="待跟进">待跟进</option>
+            <option value="已完成">已完成</option>
+            <option value="已放弃">已放弃</option>
+          </select>
+          <button type="submit" class="btn-secondary">查询</button>
+        </form>
+        <button @click="openCreate">新增跟进记录</button>
+      </div>
+
+      <div class="summary-grid">
+        <div class="summary-card"><span>跟进记录数</span><strong>{{ filteredItems.length }}</strong></div>
+        <div class="summary-card"><span>待跟进</span><strong>{{ pendingCount }}</strong></div>
+        <div class="summary-card"><span>已完成</span><strong>{{ doneCount }}</strong></div>
+        <div class="summary-card"><span>已放弃</span><strong>{{ giveupCount }}</strong></div>
+      </div>
+
+      <div v-if="showEditor" class="editor-card">
+        <h3>{{ form.id ? '编辑跟进记录' : '新增跟进记录' }}</h3>
+        <div class="editor-grid">
+          <input v-model.trim="form.customer_name" placeholder="客户姓名" />
+          <input v-model.trim="form.follower" placeholder="跟进人" />
+          <select v-model="form.follow_method">
+            <option value="电话">电话</option>
+            <option value="微信">微信</option>
+            <option value="面谈">面谈</option>
+            <option value="短信">短信</option>
+          </select>
+          <input v-model="form.followup_time" type="datetime-local" placeholder="跟进时间" />
+          <input v-model="form.next_followup_time" type="datetime-local" placeholder="下次跟进时间" />
+          <select v-model="form.status">
+            <option value="待跟进">待跟进</option>
+            <option value="已完成">已完成</option>
+            <option value="已放弃">已放弃</option>
+          </select>
+          <textarea v-model.trim="form.summary" class="full" rows="3" placeholder="跟进内容摘要"></textarea>
+          <textarea v-model.trim="form.remark" class="full" rows="2" placeholder="备注"></textarea>
+        </div>
+        <div class="editor-actions" style="margin-top:12px;">
+          <button @click="saveItem">{{ form.id ? '保存修改' : '提交新增' }}</button>
+          <button type="button" class="btn-secondary" @click="cancelEdit">取消</button>
+        </div>
+      </div>
+
+      <p v-if="error" class="error">{{ error }}</p>
+
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>跟进ID</th>
+              <th>客户姓名</th>
+              <th>跟进人</th>
+              <th>跟进方式</th>
+              <th>跟进时间</th>
+              <th>跟进内容摘要</th>
+              <th>下次跟进时间</th>
+              <th>跟进状态</th>
+              <th>备注</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="item in filteredItems" :key="item.id">
+              <td>{{ item.id }}</td>
+              <td>{{ item.customer_name }}</td>
+              <td>{{ item.follower }}</td>
+              <td>{{ item.follow_method }}</td>
+              <td>{{ item.followup_time }}</td>
+              <td>{{ item.summary }}</td>
+              <td>{{ item.next_followup_time }}</td>
+              <td><span :class="['badge', item.status]">{{ item.status }}</span></td>
+              <td>{{ item.remark }}</td>
+              <td>
+                <div class="actions">
+                  <button class="btn-mini btn-secondary" @click="editItem(item)">编辑</button>
+                  <button class="btn-mini btn-danger" @click="removeItem(item)">删除</button>
+                </div>
+              </td>
+            </tr>
+            <tr v-if="!filteredItems.length">
+              <td colspan="10" class="empty-tip">暂无匹配的跟进记录</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+</div>
+<script>
+const { createApp, ref, reactive, computed, onMounted } = Vue;
+createApp({
+  setup() {
+    const endpoint = '/api/followup_management.php';
+    const items = ref([]);
+    const keyword = ref('');
+    const statusFilter = ref('');
+    const error = ref('');
+    const showEditor = ref(false);
+    const toInput = (value) => (value || '').replace(' ', 'T').slice(0, 16);
+    const fromInput = (value) => value ? `${value.replace('T', ' ')}:00` : '';
+    const createDefaults = () => ({
+      id: 0,
+      customer_name: '',
+      follower: '',
+      follow_method: '微信',
+      followup_time: '',
+      summary: '',
+      next_followup_time: '',
+      status: '待跟进',
+      remark: ''
+    });
+    const form = reactive(createDefaults());
+    const api = async(url, opt={}) => {
+      const token = localStorage.getItem('oa_token') || '';
+      const headers = {'Content-Type':'application/json'};
+      if (token) { headers['Authorization'] = 'Bearer ' + token; headers['X-OA-Token'] = token; }
+      let r;
+      try { r = await fetch(url, {...opt, headers}); }
+      catch(e) { throw new Error('网络异常'); }
+      const j = await r.json();
+      if (r.status === 401) { localStorage.removeItem('oa_token'); top.location.href = './login.html'; throw new Error('登录过期'); }
+      if (j.code !== 0) throw new Error(j.message || '请求失败');
+      return j.data;
+    };
+    const loadData = async() => {
+      error.value = '';
+      try {
+        const query = keyword.value ? `?keyword=${encodeURIComponent(keyword.value)}` : '';
+        items.value = await api(endpoint + query);
+      } catch(e) {
+        error.value = e.message;
+      }
+    };
+    const resetForm = () => Object.assign(form, createDefaults());
+    const openCreate = () => { resetForm(); showEditor.value = true; };
+    const cancelEdit = () => { resetForm(); showEditor.value = false; };
+    const editItem = (item) => {
+      Object.assign(form, {
+        ...item,
+        followup_time: toInput(item.followup_time),
+        next_followup_time: toInput(item.next_followup_time)
+      });
+      showEditor.value = true;
+    };
+    const saveItem = async() => {
+      error.value = '';
+      try {
+        const payload = {
+          ...form,
+          followup_time: fromInput(form.followup_time),
+          next_followup_time: fromInput(form.next_followup_time)
+        };
+        await api(endpoint, { method: form.id ? 'PUT' : 'POST', body: JSON.stringify(payload) });
+        cancelEdit();
+        await loadData();
+      } catch(e) {
+        error.value = e.message;
+      }
+    };
+    const removeItem = async(item) => {
+      if (!confirm(`确认删除跟进记录 #${item.id} 吗？`)) return;
+      error.value = '';
+      try {
+        await api(`${endpoint}?id=${encodeURIComponent(item.id)}`, { method: 'DELETE' });
+        await loadData();
+      } catch(e) {
+        error.value = e.message;
+      }
+    };
+    const filteredItems = computed(() => items.value.filter(item => !statusFilter.value || item.status === statusFilter.value));
+    const pendingCount = computed(() => filteredItems.value.filter(item => item.status === '待跟进').length);
+    const doneCount = computed(() => filteredItems.value.filter(item => item.status === '已完成').length);
+    const giveupCount = computed(() => filteredItems.value.filter(item => item.status === '已放弃').length);
+    const logout = () => { localStorage.removeItem('oa_token'); localStorage.removeItem('oa_user'); top.location.href = './login.html'; };
+    onMounted(async() => { const t = localStorage.getItem('oa_token'); if (!t) { top.location.href = './login.html'; return; } await loadData(); });
+    return { items, keyword, statusFilter, error, showEditor, form, filteredItems, pendingCount, doneCount, giveupCount, loadData, openCreate, cancelEdit, editItem, saveItem, removeItem, logout };
+  }
+}).mount('#app');
+</script>
+</body>
+</html>

@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>订单管理</title>
+  <link rel="stylesheet" href="./assets/style.css" />
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <style>
+    html[data-embedded="1"] .oa-sidebar{display:none!important;}
+    html[data-embedded="1"] .oa-layout{display:block!important;}
+    html[data-embedded="1"] .oa-main{padding:12px 16px!important;}
+    html[data-embedded="1"] .oa-header{position:static!important;padding-left:0!important;}
+    html[data-embedded="1"] .header-actions a.btn-secondary{display:none!important;}
+    html[data-embedded="1"] .menu-toggle,html[data-embedded="1"] .sidebar-overlay{display:none!important;}
+    .table-container { overflow-x: auto; }
+    .data-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    .data-table th, .data-table td { padding: 12px; text-align: left; border-bottom: 1px solid #e5e7eb; }
+    .data-table th { background: #f9fafb; font-weight: 600; color: #374151; }
+    .data-table tr:hover { background: #f9fafb; }
+    .badge { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 500; }
+    .badge-blue { background: #dbeafe; color: #1e40af; }
+    .badge-green { background: #d1fae5; color: #065f46; }
+    .badge-yellow { background: #fef3c7; color: #92400e; }
+    .badge-red { background: #fee2e2; color: #991b1b; }
+    .badge-gray { background: #f3f4f6; color: #4b5563; }
+    .badge-purple { background: #e9d5ff; color: #6b21a8; }
+    .btn-sm { padding: 4px 12px; font-size: 12px; border-radius: 4px; border: none; cursor: pointer; margin-right: 4px; }
+    .btn-view { background: #3b82f6; color: white; }
+    .btn-edit { background: #f59e0b; color: white; }
+    .btn-cancel { background: #ef4444; color: white; }
+    .error-msg { color: #dc2626; padding: 12px; background: #fee2e2; border-radius: 6px; margin-bottom: 16px; }
+    .search-bar { display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+    .search-bar input, .search-bar select { padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; }
+    .search-bar button { padding: 8px 16px; background: #3b82f6; color: white; border: none; border-radius: 6px; cursor: pointer; }
+  </style>
+  <script>
+    (function(){
+      var p = new URLSearchParams(location.search);
+      if (p.get("embedded") === "1") document.documentElement.setAttribute("data-embedded","1");
+    })();
+  </script>
+</head>
+<body>
+<div id="app" class="oa-layout">
+  <main class="oa-main">
+    <header class="oa-header">
+      <h1>订单管理</h1>
+      <div class="header-actions">
+        <button class="btn-secondary" @click="loadData">刷新</button>
+        <button class="btn-danger" @click="logout">退出</button>
+      </div>
+    </header>
+    <section class="content-card">
+      <div class="search-bar">
+        <input type="text" v-model="searchKeyword" placeholder="搜索学员姓名/订单编号" />
+        <select v-model="filterStatus">
+          <option value="">全部状态</option>
+          <option value="下单">下单</option>
+          <option value="部分付款">部分付款</option>
+          <option value="已付清">已付清</option>
+          <option value="已退款">已退款</option>
+          <option value="已取消">已取消</option>
+        </select>
+        <select v-model="filterPhase">
+          <option value="">全部付款阶段</option>
+          <option value="定金">定金</option>
+          <option value="中期">中期</option>
+          <option value="尾款">尾款</option>
+          <option value="全款">全款</option>
+        </select>
+        <button @click="loadData">搜索</button>
+      </div>
+      <div v-if="error" class="error-msg">{{ error }}</div>
+      <div class="table-container">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>订单ID</th>
+              <th>订单编号</th>
+              <th>学员姓名</th>
+              <th>课程名称</th>
+              <th>订单类型</th>
+              <th>订单金额(元)</th>
+              <th>已付金额(元)</th>
+              <th>待付金额(元)</th>
+              <th>付款阶段</th>
+              <th>付款状态</th>
+              <th>下单时间</th>
+              <th>顾问</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="item in filteredItems" :key="item.order_id">
+              <td>{{ item.order_id }}</td>
+              <td>{{ item.order_no }}</td>
+              <td>{{ item.student_name }}</td>
+              <td>{{ item.course_name }}</td>
+              <td>{{ item.order_type }}</td>
+              <td>¥{{ item.order_amount }}</td>
+              <td>¥{{ item.paid_amount }}</td>
+              <td>¥{{ item.pending_amount }}</td>
+              <td>
+                <span class="badge" :class="getPhaseClass(item.payment_phase)">{{ item.payment_phase }}</span>
+              </td>
+              <td>
+                <span class="badge" :class="getStatusClass(item.payment_status)">{{ item.payment_status }}</span>
+              </td>
+              <td>{{ item.order_time }}</td>
+              <td>{{ item.consultant }}</td>
+              <td>
+                <button class="btn-sm btn-view" @click="viewOrder(item)">查看</button>
+                <button class="btn-sm btn-edit" @click="editOrder(item)">编辑</button>
+                <button class="btn-sm btn-cancel" v-if="item.payment_status !== '已取消' && item.payment_status !== '已退款'" @click="cancelOrder(item)">取消</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+</div>
+<script>
+const { createApp, ref, reactive, onMounted, computed } = Vue;
+createApp({
+  setup() {
+    const items = ref([]);
+    const error = ref('');
+    const searchKeyword = ref('');
+    const filterStatus = ref('');
+    const filterPhase = ref('');
+    
+    const api = async(url, opt={}) => {
+      const token = localStorage.getItem('oa_token') || '';
+      const headers = {'Content-Type':'application/json'};
+      if (token) { headers['Authorization'] = 'Bearer ' + token; headers['X-OA-Token'] = token; }
+      let r;
+      try { r = await fetch(url, {...opt, headers}); }
+      catch(e) { throw new Error('网络异常'); }
+      const j = await r.json();
+      if (r.status === 401) { localStorage.removeItem('oa_token'); top.location.href = './login.html'; throw new Error('登录过期'); }
+      if (j.code !== 0) throw new Error(j.message || '请求失败');
+      return j.data;
+    };
+    
+    const loadData = async() => { 
+      error.value = ''; 
+      try { 
+        items.value = await api('/api/order_management.php'); 
+      } catch(e) { 
+        error.value = e.message; 
+      } 
+    };
+    
+    const logout = () => { 
+      localStorage.removeItem('oa_token'); 
+      localStorage.removeItem('oa_user'); 
+      top.location.href = './login.html'; 
+    };
+    
+    const getStatusClass = (status) => {
+      const map = { '下单': 'badge-gray', '部分付款': 'badge-yellow', '已付清': 'badge-green', '已退款': 'badge-purple', '已取消': 'badge-red' };
+      return map[status] || 'badge-gray';
+    };
+    
+    const getPhaseClass = (phase) => {
+      const map = { '定金': 'badge-yellow', '中期': 'badge-blue', '尾款': 'badge-purple', '全款': 'badge-green' };
+      return map[phase] || 'badge-gray';
+    };
+    
+    const viewOrder = (item) => {
+      alert('查看订单: ' + item.order_no);
+    };
+    
+    const editOrder = (item) => {
+      alert('编辑订单: ' + item.order_no);
+    };
+    
+    const cancelOrder = (item) => {
+      if (confirm('确定要取消订单 ' + item.order_no + ' 吗？')) {
+        alert('订单已取消');
+      }
+    };
+    
+    const filteredItems = computed(() => {
+      return items.value.filter(item => {
+        const matchKeyword = !searchKeyword.value || 
+          item.student_name.includes(searchKeyword.value) || 
+          item.order_no.includes(searchKeyword.value);
+        const matchStatus = !filterStatus.value || item.payment_status === filterStatus.value;
+        const matchPhase = !filterPhase.value || item.payment_phase === filterPhase.value;
+        return matchKeyword && matchStatus && matchPhase;
+      });
+    });
+    
+    onMounted(async() => { 
+      if (!localStorage.getItem('oa_token')) { 
+        top.location.href = './login.html'; 
+        return; 
+      } 
+      await loadData(); 
+    });
+    
+    return { items, error, loadData, logout, searchKeyword, filterStatus, filterPhase, filteredItems, getStatusClass, getPhaseClass, viewOrder, editOrder, cancelOrder };
+  }
+}).mount('#app');
+</script>
+</body>
+</html>

@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>单课成本</title>
+  <link rel="stylesheet" href="./assets/style.css" />
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <style>
+    html[data-embedded="1"] .oa-sidebar{display:none!important;}
+    html[data-embedded="1"] .oa-layout{display:block!important;}
+    html[data-embedded="1"] .oa-main{padding:12px 16px!important;}
+    html[data-embedded="1"] .oa-header{position:static!important;padding-left:0!important;}
+    html[data-embedded="1"] .header-actions a.btn-secondary{display:none!important;}
+    html[data-embedded="1"] .menu-toggle,html[data-embedded="1"] .sidebar-overlay{display:none!important;}
+    .filter-bar{display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;}
+    .filter-bar select,.filter-bar input{padding:8px 12px;border:1px solid #d1d5db;border-radius:6px;}
+    .table-container{overflow-x:auto;}
+    table{width:100%;border-collapse:collapse;font-size:14px;}
+    th,td{padding:10px 12px;text-align:right;border-bottom:1px solid #e5e7eb;}
+    th:first-child,td:first-child{text-align:left;}
+    th{background:#f9fafb;font-weight:600;color:#374151;}
+    tr:hover{background:#f9fafb;}
+    .profit-positive{color:#dc2626;}
+    .profit-negative{color:#16a34a;}
+    .profit-rate-good{color:#dc2626;}
+    .profit-rate-normal{color:#f59e0b;}
+    .profit-rate-low{color:#16a34a;}
+  </style>
+  <script>
+    (function(){
+      var p = new URLSearchParams(location.search);
+      if (p.get("embedded") === "1") document.documentElement.setAttribute("data-embedded","1");
+    })();
+  </script>
+</head>
+<body>
+<div id="app" class="oa-layout">
+  <main class="oa-main">
+    <header class="oa-header">
+      <h1>单课成本</h1>
+      <div class="header-actions">
+        <button class="btn-secondary" @click="loadData">刷新</button>
+        <button class="btn-danger" @click="logout">退出</button>
+      </div>
+    </header>
+    <section class="content-card">
+      <div v-if="error" class="error-message">{{ error }}</div>
+      <div v-else>
+        <div class="filter-bar">
+          <select v-model="filters.period" @change="filterData">
+            <option value="">全部期数</option>
+            <option v-for="p in periods" :key="p" :value="p">{{ p }}</option>
+          </select>
+          <input v-model="filters.course" placeholder="搜索课程名称" @input="filterData" />
+        </div>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>课程ID</th>
+                <th>课程名称</th>
+                <th>开班期数</th>
+                <th>总招生人数</th>
+                <th>课程收入</th>
+                <th>教师课酬</th>
+                <th>助教费用</th>
+                <th>教材教具</th>
+                <th>运营分摊</th>
+                <th>其他成本</th>
+                <th>总成本</th>
+                <th>净利润</th>
+                <th>利润率</th>
+                <th>人均成本</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="item in filteredItems" :key="item.id">
+                <td>{{ item.id }}</td>
+                <td>{{ item.courseName }}</td>
+                <td>{{ item.period }}</td>
+                <td>{{ item.studentCount }}</td>
+                <td>¥{{ item.income.toLocaleString() }}</td>
+                <td>¥{{ item.teacherCost.toLocaleString() }}</td>
+                <td>¥{{ item.assistantCost.toLocaleString() }}</td>
+                <td>¥{{ item.materialCost.toLocaleString() }}</td>
+                <td>¥{{ item.opsCost.toLocaleString() }}</td>
+                <td>¥{{ item.otherCost.toLocaleString() }}</td>
+                <td>¥{{ item.totalCost.toLocaleString() }}</td>
+                <td :class="item.netProfit>=0?'profit-positive':'profit-negative'">¥{{ item.netProfit.toLocaleString() }}</td>
+                <td>
+                  <span :class="'profit-rate-'+item.rateLevel">{{ item.profitRate }}%</span>
+                </td>
+                <td>¥{{ item.perHeadCost.toLocaleString() }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+<script>
+const { createApp, ref, reactive, computed, onMounted } = Vue;
+createApp({
+  setup() {
+    const items = ref([]);
+    const filteredItems = ref([]);
+    const error = ref('');
+    const filters = reactive({ period: '', course: '' });
+    const periods = computed(() => [...new Set(items.value.map(i => i.period))].sort().reverse());
+    const api = async(url, opt={}) => {
+      const token = localStorage.getItem('oa_token') || '';
+      const headers = {'Content-Type':'application/json'};
+      if (token) { headers['Authorization'] = 'Bearer ' + token; headers['X-OA-Token'] = token; }
+      let r;
+      try { r = await fetch(url, {...opt, headers}); }
+      catch(e) { throw new Error('网络异常'); }
+      const j = await r.json();
+      if (r.status === 401) { localStorage.removeItem('oa_token'); top.location.href = './login.html'; throw new Error('登录过期'); }
+      if (j.code !== 0) throw new Error(j.message || '请求失败');
+      return j.data;
+    };
+    const loadData = async() => {
+      error.value = '';
+      try { items.value = await api('/api/cost_profit.php'); filteredItems.value = [...items.value]; }
+      catch(e) { error.value = e.message; }
+    };
+    const filterData = () => {
+      filteredItems.value = items.value.filter(item => {
+        if (filters.period && item.period !== filters.period) return false;
+        if (filters.course && !item.courseName.includes(filters.course)) return false;
+        return true;
+      });
+    };
+    const logout = () => { localStorage.removeItem('oa_token'); localStorage.removeItem('oa_user'); top.location.href = './login.html'; };
+    onMounted(async() => { if (!localStorage.getItem('oa_token')) { top.location.href = './login.html'; return; } await loadData(); });
+    return { items, filteredItems, error, filters, periods, loadData, filterData, logout };
+  }
+}).mount('#app');
+</script>
+</body>
+</html>

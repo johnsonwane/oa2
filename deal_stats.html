@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>业绩统计</title>
+  <link rel="stylesheet" href="./assets/style.css" />
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <style>
+    html[data-embedded="1"] .oa-sidebar{display:none!important;}
+    html[data-embedded="1"] .oa-layout{display:block!important;}
+    html[data-embedded="1"] .oa-main{padding:12px 16px!important;}
+    html[data-embedded="1"] .oa-header{position:static!important;padding-left:0!important;}
+    html[data-embedded="1"] .header-actions a.btn-secondary{display:none!important;}
+    html[data-embedded="1"] .menu-toggle,html[data-embedded="1"] .sidebar-overlay{display:none!important;}
+    [v-cloak]{display:none;}
+    .toolbar,.inline-search,.editor-actions,.actions{display:flex;flex-wrap:wrap;gap:10px;align-items:center;}
+    .toolbar{justify-content:space-between;margin-bottom:16px;}
+    .inline-search input,.inline-search select,.editor-grid input,.editor-grid select,.editor-grid textarea{padding:10px 12px;border:1px solid #d7deea;border-radius:10px;background:#fff;box-sizing:border-box;}
+    .inline-search input{min-width:300px;}
+    .summary-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:16px;}
+    .summary-card{padding:14px 16px;border:1px solid #e5ebf3;border-radius:14px;background:linear-gradient(180deg,#ffffff,#f8fbff);}
+    .summary-card span{color:#64748b;font-size:13px;}
+    .summary-card strong{display:block;margin-top:8px;font-size:26px;color:#1d4ed8;}
+    .editor-card{margin-bottom:16px;padding:16px;border:1px solid #e5ebf3;border-radius:14px;background:#fbfdff;}
+    .editor-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;}
+    .editor-grid .full{grid-column:1/-1;}
+    .table-wrap{overflow:auto;}
+    .table{min-width:1500px;}
+    .muted{margin:0 0 16px;color:#64748b;font-size:13px;}
+    .error{margin-bottom:16px;padding:10px 12px;border:1px solid #fecaca;border-radius:10px;background:#fef2f2;color:#b91c1c;}
+    .rank{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;background:#1d4ed8;color:#fff;font-weight:700;}
+    .empty-tip{text-align:center;padding:28px 0;color:#64748b;}
+  </style>
+  <script>
+    (function(){
+      var p = new URLSearchParams(location.search);
+      if (p.get("embedded") === "1") document.documentElement.setAttribute("data-embedded","1");
+    })();
+  </script>
+</head>
+<body>
+<div id="app" class="oa-layout" v-cloak>
+  <main class="oa-main">
+    <header class="oa-header">
+      <h1>业绩统计</h1>
+      <div class="header-actions">
+        <button class="btn-secondary" @click="loadData">刷新数据</button>
+        <button class="btn-danger" @click="logout">退出登录</button>
+      </div>
+    </header>
+    <section class="content-card">
+      <p class="muted">销售顾问业绩统计看板，跟踪首单、续单、增课、GMV、回款、毛利与人效表现。</p>
+
+      <div class="toolbar">
+        <form class="inline-search" @submit.prevent="loadData">
+          <input v-model.trim="keyword" placeholder="搜索顾问姓名/部门/统计周期" />
+          <input v-model.trim="periodFilter" placeholder="例如 2026-04" />
+          <button type="submit" class="btn-secondary">查询</button>
+        </form>
+        <button @click="openCreate">新增业绩统计</button>
+      </div>
+
+      <div class="summary-grid">
+        <div class="summary-card"><span>总 GMV</span><strong>¥{{ formatMoney(totalGmv) }}</strong></div>
+        <div class="summary-card"><span>总回款</span><strong>¥{{ formatMoney(totalReceived) }}</strong></div>
+        <div class="summary-card"><span>总毛利</span><strong>¥{{ formatMoney(totalProfit) }}</strong></div>
+        <div class="summary-card"><span>平均人效</span><strong>{{ averageEfficiency.toFixed(2) }}</strong></div>
+      </div>
+
+      <div v-if="showEditor" class="editor-card">
+        <h3>{{ form.id ? '编辑业绩统计' : '新增业绩统计' }}</h3>
+        <div class="editor-grid">
+          <input v-model.number="form.ranking" type="number" min="1" placeholder="排名" />
+          <input v-model.trim="form.consultant_name" placeholder="顾问姓名" />
+          <input v-model.trim="form.department" placeholder="部门" />
+          <input v-model.number="form.first_order_count" type="number" min="0" placeholder="首单数" />
+          <input v-model.number="form.renewal_order_count" type="number" min="0" placeholder="续单数" />
+          <input v-model.number="form.upgrade_order_count" type="number" min="0" placeholder="增课数" />
+          <input v-model.number="form.gmv" type="number" step="0.01" placeholder="GMV(元)" />
+          <input v-model.number="form.received_amount" type="number" step="0.01" placeholder="回款金额(元)" />
+          <input v-model.number="form.refund_amount" type="number" step="0.01" placeholder="退款金额(元)" />
+          <input v-model.number="form.gross_profit" type="number" step="0.01" placeholder="毛利(元)" />
+          <input v-model.number="form.efficiency" type="number" step="0.01" placeholder="人效(万/人)" />
+          <input v-model.trim="form.period" placeholder="统计周期，例如 2026-04" />
+          <textarea v-model.trim="form.remark" class="full" rows="2" placeholder="备注"></textarea>
+        </div>
+        <div class="editor-actions" style="margin-top:12px;">
+          <button @click="saveItem">{{ form.id ? '保存修改' : '提交新增' }}</button>
+          <button type="button" class="btn-secondary" @click="cancelEdit">取消</button>
+        </div>
+      </div>
+
+      <p v-if="error" class="error">{{ error }}</p>
+
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>排名</th>
+              <th>顾问姓名</th>
+              <th>部门</th>
+              <th>成交订单数（首单/续单/增课）</th>
+              <th>GMV(元)</th>
+              <th>回款金额(元)</th>
+              <th>退款金额(元)</th>
+              <th>毛利(元)</th>
+              <th>人效(万/人)</th>
+              <th>统计周期</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="item in filteredItems" :key="item.id">
+              <td><span class="rank">{{ item.ranking }}</span></td>
+              <td>{{ item.consultant_name }}</td>
+              <td>{{ item.department }}</td>
+              <td>{{ item.first_order_count }}/{{ item.renewal_order_count }}/{{ item.upgrade_order_count }}</td>
+              <td>¥{{ formatMoney(item.gmv) }}</td>
+              <td>¥{{ formatMoney(item.received_amount) }}</td>
+              <td>¥{{ formatMoney(item.refund_amount) }}</td>
+              <td>¥{{ formatMoney(item.gross_profit) }}</td>
+              <td>{{ Number(item.efficiency || 0).toFixed(2) }}</td>
+              <td>{{ item.period }}</td>
+              <td>
+                <div class="actions">
+                  <button class="btn-mini btn-secondary" @click="editItem(item)">编辑</button>
+                  <button class="btn-mini btn-danger" @click="removeItem(item)">删除</button>
+                </div>
+              </td>
+            </tr>
+            <tr v-if="!filteredItems.length">
+              <td colspan="11" class="empty-tip">暂无匹配的业绩统计数据</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+</div>
+<script>
+const { createApp, ref, reactive, computed, onMounted } = Vue;
+createApp({
+  setup() {
+    const endpoint = '/api/deal_stats.php';
+    const items = ref([]);
+    const keyword = ref('');
+    const periodFilter = ref('');
+    const error = ref('');
+    const showEditor = ref(false);
+    const createDefaults = () => ({
+      id: 0,
+      ranking: 0,
+      consultant_name: '',
+      department: '',
+      first_order_count: 0,
+      renewal_order_count: 0,
+      upgrade_order_count: 0,
+      gmv: 0,
+      received_amount: 0,
+      refund_amount: 0,
+      gross_profit: 0,
+      efficiency: 0,
+      period: '',
+      remark: ''
+    });
+    const form = reactive(createDefaults());
+    const api = async(url, opt={}) => {
+      const token = localStorage.getItem('oa_token') || '';
+      const headers = {'Content-Type':'application/json'};
+      if (token) { headers['Authorization'] = 'Bearer ' + token; headers['X-OA-Token'] = token; }
+      let r;
+      try { r = await fetch(url, {...opt, headers}); }
+      catch(e) { throw new Error('网络异常'); }
+      const j = await r.json();
+      if (r.status === 401) { localStorage.removeItem('oa_token'); top.location.href = './login.html'; throw new Error('登录过期'); }
+      if (j.code !== 0) throw new Error(j.message || '请求失败');
+      return j.data;
+    };
+    const loadData = async() => {
+      error.value = '';
+      try {
+        const query = keyword.value ? `?keyword=${encodeURIComponent(keyword.value)}` : '';
+        items.value = await api(endpoint + query);
+      } catch(e) {
+        error.value = e.message;
+      }
+    };
+    const resetForm = () => Object.assign(form, createDefaults());
+    const openCreate = () => { resetForm(); showEditor.value = true; };
+    const cancelEdit = () => { resetForm(); showEditor.value = false; };
+    const editItem = (item) => { Object.assign(form, JSON.parse(JSON.stringify(item))); showEditor.value = true; };
+    const saveItem = async() => {
+      error.value = '';
+      try {
+        await api(endpoint, { method: form.id ? 'PUT' : 'POST', body: JSON.stringify({...form}) });
+        cancelEdit();
+        await loadData();
+      } catch(e) {
+        error.value = e.message;
+      }
+    };
+    const removeItem = async(item) => {
+      if (!confirm(`确认删除业绩记录「${item.consultant_name}-${item.period}」吗？`)) return;
+      error.value = '';
+      try {
+        await api(`${endpoint}?id=${encodeURIComponent(item.id)}`, { method: 'DELETE' });
+        await loadData();
+      } catch(e) {
+        error.value = e.message;
+      }
+    };
+    const filteredItems = computed(() => items.value.filter(item => !periodFilter.value || String(item.period || '').includes(periodFilter.value)));
+    const totalGmv = computed(() => filteredItems.value.reduce((sum, item) => sum + Number(item.gmv || 0), 0));
+    const totalReceived = computed(() => filteredItems.value.reduce((sum, item) => sum + Number(item.received_amount || 0), 0));
+    const totalProfit = computed(() => filteredItems.value.reduce((sum, item) => sum + Number(item.gross_profit || 0), 0));
+    const averageEfficiency = computed(() => filteredItems.value.length ? filteredItems.value.reduce((sum, item) => sum + Number(item.efficiency || 0), 0) / filteredItems.value.length : 0);
+    const formatMoney = (value) => Number(value || 0).toFixed(2);
+    const logout = () => { localStorage.removeItem('oa_token'); localStorage.removeItem('oa_user'); top.location.href = './login.html'; };
+    onMounted(async() => { const t = localStorage.getItem('oa_token'); if (!t) { top.location.href = './login.html'; return; } await loadData(); });
+    return { items, keyword, periodFilter, error, showEditor, form, filteredItems, totalGmv, totalReceived, totalProfit, averageEfficiency, formatMoney, loadData, openCreate, cancelEdit, editItem, saveItem, removeItem, logout };
+  }
+}).mount('#app');
+</script>
+</body>
+</html>

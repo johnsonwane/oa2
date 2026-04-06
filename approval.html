@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>审批管理</title>
+  <link rel="stylesheet" href="./assets/style.css" />
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <style>
+    html[data-embedded="1"] .oa-sidebar{display:none!important;}
+    html[data-embedded="1"] .oa-layout{display:block!important;}
+    html[data-embedded="1"] .oa-main{padding:12px 16px!important;}
+    html[data-embedded="1"] .oa-header{position:static!important;padding-left:0!important;}
+    html[data-embedded="1"] .header-actions a.btn-secondary{display:none!important;}
+    html[data-embedded="1"] .menu-toggle,html[data-embedded="1"] .sidebar-overlay{display:none!important;}
+    .status-badge{padding:4px 8px;border-radius:4px;font-size:12px;}
+    .status-draft{background:#f3f4f6;color:#6b7280;}
+    .status-pending{background:#fef3c7;color:#d97706;}
+    .status-approved{background:#d1fae5;color:#059669;}
+    .status-rejected{background:#fee2e2;color:#dc2626;}
+  </style>
+  <script>
+    (function(){
+      var p = new URLSearchParams(location.search);
+      if (p.get("embedded") === "1") document.documentElement.setAttribute("data-embedded","1");
+    })();
+  </script>
+</head>
+<body>
+<div id="app" class="oa-layout">
+  <main class="oa-main">
+    <header class="oa-header">
+      <h1>审批管理</h1>
+      <div class="header-actions">
+        <select v-model="filterStatus" @change="loadData" class="rank-select">
+          <option value="">全部状态</option>
+          <option value="草稿">草稿</option>
+          <option value="审批中">审批中</option>
+          <option value="已通过">已通过</option>
+          <option value="已拒绝">已拒绝</option>
+        </select>
+        <button class="btn-primary" @click="showModal = true">新建审批</button>
+        <button class="btn-secondary" @click="loadData">刷新</button>
+        <button class="btn-danger" @click="logout">退出</button>
+      </div>
+    </header>
+    <section class="content-card">
+      <div v-if="error" class="error-message">{{ error }}</div>
+      <div v-if="loading" class="loading">加载中...</div>
+      <table v-if="!loading && items.length > 0" class="data-table">
+        <thead>
+          <tr>
+            <th>审批ID</th>
+            <th>审批类型</th>
+            <th>申请人</th>
+            <th>部门</th>
+            <th>申请内容摘要</th>
+            <th>申请时间</th>
+            <th>审批状态</th>
+            <th>当前审批人</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="item in items" :key="item.id">
+            <td>{{ item.id }}</td>
+            <td>{{ item.type }}</td>
+            <td>{{ item.applicant }}</td>
+            <td>{{ item.department }}</td>
+            <td>{{ item.summary }}</td>
+            <td>{{ item.applyTime }}</td>
+            <td>
+              <span :class="'status-badge status-' + item.statusClass">{{ item.status }}</span>
+            </td>
+            <td>{{ item.currentApprover }}</td>
+            <td>
+              <button v-if="item.status === '审批中'" class="btn-small btn-primary" @click="approve(item)">通过</button>
+              <button v-if="item.status === '审批中'" class="btn-small btn-danger" @click="reject(item)">拒绝</button>
+              <button class="btn-small" @click="viewDetail(item)">详情</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <div v-if="showModal" class="modal-overlay" @click="showModal = false">
+        <div class="modal" @click.stop>
+          <h3>新建审批</h3>
+          <div class="form-group">
+            <label>审批类型</label>
+            <select v-model="newApproval.type">
+              <option>请假申请</option>
+              <option>报销申请</option>
+              <option>转正申请</option>
+              <option>离职申请</option>
+              <option>合同审批</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>申请内容</label>
+            <textarea v-model="newApproval.summary" rows="4"></textarea>
+          </div>
+          <div class="form-actions">
+            <button class="btn-primary" @click="submitApproval">提交</button>
+            <button class="btn-secondary" @click="showModal = false">取消</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+<script>
+const { createApp, ref, reactive, onMounted } = Vue;
+createApp({
+  setup() {
+    const items = ref([]);
+    const error = ref('');
+    const loading = ref(false);
+    const filterStatus = ref('');
+    const showModal = ref(false);
+    const newApproval = reactive({ type: '请假申请', summary: '' });
+    const api = async(url, opt={}) => {
+      const token = localStorage.getItem('oa_token') || '';
+      const headers = {'Content-Type':'application/json'};
+      if (token) { headers['Authorization'] = 'Bearer ' + token; headers['X-OA-Token'] = token; }
+      let r;
+      try { r = await fetch(url, {...opt, headers}); }
+      catch(e) { throw new Error('网络异常'); }
+      const j = await r.json();
+      if (r.status === 401) { localStorage.removeItem('oa_token'); top.location.href = './login.html'; throw new Error('登录过期'); }
+      if (j.code !== 0) throw new Error(j.message || '请求失败');
+      return j.data;
+    };
+    const loadData = async() => {
+      error.value = '';
+      loading.value = true;
+      try {
+        let url = '/api/approval.php';
+        if (filterStatus.value) url += '?status=' + encodeURIComponent(filterStatus.value);
+        items.value = await api(url);
+      } catch(e) {
+        error.value = e.message;
+      } finally {
+        loading.value = false;
+      }
+    };
+    const approve = async(item) => {
+      if (!confirm('确认通过该审批？')) return;
+      try {
+        await api('/api/approval.php', { method: 'POST', body: JSON.stringify({ id: item.id, action: 'approve' }) });
+        alert('审批已通过');
+        await loadData();
+      } catch(e) {
+        alert(e.message);
+      }
+    };
+    const reject = async(item) => {
+      if (!confirm('确认拒绝该审批？')) return;
+      try {
+        await api('/api/approval.php', { method: 'POST', body: JSON.stringify({ id: item.id, action: 'reject' }) });
+        alert('审批已拒绝');
+        await loadData();
+      } catch(e) {
+        alert(e.message);
+      }
+    };
+    const submitApproval = async() => {
+      if (!newApproval.summary) { alert('请填写申请内容'); return; }
+      try {
+        await api('/api/approval.php', { method: 'POST', body: JSON.stringify({ type: newApproval.type, summary: newApproval.summary, action: 'create' }) });
+        alert('审批申请已提交');
+        showModal.value = false;
+        newApproval.summary = '';
+        await loadData();
+      } catch(e) {
+        alert(e.message);
+      }
+    };
+    const viewDetail = (item) => {
+      alert('审批详情：\nID：' + item.id + '\n类型：' + item.type + '\n申请人：' + item.applicant + '\n内容：' + item.summary);
+    };
+    const logout = () => { localStorage.removeItem('oa_token'); localStorage.removeItem('oa_user'); top.location.href = './login.html'; };
+    onMounted(async() => { if (!localStorage.getItem('oa_token')) { top.location.href = './login.html'; return; } await loadData(); });
+    return { items, error, loading, filterStatus, showModal, newApproval, loadData, approve, reject, submitApproval, viewDetail, logout };
+  }
+}).mount('#app');
+</script>
+</body>
+</html>

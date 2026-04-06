@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>线索池 - OA</title>
+  <link rel="stylesheet" href="./assets/style.css" />
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <style>
+    html[data-embedded="1"] .oa-sidebar{display:none!important;}
+    html[data-embedded="1"] .oa-layout{display:block!important;}
+    html[data-embedded="1"] .oa-main{padding:12px 16px!important;}
+    html[data-embedded="1"] .oa-header{position:static!important;padding-left:0!important;}
+    html[data-embedded="1"] .header-actions a.btn-secondary{display:none!important;}
+    html[data-embedded="1"] .menu-toggle,html[data-embedded="1"] .sidebar-overlay{display:none!important;}
+    .badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:12px;font-weight:500;}
+    .badge-unassigned{background:#fef3c7;color:#92400e;}
+    .badge-assigned{background:#dbeafe;color:#1e40af;}
+    .badge-claimed{background:#d1fae5;color:#065f46;}
+  </style>
+  <script>
+    (function(){
+      var p = new URLSearchParams(location.search);
+      if (p.get("embedded") === "1") {
+        document.documentElement.setAttribute("data-embedded","1");
+      }
+    })();
+  </script>
+</head>
+<body>
+<div id="app" class="oa-layout">
+  <aside class="oa-sidebar">
+    <div class="brand">OA-1.0.0</div>
+    <div class="user-box">测试用户</div>
+  </aside>
+
+  <main class="oa-main">
+    <header class="oa-header">
+      <h1>线索池</h1>
+      <div class="header-actions">
+        <button class="btn-secondary" @click="reloadData">刷新数据</button>
+        <button class="btn-danger" @click="logout">退出登录</button>
+      </div>
+    </header>
+
+    <section class="content-card">
+      <h2>线索池管理</h2>
+      <p class="role-tip"><strong>岗位引导：</strong>顾问可从线索池主动领取未分配的线索；系统支持自动分配规则。领取后请及时跟进。</p>
+
+      <div class="filter-bar">
+        <input v-model="keyword" placeholder="搜索姓名/手机号..." @input="applyFilter" />
+        <select v-model="filterSource" @change="applyFilter">
+          <option value="">全部来源</option>
+          <option v-for="s in sourceOptions" :key="s" :value="s">{{ s }}</option>
+        </select>
+        <select v-model="filterStatus" @change="applyFilter">
+          <option value="">全部状态</option>
+          <option value="未分配">未分配</option>
+          <option value="已分配">已分配</option>
+          <option value="已领取">已领取</option>
+        </select>
+        <select v-model="filterTag" @change="applyFilter">
+          <option value="">全部标签</option>
+          <option v-for="t in tagOptions" :key="t" :value="t">{{ t }}</option>
+        </select>
+      </div>
+
+      <div class="section-actions"><button type="button" @click="openEditor(false)">新增线索</button></div>
+
+      <form :class="['inline-form','editor-form',{show:showEditor}]" @submit.prevent="saveItem">
+        <input v-model.trim="form.customer_name" placeholder="客户姓名" required />
+        <input v-model.trim="form.phone" placeholder="手机号" required />
+        <select v-model="form.source_channel">
+          <option v-for="s in sourceOptions" :key="s" :value="s">{{ s }}</option>
+        </select>
+        <select v-model="form.tag">
+          <option v-for="t in tagOptions" :key="t" :value="t">{{ t }}</option>
+        </select>
+        <input v-model.trim="form.campaign" placeholder="来源活动" />
+        <button>{{ form.id ? '保存' : '新增' }}</button>
+        <button type="button" class="btn-secondary" @click="closeEditor">取消</button>
+      </form>
+
+      <table class="table">
+        <thead>
+          <tr>
+            <th>ID</th><th>客户姓名</th><th>手机号</th><th>来源渠道</th>
+            <th>线索标签</th><th>来源活动</th><th>录入时间</th>
+            <th>归属状态</th><th>分配时间</th><th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="r in filteredItems" :key="r.id">
+            <td>{{ r.id }}</td>
+            <td>{{ r.customer_name }}</td>
+            <td>{{ maskPhone(r.phone) }}</td>
+            <td>{{ r.source_channel }}</td>
+            <td><span class="badge badge-unassigned">{{ r.tag }}</span></td>
+            <td>{{ r.campaign || '-' }}</td>
+            <td>{{ r.created_at }}</td>
+            <td>
+              <span :class="['badge', statusBadge(r.assign_status)]">{{ r.assign_status }}</span>
+            </td>
+            <td>{{ r.assign_time || '-' }}</td>
+            <td>
+              <button class="btn-mini btn-secondary" @click="viewDetail(r)">查看</button>
+              <button class="btn-mini" @click="openEditor(true, r)">编辑</button>
+              <button class="btn-mini" v-if="r.assign_status==='未分配'" @click="claimLead(r)" style="background:#2563eb;color:#fff;">领取</button>
+              <button class="btn-mini btn-danger" @click="deleteItem(r.id)">删除</button>
+            </td>
+          </tr>
+          <tr v-if="filteredItems.length === 0"><td colspan="10" style="text-align:center;color:#999;">暂无数据</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <div class="detail-modal" v-if="detailOpen" @click.self="detailOpen=false">
+      <div class="detail-card">
+        <h3>{{ detailTitle }}</h3>
+        <pre>{{ detailContent }}</pre>
+        <button class="btn-secondary" @click="detailOpen=false">关闭</button>
+      </div>
+    </div>
+
+    <p v-if="error" class="error global-error">{{ error }}</p>
+  </main>
+</div>
+
+<script>
+const { createApp, ref, reactive, computed, onMounted } = Vue;
+createApp({
+  setup() {
+    const items = ref([]);
+    const keyword = ref('');
+    const filterSource = ref('');
+    const filterStatus = ref('');
+    const filterTag = ref('');
+    const error = ref('');
+    const showEditor = ref(false);
+    const detailOpen = ref(false);
+    const detailTitle = ref('');
+    const detailContent = ref('');
+    const sourceOptions = ['抖音', '小红书', '百度', '转介绍', '知乎', 'B站', '快手', '视频号', '官网'];
+    const tagOptions = ['高意向', '中意向', '低意向', '价格敏感', '课程咨询', '试听报名'];
+
+    const form = reactive({ id: 0, customer_name: '', phone: '', source_channel: '抖音', tag: '中意向', campaign: '' });
+
+    const api = async (url, opt = {}) => {
+      const token = localStorage.getItem('oa_token') || '';
+      const baseHeaders = { 'Content-Type': 'application/json' };
+      if (token) { baseHeaders.Authorization = 'Bearer ' + token; baseHeaders['X-OA-Token'] = token; }
+      const headers = { ...baseHeaders, ...(opt.headers || {}) };
+      let r;
+      try { r = await fetch(url, { ...opt, headers }); } catch (e) { throw new Error('网络异常（' + url + '）'); }
+      const j = await r.json();
+      if (r.status === 401) { localStorage.removeItem('oa_token'); localStorage.removeItem('oa_user'); top.location.href = './login.html'; throw new Error('登录已过期'); }
+      if (j.code !== 0) throw new Error(j.message || '请求失败');
+      return j.data;
+    };
+
+    const loadData = async () => {
+      error.value = '';
+      try { items.value = await api('/api/leads_pool.php'); } catch (e) { error.value = e.message; }
+    };
+
+    const filteredItems = computed(() => {
+      let list = items.value;
+      if (keyword.value) list = list.filter(r => (r.customer_name + r.phone).includes(keyword.value));
+      if (filterSource.value) list = list.filter(r => r.source_channel === filterSource.value);
+      if (filterStatus.value) list = list.filter(r => r.assign_status === filterStatus.value);
+      if (filterTag.value) list = list.filter(r => r.tag === filterTag.value);
+      return list;
+    });
+
+    const applyFilter = () => {};
+    const maskPhone = (p) => p ? p.slice(0, 3) + '****' + p.slice(-4) : '-';
+    const statusBadge = (s) => ({ '未分配': 'badge-unassigned', '已分配': 'badge-assigned', '已领取': 'badge-claimed' }[s] || 'badge-unassigned');
+
+    const resetForm = () => Object.assign(form, { id: 0, customer_name: '', phone: '', source_channel: '抖音', tag: '中意向', campaign: '' });
+
+    const openEditor = (isEdit, row) => {
+      if (!isEdit) { resetForm(); }
+      else { Object.assign(form, { id: row.id, customer_name: row.customer_name, phone: row.phone, source_channel: row.source_channel, tag: row.tag, campaign: row.campaign }); }
+      showEditor.value = true;
+    };
+
+    const closeEditor = () => { showEditor.value = false; };
+
+    const saveItem = async () => {
+      error.value = '';
+      try {
+        if (form.id) { await api('/api/leads_pool.php', { method: 'PUT', body: JSON.stringify(form) }); }
+        else { await api('/api/leads_pool.php', { method: 'POST', body: JSON.stringify(form) }); }
+        await loadData(); closeEditor();
+      } catch (e) { error.value = e.message; }
+    };
+
+    const deleteItem = async (id) => {
+      if (!confirm('确认删除该线索？')) return;
+      error.value = '';
+      try { await api('/api/leads_pool.php?id=' + id, { method: 'DELETE' }); await loadData(); } catch (e) { error.value = e.message; }
+    };
+
+    const claimLead = async (r) => {
+      if (!confirm('确认领取线索「' + r.customer_name + '」？')) return;
+      error.value = '';
+      try {
+        await api('/api/leads_pool.php', { method: 'PUT', body: JSON.stringify({ id: r.id, assign_status: '已领取' }) });
+        await loadData();
+      } catch (e) { error.value = e.message; }
+    };
+
+    const viewDetail = (r) => { detailTitle.value = '线索详情'; detailContent.value = JSON.stringify(r, null, 2); detailOpen.value = true; };
+    const reloadData = () => loadData();
+    const logout = () => { localStorage.removeItem('oa_token'); localStorage.removeItem('oa_user'); top.location.href = './login.html'; };
+
+    onMounted(async () => {
+      const t = localStorage.getItem('oa_token');
+      if (!t) { top.location.href = './login.html'; return; }
+      await loadData();
+    });
+
+    return { items, keyword, filterSource, filterStatus, filterTag, error, showEditor, form, detailOpen, detailTitle, detailContent, sourceOptions, tagOptions, filteredItems, applyFilter, maskPhone, statusBadge, openEditor, closeEditor, saveItem, deleteItem, claimLead, viewDetail, reloadData, logout };
+  }
+}).mount('#app');
+</script>
+</body>
+</html>

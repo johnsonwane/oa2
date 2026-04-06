@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>分配机制 - OA</title>
+  <link rel="stylesheet" href="./assets/style.css" />
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <style>
+    html[data-embedded="1"] .oa-sidebar{display:none!important;}
+    html[data-embedded="1"] .oa-layout{display:block!important;}
+    html[data-embedded="1"] .oa-main{padding:12px 16px!important;}
+    html[data-embedded="1"] .oa-header{position:static!important;padding-left:0!important;}
+    html[data-embedded="1"] .header-actions a.btn-secondary{display:none!important;}
+    html[data-embedded="1"] .menu-toggle,html[data-embedded="1"] .sidebar-overlay{display:none!important;}
+  </style>
+  <script>
+    (function(){
+      var p = new URLSearchParams(location.search);
+      if (p.get("embedded") === "1") {
+        document.documentElement.setAttribute("data-embedded","1");
+      }
+    })();
+  </script>
+</head>
+<body>
+<div id="app" class="oa-layout">
+  <aside class="oa-sidebar">
+    <div class="brand">OA-1.0.0</div>
+    <div class="user-box">测试用户</div>
+  </aside>
+
+  <main class="oa-main">
+    <header class="oa-header">
+      <h1>分配机制</h1>
+      <div class="header-actions">
+        <button class="btn-secondary" @click="reloadData">刷新数据</button>
+        <button class="btn-danger" @click="logout">退出登录</button>
+      </div>
+    </header>
+
+    <section class="content-card">
+      <h2>线索自动分配规则</h2>
+      <p class="role-tip"><strong>岗位引导：</strong>运营负责人配置自动分配规则，支持按渠道、区域均分或轮询分配；顾问/销售无需手动领取。</p>
+
+      <div class="filter-bar">
+        <select v-model="filterChannel" @change="applyFilter">
+          <option value="">全部适用渠道</option>
+          <option v-for="ch in channelOptions" :key="ch" :value="ch">{{ ch }}</option>
+        </select>
+        <select v-model="filterStatus" @change="applyFilter">
+          <option value="">全部状态</option>
+          <option value="启用">启用</option>
+          <option value="停用">停用</option>
+        </select>
+      </div>
+
+      <div class="section-actions"><button type="button" @click="openEditor(false)">新增分配规则</button></div>
+
+      <form :class="['inline-form','editor-form',{show:showEditor}]" @submit.prevent="saveItem">
+        <input v-model.trim="form.rule_name" placeholder="规则名称" required />
+        <select v-model="form.apply_channel">
+          <option value="全部渠道">全部渠道</option>
+          <option v-for="ch in channelOptions" :key="ch" :value="ch">{{ ch }}</option>
+        </select>
+        <select v-model="form.assign_method">
+          <option value="均分">均分</option>
+          <option value="优先">优先</option>
+          <option value="轮询">轮询</option>
+        </select>
+        <input v-model.number="form.assign_count" type="number" placeholder="每次分配数量" min="1" required />
+        <input v-model.trim="form.assign_to" placeholder="分配给（顾问/销售，多人逗号分隔）" required />
+        <select v-model="form.status">
+          <option value="启用">启用</option>
+          <option value="停用">停用</option>
+        </select>
+        <button>{{ form.id ? '保存' : '新增' }}</button>
+        <button type="button" class="btn-secondary" @click="closeEditor">取消</button>
+      </form>
+
+      <table class="table">
+        <thead>
+          <tr>
+            <th>ID</th><th>规则名称</th><th>适用渠道</th><th>分配方式</th>
+            <th>每次分配数量</th><th>分配给</th><th>状态</th><th>创建时间</th><th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="r in filteredItems" :key="r.id">
+            <td>{{ r.id }}</td>
+            <td>{{ r.rule_name }}</td>
+            <td>{{ r.apply_channel }}</td>
+            <td>{{ r.assign_method }}</td>
+            <td>{{ r.assign_count }}</td>
+            <td>{{ r.assign_to }}</td>
+            <td><span :style="{color: r.status==='启用'?'#16a34a':'#dc2626', fontWeight: 600}">{{ r.status }}</span></td>
+            <td>{{ r.created_at }}</td>
+            <td>
+              <button class="btn-mini btn-secondary" @click="viewDetail(r)">查看</button>
+              <button class="btn-mini" @click="openEditor(true, r)">编辑</button>
+              <button class="btn-mini btn-danger" @click="deleteItem(r.id)">删除</button>
+            </td>
+          </tr>
+          <tr v-if="filteredItems.length === 0"><td colspan="9" style="text-align:center;color:#999;">暂无数据</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <div class="detail-modal" v-if="detailOpen" @click.self="detailOpen=false">
+      <div class="detail-card">
+        <h3>{{ detailTitle }}</h3>
+        <pre>{{ detailContent }}</pre>
+        <button class="btn-secondary" @click="detailOpen=false">关闭</button>
+      </div>
+    </div>
+
+    <p v-if="error" class="error global-error">{{ error }}</p>
+  </main>
+</div>
+
+<script>
+const { createApp, ref, reactive, computed, onMounted } = Vue;
+createApp({
+  setup() {
+    const items = ref([]);
+    const filterChannel = ref('');
+    const filterStatus = ref('');
+    const error = ref('');
+    const showEditor = ref(false);
+    const detailOpen = ref(false);
+    const detailTitle = ref('');
+    const detailContent = ref('');
+    const channelOptions = ['抖音', '小红书', '快手', '视频号', 'B站', '知乎'];
+
+    const form = reactive({ id: 0, rule_name: '', apply_channel: '全部渠道', assign_method: '均分', assign_count: 5, assign_to: '', status: '启用' });
+
+    const api = async (url, opt = {}) => {
+      const token = localStorage.getItem('oa_token') || '';
+      const baseHeaders = { 'Content-Type': 'application/json' };
+      if (token) { baseHeaders.Authorization = 'Bearer ' + token; baseHeaders['X-OA-Token'] = token; }
+      const headers = { ...baseHeaders, ...(opt.headers || {}) };
+      let r;
+      try { r = await fetch(url, { ...opt, headers }); } catch (e) { throw new Error('网络异常（' + url + '）'); }
+      const j = await r.json();
+      if (r.status === 401) { localStorage.removeItem('oa_token'); localStorage.removeItem('oa_user'); top.location.href = './login.html'; throw new Error('登录已过期'); }
+      if (j.code !== 0) throw new Error(j.message || '请求失败');
+      return j.data;
+    };
+
+    const loadData = async () => {
+      error.value = '';
+      try { items.value = await api('/api/leads_dispatch.php'); } catch (e) { error.value = e.message; }
+    };
+
+    const filteredItems = computed(() => {
+      let list = items.value;
+      if (filterChannel.value) list = list.filter(r => r.apply_channel === filterChannel.value);
+      if (filterStatus.value) list = list.filter(r => r.status === filterStatus.value);
+      return list;
+    });
+
+    const applyFilter = () => {};
+    const resetForm = () => Object.assign(form, { id: 0, rule_name: '', apply_channel: '全部渠道', assign_method: '均分', assign_count: 5, assign_to: '', status: '启用' });
+
+    const openEditor = (isEdit, row) => {
+      if (!isEdit) { resetForm(); }
+      else { Object.assign(form, { id: row.id, rule_name: row.rule_name, apply_channel: row.apply_channel, assign_method: row.assign_method, assign_count: row.assign_count, assign_to: row.assign_to, status: row.status }); }
+      showEditor.value = true;
+    };
+
+    const closeEditor = () => { showEditor.value = false; };
+
+    const saveItem = async () => {
+      error.value = '';
+      try {
+        if (form.id) { await api('/api/leads_dispatch.php', { method: 'PUT', body: JSON.stringify(form) }); }
+        else { await api('/api/leads_dispatch.php', { method: 'POST', body: JSON.stringify(form) }); }
+        await loadData(); closeEditor();
+      } catch (e) { error.value = e.message; }
+    };
+
+    const deleteItem = async (id) => {
+      if (!confirm('确认删除该规则？')) return;
+      error.value = '';
+      try { await api('/api/leads_dispatch.php?id=' + id, { method: 'DELETE' }); await loadData(); } catch (e) { error.value = e.message; }
+    };
+
+    const viewDetail = (r) => { detailTitle.value = '规则详情'; detailContent.value = JSON.stringify(r, null, 2); detailOpen.value = true; };
+    const reloadData = () => loadData();
+    const logout = () => { localStorage.removeItem('oa_token'); localStorage.removeItem('oa_user'); top.location.href = './login.html'; };
+
+    onMounted(async () => {
+      const t = localStorage.getItem('oa_token');
+      if (!t) { top.location.href = './login.html'; return; }
+      await loadData();
+    });
+
+    return { items, filterChannel, filterStatus, error, showEditor, form, detailOpen, detailTitle, detailContent, channelOptions, filteredItems, applyFilter, openEditor, closeEditor, saveItem, deleteItem, viewDetail, reloadData, logout };
+  }
+}).mount('#app');
+</script>
+</body>
+</html>

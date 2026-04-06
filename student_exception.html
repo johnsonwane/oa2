@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>异常管理</title>
+  <link rel="stylesheet" href="./assets/style.css" />
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <style>
+    html[data-embedded="1"] .oa-sidebar{display:none!important;}
+    html[data-embedded="1"] .oa-layout{display:block!important;}
+    html[data-embedded="1"] .oa-main{padding:12px 16px!important;}
+    html[data-embedded="1"] .oa-header{position:static!important;padding-left:0!important;}
+    html[data-embedded="1"] .header-actions a.btn-secondary{display:none!important;}
+    html[data-embedded="1"] .menu-toggle,html[data-embedded="1"] .sidebar-overlay{display:none!important;}
+    .table-container { overflow-x: auto; }
+    .data-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    .data-table th, .data-table td { padding: 12px; text-align: left; border-bottom: 1px solid #e5e7eb; }
+    .data-table th { background: #f9fafb; font-weight: 600; color: #374151; }
+    .data-table tr:hover { background: #f9fafb; }
+    .badge { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 500; }
+    .badge-blue { background: #dbeafe; color: #1e40af; }
+    .badge-green { background: #d1fae5; color: #065f46; }
+    .badge-yellow { background: #fef3c7; color: #92400e; }
+    .badge-red { background: #fee2e2; color: #991b1b; }
+    .badge-purple { background: #e9d5ff; color: #6b21a8; }
+    .badge-gray { background: #f3f4f6; color: #4b5563; }
+    .btn-sm { padding: 4px 12px; font-size: 12px; border-radius: 4px; border: none; cursor: pointer; margin-right: 4px; }
+    .btn-view { background: #3b82f6; color: white; }
+    .btn-process { background: #f59e0b; color: white; }
+    .btn-resolve { background: #10b981; color: white; }
+    .error-msg { color: #dc2626; padding: 12px; background: #fee2e2; border-radius: 6px; margin-bottom: 16px; }
+    .search-bar { display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+    .search-bar input, .search-bar select { padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; }
+    .search-bar button { padding: 8px 16px; background: #3b82f6; color: white; border: none; border-radius: 6px; cursor: pointer; }
+  </style>
+  <script>
+    (function(){
+      var p = new URLSearchParams(location.search);
+      if (p.get("embedded") === "1") document.documentElement.setAttribute("data-embedded","1");
+    })();
+  </script>
+</head>
+<body>
+<div id="app" class="oa-layout">
+  <main class="oa-main">
+    <header class="oa-header">
+      <h1>异常管理</h1>
+      <div class="header-actions">
+        <button class="btn-secondary" @click="loadData">刷新</button>
+        <button class="btn-danger" @click="logout">退出</button>
+      </div>
+    </header>
+    <section class="content-card">
+      <div class="search-bar">
+        <input type="text" v-model="searchKeyword" placeholder="搜索学员姓名" />
+        <select v-model="filterType">
+          <option value="">全部异常类型</option>
+          <option value="退学申请">退学申请</option>
+          <option value="退款投诉">退款投诉</option>
+          <option value="学习中断">学习中断</option>
+          <option value="严重违纪">严重违纪</option>
+          <option value="其他">其他</option>
+        </select>
+        <select v-model="filterLevel">
+          <option value="">全部严重程度</option>
+          <option value="低">低</option>
+          <option value="中">中</option>
+          <option value="高">高</option>
+          <option value="紧急">紧急</option>
+        </select>
+        <select v-model="filterStatus">
+          <option value="">全部处理状态</option>
+          <option value="待处理">待处理</option>
+          <option value="处理中">处理中</option>
+          <option value="已解决">已解决</option>
+          <option value="已升级">已升级</option>
+        </select>
+        <button @click="loadData">搜索</button>
+      </div>
+      <div v-if="error" class="error-msg">{{ error }}</div>
+      <div class="table-container">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>异常ID</th>
+              <th>学员姓名</th>
+              <th>课程名称</th>
+              <th>异常类型</th>
+              <th>严重程度</th>
+              <th>发生时间</th>
+              <th>负责人</th>
+              <th>处理状态</th>
+              <th>处理结果</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="item in filteredItems" :key="item.exception_id">
+              <td>{{ item.exception_id }}</td>
+              <td>{{ item.student_name }}</td>
+              <td>{{ item.course_name }}</td>
+              <td>
+                <span class="badge" :class="getTypeClass(item.exception_type)">{{ item.exception_type }}</span>
+              </td>
+              <td>
+                <span class="badge" :class="getLevelClass(item.severity)">{{ item.severity }}</span>
+              </td>
+              <td>{{ item.occurred_time }}</td>
+              <td>{{ item.handler }}</td>
+              <td>
+                <span class="badge" :class="getStatusClass(item.handle_status)">{{ item.handle_status }}</span>
+              </td>
+              <td>{{ item.handle_result }}</td>
+              <td>
+                <button class="btn-sm btn-view" @click="viewException(item)">查看</button>
+                <button class="btn-sm btn-process" v-if="item.handle_status === '待处理'" @click="processException(item)">处理</button>
+                <button class="btn-sm btn-resolve" v-if="item.handle_status === '处理中'" @click="resolveException(item)">解决</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+</div>
+<script>
+const { createApp, ref, reactive, onMounted, computed } = Vue;
+createApp({
+  setup() {
+    const items = ref([]);
+    const error = ref('');
+    const searchKeyword = ref('');
+    const filterType = ref('');
+    const filterLevel = ref('');
+    const filterStatus = ref('');
+    
+    const api = async(url, opt={}) => {
+      const token = localStorage.getItem('oa_token') || '';
+      const headers = {'Content-Type':'application/json'};
+      if (token) { headers['Authorization'] = 'Bearer ' + token; headers['X-OA-Token'] = token; }
+      let r;
+      try { r = await fetch(url, {...opt, headers}); }
+      catch(e) { throw new Error('网络异常'); }
+      const j = await r.json();
+      if (r.status === 401) { localStorage.removeItem('oa_token'); top.location.href = './login.html'; throw new Error('登录过期'); }
+      if (j.code !== 0) throw new Error(j.message || '请求失败');
+      return j.data;
+    };
+    
+    const loadData = async() => { 
+      error.value = ''; 
+      try { 
+        items.value = await api('/api/student_exception.php'); 
+      } catch(e) { 
+        error.value = e.message; 
+      } 
+    };
+    
+    const logout = () => { 
+      localStorage.removeItem('oa_token'); 
+      localStorage.removeItem('oa_user'); 
+      top.location.href = './login.html'; 
+    };
+    
+    const getTypeClass = (type) => {
+      const map = { '退学申请': 'badge-yellow', '退款投诉': 'badge-red', '学习中断': 'badge-purple', '严重违纪': 'badge-red', '其他': 'badge-gray' };
+      return map[type] || 'badge-gray';
+    };
+    
+    const getLevelClass = (level) => {
+      const map = { '低': 'badge-green', '中': 'badge-yellow', '高': 'badge-purple', '紧急': 'badge-red' };
+      return map[level] || 'badge-gray';
+    };
+    
+    const getStatusClass = (status) => {
+      const map = { '待处理': 'badge-red', '处理中': 'badge-yellow', '已解决': 'badge-green', '已升级': 'badge-purple' };
+      return map[status] || 'badge-gray';
+    };
+    
+    const viewException = (item) => {
+      alert('查看异常: ' + item.exception_id);
+    };
+    
+    const processException = (item) => {
+      if (confirm('确定开始处理该异常吗？')) {
+        alert('异常已开始处理');
+      }
+    };
+    
+    const resolveException = (item) => {
+      if (confirm('确定该异常已解决吗？')) {
+        alert('异常已解决');
+      }
+    };
+    
+    const filteredItems = computed(() => {
+      return items.value.filter(item => {
+        const matchKeyword = !searchKeyword.value || item.student_name.includes(searchKeyword.value);
+        const matchType = !filterType.value || item.exception_type === filterType.value;
+        const matchLevel = !filterLevel.value || item.severity === filterLevel.value;
+        const matchStatus = !filterStatus.value || item.handle_status === filterStatus.value;
+        return matchKeyword && matchType && matchLevel && matchStatus;
+      });
+    });
+    
+    onMounted(async() => { 
+      if (!localStorage.getItem('oa_token')) { 
+        top.location.href = './login.html'; 
+        return; 
+      } 
+      await loadData(); 
+    });
+    
+    return { items, error, loadData, logout, searchKeyword, filterType, filterLevel, filterStatus, filteredItems, getTypeClass, getLevelClass, getStatusClass, viewException, processException, resolveException };
+  }
+}).mount('#app');
+</script>
+</body>
+</html>
