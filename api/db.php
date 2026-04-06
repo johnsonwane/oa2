@@ -1,5 +1,8 @@
 <?php
 
+ini_set('display_errors', 0);
+error_reporting(0);
+
 function get_db_connection(): PDO
 {
     $config = require __DIR__ . '/config.php';

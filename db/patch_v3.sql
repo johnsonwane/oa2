@@ -113,7 +113,7 @@ CREATE TABLE IF NOT EXISTS oa_customer (
   city VARCHAR(50) DEFAULT '' COMMENT '城市',
   occupation VARCHAR(100) DEFAULT '' COMMENT '职业/公司',
   intention_course VARCHAR(100) DEFAULT '' COMMENT '意向课程',
-  intention_level ENUM('A','B','C') DEFAULT '' COMMENT '意向等级',
+  intention_level ENUM('','A','B','C') DEFAULT '' COMMENT '意向等级',
   source_channel VARCHAR(50) DEFAULT '' COMMENT '来源渠道',
   first_inquiry_date DATE DEFAULT NULL COMMENT '首次咨询日期',
   last_follow_date DATE DEFAULT NULL COMMENT '最近跟进日期',
@@ -206,56 +206,6 @@ CREATE TABLE IF NOT EXISTS oa_deal_stats (
   refunded DECIMAL(12,2) NOT NULL DEFAULT 0 COMMENT '退款金额',
   gross_profit DECIMAL(12,2) NOT NULL DEFAULT 0 COMMENT '毛利',
   efficiency DECIMAL(10,2) NOT NULL DEFAULT 0 COMMENT '人效(万/人)',
-  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
-CREATE TABLE IF NOT EXISTS oa_student_ext (
-  id INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  student_id INT UNSIGNED NOT NULL COMMENT '学员ID',
-  name VARCHAR(50) NOT NULL DEFAULT '' COMMENT '姓名',
-  gender VARCHAR(10) DEFAULT '' COMMENT '性别',
-  age INT DEFAULT NULL COMMENT '年龄',
-  mobile VARCHAR(20) NOT NULL DEFAULT '' COMMENT '手机号',
-  course_name VARCHAR(100) NOT NULL DEFAULT '' COMMENT '所在课程',
-  class_name VARCHAR(100) NOT NULL DEFAULT '' COMMENT '班级',
-  headteacher VARCHAR(50) DEFAULT '' COMMENT '班主任',
-  coach VARCHAR(50) DEFAULT '' COMMENT '教练',
-  enroll_date DATE DEFAULT NULL COMMENT '入学日期',
-  study_stage ENUM('preview','learning','graduated','suspended','dropped') NOT NULL DEFAULT 'learning' COMMENT '学习阶段',
-  status ENUM('normal','exception') NOT NULL DEFAULT 'normal' COMMENT '状态',
-  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (id),
-  UNIQUE KEY uk_student (student_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
-CREATE TABLE IF NOT EXISTS oa_student_progress (
-  id INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  student_id INT UNSIGNED NOT NULL COMMENT '学员ID',
-  student_name VARCHAR(50) NOT NULL DEFAULT '' COMMENT '学员姓名',
-  course_name VARCHAR(100) NOT NULL DEFAULT '' COMMENT '课程名称',
-  class_name VARCHAR(100) NOT NULL DEFAULT '' COMMENT '班级',
-  current_stage VARCHAR(50) NOT NULL DEFAULT '' COMMENT '当前阶段',
-  progress_rate DECIMAL(5,2) NOT NULL DEFAULT 0 COMMENT '学习进度(%)',
-  headteacher_comment TEXT COMMENT '班主任评价',
-  coach_comment TEXT COMMENT '教练意见',
-  next_follow_date DATE DEFAULT NULL COMMENT '下次跟进时间',
-  record_date DATE NOT NULL COMMENT '记录日期',
-  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
-CREATE TABLE IF NOT EXISTS oa_student_exception (
-  id INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  student_id INT UNSIGNED NOT NULL COMMENT '学员ID',
-  student_name VARCHAR(50) NOT NULL DEFAULT '' COMMENT '学员姓名',
-  course_name VARCHAR(100) NOT NULL DEFAULT '' COMMENT '课程名称',
-  exception_type ENUM('drop_request','refund_complaint','study_interrupt','serious_violation','other') NOT NULL DEFAULT 'other' COMMENT '异常类型',
-  severity ENUM('low','medium','high','urgent') NOT NULL DEFAULT 'medium' COMMENT '严重程度',
-  occur_time DATETIME NOT NULL COMMENT '发生时间',
-  handler VARCHAR(50) DEFAULT '' COMMENT '负责人',
-  handle_status ENUM('pending','processing','resolved','escalated') NOT NULL DEFAULT 'pending' COMMENT '处理状态',
-  result VARCHAR(255) DEFAULT '' COMMENT '处理结果',
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -558,10 +508,6 @@ INSERT INTO oa_menu (parent_name, menu_name, menu_key, path, icon, sort_no, stat
 ('订单中心', '订单管理', 'order_management', '/order_management', '🧾', 501, 1),
 ('订单中心', '多人参与', 'order_multi', '/order_multi', '👥', 502, 1),
 ('订单中心', '状态流转', 'order_flow', '/order_flow', '🔀', 503, 1),
--- 交付中心
-('交付中心', '学员管理', 'student_management', '/student_management', '🎓', 601, 1),
-('交付中心', '进度跟踪', 'student_progress', '/student_progress', '📈', 602, 1),
-('交付中心', '异常管理', 'student_exception', '/student_exception', '⚠️', 603, 1),
 -- 二次销售中心
 ('二次销售中心', '复购管理', 'repurchase', '/repurchase', '🔁', 701, 1),
 ('二次销售中心', '二销跟进', 'repurchase_followup', '/repurchase_followup', '📞', 702, 1),
@@ -723,28 +669,6 @@ INSERT INTO oa_deal_stats (period_month, consultant, department, first_order_cou
 ('2026-03', '顾问A', '招生咨询部', 5, 1, 0, 58600, 32000, 0, 29300, 2.93),
 ('2026-03', '顾问B', '招生咨询部', 4, 0, 1, 42300, 21000, 0, 21150, 2.12)
 ON DUPLICATE KEY UPDATE gmv=VALUES(gmv), collected=VALUES(collected), refunded=VALUES(refunded), gross_profit=VALUES(gross_profit), efficiency=VALUES(efficiency);
-
--- oa_student_ext（学员管理扩展）
-INSERT INTO oa_student_ext (student_id, name, gender, age, mobile, course_name, class_name, headteacher, coach, enroll_date, study_stage) VALUES
-(1, '张三', '男', 23, '13800000001', 'Python全栈训练营', 'Python全栈-2026春季1期', '班主任A', '教练甲', '2026-02-03', 'learning'),
-(2, '李四', '女', 25, '13800000002', '新媒体运营实战班', '新媒体-2026春季班', '班主任A', '教练乙', '2026-02-10', 'learning'),
-(3, '王五', '男', 27, '13800000003', 'AI应用办公提效课', 'AI应用-周末班', '班主任A', '教练丙', '2026-02-15', 'preview')
-ON DUPLICATE KEY UPDATE course_name=VALUES(course_name), study_stage=VALUES(study_stage);
-
--- oa_student_progress（进度跟踪）
-INSERT INTO oa_student_progress (student_id, student_name, course_name, class_name, current_stage, progress_rate, headteacher_comment, coach_comment, next_follow_date, record_date) VALUES
-(1, '张三', 'Python全栈训练营', 'Python全栈-2026春季1期', '第1周-Python基础语法', 8.33, '学习态度认真，作业完成度95%。', '基础不错，可以加快进度。', '2026-03-01', '2026-02-10'),
-(1, '张三', 'Python全栈训练营', 'Python全栈-2026春季1期', '第2周-Web开发入门', 16.67, 'Web开发进度正常。', '能独立完成简单页面了。', '2026-03-08', '2026-02-17'),
-(2, '李四', '新媒体运营实战班', '新媒体-2026春季班', '第1周-平台规则与定位', 12.50, '小红书定位已确定，开始产出内容。', '内容创意不错，继续保持。', '2026-02-28', '2026-02-14'),
-(3, '王五', 'AI应用办公提效课', 'AI应用-周末班', '预习阶段', 5.00, '资料已发放，正在预习。', '预计下周开始正式课程。', '2026-03-07', '2026-02-21')
-ON DUPLICATE KEY UPDATE current_stage=VALUES(current_stage), progress_rate=VALUES(progress_rate);
-
--- oa_student_exception（异常管理）
-INSERT INTO oa_student_exception (student_id, student_name, course_name, exception_type, severity, occur_time, handler, handle_status, result) VALUES
-(2, '李四', '新媒体运营实战班', 'study_interrupt', 'medium', '2026-02-20 14:00:00', '班主任A', 'resolved', '因工作出差2周，已安排补课方案，学员满意。'),
-(3, '王五', 'AI应用办公提效课', 'drop_request', 'high', '2026-02-25 10:00:00', '顾问A', 'processing', '学员觉得课程节奏快，希望退款。顾问正在沟通挽留。'),
-(1, '张三', 'Python全栈训练营', 'refund_complaint', 'urgent', '2026-02-28 16:00:00', '班主任A', 'resolved', '学员反映视频卡顿，已升级服务器并赠送下期课程优惠券。')
-ON DUPLICATE KEY UPDATE exception_type=VALUES(exception_type), severity=VALUES(severity), handle_status=VALUES(handle_status);
 
 -- oa_order_multi（多人参与）
 INSERT INTO oa_order_multi (order_id, deal_no, customer_name, course_name, role_type, user_name, contribution_type, commission_amount, assign_time, status) VALUES
