@@ -3,11 +3,47 @@
  * traffic_data.php — 引流数据 API
  * 每日/每周渠道引流数据统计
  */
-require_once __DIR__ . '/db.php';
+
+// 确保输出缓冲开启，捕获所有意外输出
+while (ob_get_level()) ob_end_clean();
+ob_start();
 
 ini_set('display_errors', 0);
 error_reporting(0);
-header('Content-Type: application/json; charset=utf-8');
+
+require_once __DIR__ . '/db.php';
+
+if (!headers_sent()) {
+    header('Content-Type: application/json; charset=utf-8');
+    header('X-Content-Type-Options: nosniff');
+}
+
+function json_response(int $code, string $message, $data = null, int $httpCode = 200): void
+{
+    http_response_code($httpCode);
+    echo json_encode([
+        'code' => $code,
+        'message' => $message,
+        'data' => $data,
+    ], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+function request_body(): array
+{
+    $raw = file_get_contents('php://input');
+    $data = json_decode($raw, true);
+    return is_array($data) ? $data : [];
+}
+
+function require_fields(array $data, array $fields): void
+{
+    foreach ($fields as $field) {
+        if (!isset($data[$field]) || trim((string)$data[$field]) === '') {
+            json_response(400, "字段 {$field} 不能为空", null, 400);
+        }
+    }
+}
 
 try {
     $pdo = get_db_connection();
@@ -36,15 +72,16 @@ try {
         for ($day = 0; $day < 30; $day++) {
             $date = date('Y-m-d', strtotime($baseDate . " +{$day} days"));
             foreach ($channels as $ch) {
-                $exposure = match($ch) {
-                    '抖音' => rand(80000, 250000),
-                    '小红书' => rand(30000, 120000),
-                    '视频号' => rand(20000, 80000),
-                    'B站' => rand(15000, 60000),
-                    '快手' => rand(10000, 50000),
-                    '知乎' => rand(5000, 25000),
-                    default => rand(10000, 100000),
-                };
+                // 根据渠道设置曝光基准（兼容PHP 7）
+            $exposureMap = [
+                '抖音' => rand(80000, 250000),
+                '小红书' => rand(30000, 120000),
+                '视频号' => rand(20000, 80000),
+                'B站' => rand(15000, 60000),
+                '快手' => rand(10000, 50000),
+                '知乎' => rand(5000, 25000),
+            ];
+            $exposure = isset($exposureMap[$ch]) ? $exposureMap[$ch] : rand(10000, 100000);
                 $clicks = (int)($exposure * (rand(3, 12) / 100));
                 $clickRate = $exposure > 0 ? round($clicks / $exposure * 100, 2) : 0;
                 $leadCount = (int)($clicks * (rand(2, 8) / 100));

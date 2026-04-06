@@ -158,7 +158,9 @@ try {
                     }
                 }
                 // 补充兜底：确保 todos 始终可见
-                $hasTodos = (bool)array_filter($visible, static fn($m) => (string)($m['menu_key'] ?? '') === 'todos');
+                $hasTodos = (bool)array_filter($visible, static function ($m) {
+                    return (string)($m['menu_key'] ?? '') === 'todos';
+                });
                 if (!$hasTodos) {
                     foreach ($allMenus as $menu) {
                         if ((string)($menu['menu_key'] ?? '') === 'todos') {
@@ -170,7 +172,10 @@ try {
                 usort($visible, static function ($a, $b) {
                     $sa = (int)($a['sort_no'] ?? 0);
                     $sb = (int)($b['sort_no'] ?? 0);
-                    return $sa !== $sb ? $sa <=> $sb : (int)($a['id'] ?? 0) <=> (int)($b['id'] ?? 0);
+                    if ($sa !== $sb) {
+                        return $sa < $sb ? -1 : ($sa > $sb ? 1 : 0);
+                    }
+                    return (int)($a['id'] ?? 0) - (int)($b['id'] ?? 0);
                 });
                 json_response(0, 'ok', $visible);
             }
@@ -206,7 +211,9 @@ try {
     }
 
     // ── 5. 待办兜底（确保至少有一个菜单可见） ────────────────────────
-    if (!array_filter($visible, static fn($m) => (string)($m['menu_key'] ?? '') === 'todos')) {
+    if (!array_filter($visible, static function ($m) {
+        return (string)($m['menu_key'] ?? '') === 'todos';
+    })) {
         foreach ($allMenus as $menu) {
             if ((string)($menu['menu_key'] ?? '') === 'todos') {
                 $visible[] = $menu;
@@ -218,7 +225,10 @@ try {
     usort($visible, static function ($a, $b) {
         $sa = (int)($a['sort_no'] ?? 0);
         $sb = (int)($b['sort_no'] ?? 0);
-        return $sa !== $sb ? $sa <=> $sb : (int)($a['id'] ?? 0) <=> (int)($b['id'] ?? 0);
+        if ($sa !== $sb) {
+            return $sa < $sb ? -1 : ($sa > $sb ? 1 : 0);
+        }
+        return (int)($a['id'] ?? 0) - (int)($b['id'] ?? 0);
     });
 
     json_response(0, 'ok', $visible);

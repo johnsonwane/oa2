@@ -86,9 +86,14 @@ a, button, input, select, textarea { transition: all .18s ease; }
 /* ════════════════════════════════
    主布局（app-shell）
 ════════════════════════════════ */
+html, body {
+  height: 100%;
+  overflow: hidden;
+}
 .app-shell {
   display: flex;
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
 }
 .content-shell {
   flex: 1;

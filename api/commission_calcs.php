@@ -152,7 +152,7 @@ try {
             json_response(400, '没有需要更新的字段', null, 400);
         }
 
-        $setSql = implode(', ', array_map(fn($f) => "`$f` = :$f", $updateFields));
+        $setSql = implode(', ', array_map(function ($f) { return "`$f` = :$f"; }, $updateFields));
         $updateValues['id'] = $id;
         $sql = "UPDATE oa_commission_calc SET $setSql WHERE id = :id";
         $stmt = $pdo->prepare($sql);

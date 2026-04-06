@@ -233,11 +233,11 @@ function crm_sales_sort_rows(string $module, array $rows): array
             $ra = (int)($a['ranking'] ?? 0);
             $rb = (int)($b['ranking'] ?? 0);
             if ($ra === $rb) {
-                return (int)($a['id'] ?? 0) <=> (int)($b['id'] ?? 0);
+                return (int)($a['id'] ?? 0) - (int)($b['id'] ?? 0);
             }
-            return $ra <=> $rb;
+            return $ra < $rb ? -1 : ($ra > $rb ? 1 : 0);
         }
-        return (int)($b['id'] ?? 0) <=> (int)($a['id'] ?? 0);
+        return (int)($b['id'] ?? 0) - (int)($a['id'] ?? 0);
     });
     return $rows;
 }
@@ -366,7 +366,9 @@ function crm_sales_handle(string $module): void
     if ($m === 'GET') {
         $keyword = trim((string)($_GET['keyword'] ?? ''));
         if ($keyword !== '') {
-            $rows = array_values(array_filter($rows, static fn(array $row): bool => crm_sales_keyword_match($row, $keyword)));
+            $rows = array_values(array_filter($rows, static function (array $row) use ($keyword): bool {
+                return crm_sales_keyword_match($row, $keyword);
+            }));
         }
         json_response(0, 'ok', crm_sales_sort_rows($module, $rows));
     }
@@ -409,7 +411,9 @@ function crm_sales_handle(string $module): void
         if ($id <= 0) {
             json_response(400, 'id非法', null, 400);
         }
-        $filtered = array_values(array_filter($rows, static fn(array $row): bool => (int)($row['id'] ?? 0) !== $id));
+        $filtered = array_values(array_filter($rows, static function (array $row) use ($id): bool {
+            return (int)($row['id'] ?? 0) !== $id;
+        }));
         if (count($filtered) === count($rows)) {
             json_response(404, '记录不存在', null, 404);
         }
