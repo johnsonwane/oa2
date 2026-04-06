@@ -1,5 +1,36 @@
 <?php
-require_once __DIR__ . '/common.php';
+require_once __DIR__ . '/db.php';
+
+ini_set('display_errors', 0);
+error_reporting(0);
+header('Content-Type: application/json; charset=utf-8');
+
+function json_response(int $code, string $message, $data = null, int $httpCode = 200): void
+{
+    http_response_code($httpCode);
+    echo json_encode([
+        'code' => $code,
+        'message' => $message,
+        'data' => $data,
+    ], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+function request_body(): array
+{
+    $raw = file_get_contents('php://input');
+    $data = json_decode($raw, true);
+    return is_array($data) ? $data : [];
+}
+
+function require_fields(array $data, array $fields): void
+{
+    foreach ($fields as $field) {
+        if (!isset($data[$field]) || trim((string)$data[$field]) === '') {
+            json_response(400, "字段 {$field} 不能为空", null, 400);
+        }
+    }
+}
 
 function crm_sales_definitions(): array
 {

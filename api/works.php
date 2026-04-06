@@ -3,8 +3,11 @@
  * works.php — 作品管理 API
  * 管理引流用的短视频/图文/直播作品
  */
-require_once __DIR__ . '/common.php';
 require_once __DIR__ . '/db.php';
+
+ini_set('display_errors', 0);
+error_reporting(0);
+header('Content-Type: application/json; charset=utf-8');
 
 try {
     $pdo = get_db_connection();

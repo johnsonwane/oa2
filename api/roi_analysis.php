@@ -3,8 +3,11 @@
  * roi_analysis.php — ROI分析 API
  * 各渠道、各活动的投入产出比分析
  */
-require_once __DIR__ . '/common.php';
 require_once __DIR__ . '/db.php';
+
+ini_set('display_errors', 0);
+error_reporting(0);
+header('Content-Type: application/json; charset=utf-8');
 
 try {
     $pdo = get_db_connection();

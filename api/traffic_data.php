@@ -3,8 +3,11 @@
  * traffic_data.php — 引流数据 API
  * 每日/每周渠道引流数据统计
  */
-require_once __DIR__ . '/common.php';
 require_once __DIR__ . '/db.php';
+
+ini_set('display_errors', 0);
+error_reporting(0);
+header('Content-Type: application/json; charset=utf-8');
 
 try {
     $pdo = get_db_connection();

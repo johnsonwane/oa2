@@ -3,8 +3,11 @@
  * channels.php — 渠道发布 API
  * 管理各渠道账号、密码、发布规则、负责人
  */
-require_once __DIR__ . '/common.php';
 require_once __DIR__ . '/db.php';
+
+ini_set('display_errors', 0);
+error_reporting(0);
+header('Content-Type: application/json; charset=utf-8');
 
 try {
     $pdo = get_db_connection();

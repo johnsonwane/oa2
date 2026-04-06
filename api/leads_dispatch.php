@@ -3,8 +3,11 @@
  * leads_dispatch.php — 分配机制 API
  * 设置线索自动分配规则（按渠道/区域/数量均分等）
  */
-require_once __DIR__ . '/common.php';
 require_once __DIR__ . '/db.php';
+
+ini_set('display_errors', 0);
+error_reporting(0);
+header('Content-Type: application/json; charset=utf-8');
 
 try {
     $pdo = get_db_connection();

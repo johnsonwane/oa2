@@ -3,8 +3,11 @@
  * leads_pool.php — 线索池 API
  * 所有未分配线索统一入池，销售可主动领取或系统自动分配
  */
-require_once __DIR__ . '/common.php';
 require_once __DIR__ . '/db.php';
+
+ini_set('display_errors', 0);
+error_reporting(0);
+header('Content-Type: application/json; charset=utf-8');
 
 try {
     $pdo = get_db_connection();
