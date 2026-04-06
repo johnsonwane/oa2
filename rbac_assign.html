@@ -1,0 +1,851 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OA-1.0.0</title>
+  <link rel="stylesheet" href="./assets/style.css" />
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+<style>
+html[data-embedded="1"] .oa-sidebar{display:none!important;}
+html[data-embedded="1"] .oa-layout{display:block!important;}
+html[data-embedded="1"] .oa-main{padding:12px 16px!important;}
+html[data-embedded="1"] .oa-header{position:static!important;padding-left:0!important;}
+html[data-embedded="1"] .header-actions a.btn-secondary{display:none!important;}
+html[data-embedded="1"] .menu-toggle,html[data-embedded="1"] .sidebar-overlay{display:none!important;}html[data-embedded="1"] .oa-header h1{display:none!important;}
+
+/* ===== 权限配置专用样式 ===== */
+.perm-tabs { display:flex; gap:8px; margin-bottom:20px; flex-wrap:wrap; }
+.perm-tab {
+  padding:8px 20px; border-radius:6px; cursor:pointer;
+  border:2px solid #e0e0e0; background:#f8f8f8;
+  font-weight:500; font-size:14px; transition:all .2s;
+}
+.perm-tab:hover { border-color:#4a90d9; color:#4a90d9; }
+.perm-tab.active { border-color:#4a90d9; background:#4a90d9; color:#fff; }
+
+/* 角色菜单矩阵 */
+.role-matrix-wrap { overflow-x:auto; margin-top:16px; }
+.role-matrix { border-collapse:collapse; min-width:100%; }
+.role-matrix th, .role-matrix td {
+  border:1px solid #e8e8e8;
+  padding:7px 10px;
+  white-space:nowrap;
+  font-size:13px;
+}
+.role-matrix thead th {
+  background:#f0f4fa;
+  font-weight:600;
+  position:sticky; top:0; z-index:2;
+}
+.role-matrix thead th:first-child {
+  position:sticky; left:0; z-index:3;
+}
+.role-matrix td:first-child {
+  position:sticky; left:0; background:#fafafa;
+  font-weight:500; z-index:1;
+}
+.role-matrix .group-header td {
+  background:#e8f0fe; font-weight:600; color:#3c4e7a;
+}
+.role-matrix td.check-cell {
+  text-align:center; cursor:pointer;
+  transition:background .15s;
+}
+.role-matrix td.check-cell:hover { background:#f0f7ff; }
+.role-matrix td.check-cell input[type="checkbox"] {
+  width:16px; height:16px; cursor:pointer; accent-color:#4a90d9;
+}
+.role-matrix tr:hover td:not(:first-child) { background:#f8faff; }
+
+/* 角色卡片 */
+.role-cards { display:flex; flex-wrap:wrap; gap:16px; margin-top:16px; }
+.role-card {
+  flex:0 0 calc(33.33% - 12px);
+  min-width:260px;
+  border:1px solid #e0e0e0;
+  border-radius:8px;
+  padding:16px;
+  background:#fff;
+  box-shadow:0 1px 4px rgba(0,0,0,0.06);
+}
+.role-card-header {
+  display:flex; justify-content:space-between; align-items:center;
+  margin-bottom:12px;
+}
+.role-card-title { font-size:15px; font-weight:600; color:#333; }
+.role-card-count {
+  font-size:12px; background:#e8f0fe; color:#4a90d9;
+  padding:2px 8px; border-radius:10px;
+}
+.role-card-menus {
+  display:flex; flex-wrap:wrap; gap:4px; margin-bottom:12px;
+}
+.menu-tag {
+  font-size:11px; padding:2px 8px; border-radius:4px;
+  background:#f0f4fa; color:#555; border:1px solid #e0e0e0;
+}
+.menu-tag.active { background:#e6f4ea; color:#2e7d32; border-color:#a8d5ad; }
+.role-card-actions { display:flex; gap:8px; }
+
+/* 快速分配面板 */
+.assign-panel { background:#f8faff; border-radius:8px; padding:16px; margin-bottom:20px; }
+.assign-row { display:flex; gap:12px; align-items:flex-end; flex-wrap:wrap; }
+.assign-field { display:flex; flex-direction:column; gap:4px; }
+.assign-field label { font-size:12px; color:#666; font-weight:500; }
+.assign-field select, .assign-field input {
+  padding:7px 10px; border:1px solid #d0d0d0; border-radius:5px;
+  font-size:13px; min-width:160px;
+}
+
+/* 批量操作 */
+.batch-bar {
+  display:flex; gap:8px; align-items:center;
+  background:#fff3e0; border:1px solid #ffcc80;
+  border-radius:6px; padding:10px 14px; margin-bottom:14px;
+  font-size:13px;
+}
+.batch-bar strong { color:#e65100; }
+
+/* 预设模板 */
+.preset-list { display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; }
+.preset-btn {
+  padding:6px 14px; border-radius:5px; font-size:12px;
+  border:1px solid #d0d0d0; background:#fff; cursor:pointer;
+  transition:all .2s;
+}
+.preset-btn:hover { border-color:#4a90d9; color:#4a90d9; }
+.preset-btn.active { border-color:#4a90d9; background:#4a90d9; color:#fff; }
+
+.save-btn-wrap { margin-top:16px; display:flex; gap:10px; align-items:center; }
+.save-success { color:#2e7d32; font-size:13px; font-weight:500; }
+.save-error   { color:#c62828; font-size:13px; }
+
+/* 预设模板弹窗 */
+.preset-modal-mask {
+  position:fixed; inset:0; background:rgba(0,0,0,.35); z-index:1000;
+  display:flex; align-items:center; justify-content:center;
+}
+.preset-modal {
+  background:#fff; border-radius:10px; padding:24px 28px;
+  min-width:320px; max-width:480px; width:90%;
+  box-shadow:0 8px 32px rgba(0,0,0,.18);
+}
+.preset-modal h4 { margin:0 0 16px; font-size:16px; color:#333; }
+.preset-modal .role-check-list {
+  display:flex; flex-wrap:wrap; gap:8px; margin-bottom:20px;
+  max-height:220px; overflow-y:auto;
+}
+.preset-modal .role-check-item {
+  display:flex; align-items:center; gap:5px;
+  padding:5px 10px; border:1px solid #e0e0e0; border-radius:5px;
+  cursor:pointer; font-size:13px; transition:all .15s;
+}
+.preset-modal .role-check-item:hover { border-color:#4a90d9; background:#f0f7ff; }
+.preset-modal .role-check-item.selected { border-color:#4a90d9; background:#4a90d9; color:#fff; }
+.preset-modal .role-check-item input { display:none; }
+.preset-modal-actions { display:flex; gap:10px; justify-content:flex-end; }
+.preset-hint { font-size:12px; color:#888; margin-bottom:10px; }
+
+/* 复制权限 */
+.copy-perm-row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-top:12px; }
+.copy-perm-row select { padding:6px 10px; border:1px solid #d0d0d0; border-radius:5px; font-size:13px; min-width:140px; }
+.copy-perm-row .arrow { color:#4a90d9; font-weight:bold; font-size:16px; }
+
+/* 用户角色列表 */
+.user-role-table .tag-group { display:flex; flex-wrap:wrap; gap:4px; }
+.user-role-table .tag {
+  font-size:11px; padding:2px 8px; border-radius:10px;
+  background:#e8f0fe; color:#4a90d9; border:1px solid #c5d8f7;
+}
+.section-split { border:none; border-top:1px solid #eee; margin:24px 0; }
+</style>
+<script>(function(){var p=new URLSearchParams(location.search);if(p.get("embedded")==="1"){document.documentElement.setAttribute("data-embedded","1");}})();</script>
+</head>
+<body>
+<div id="app" class="oa-layout" :class="{'mobile': isMobile, 'sidebar-open': sidebarOpen}" v-cloak>
+  <aside class="oa-sidebar" :class="{'open': sidebarOpen}">
+    <div class="brand">OA-1.0.0</div>
+    <div class="user-box">{{ user.real_name || user.username }}（{{ user.role || '访客' }}）</div>
+    <button v-if="isMobile && sidebarOpen" class="sidebar-close" @click="sidebarOpen=false" aria-label="收起菜单">×</button>
+    <template v-for="group in groupedMenus" :key="group.parent">
+      <div class="group-title">{{ group.parent }}</div>
+      <ul class="menu-tree simple">
+        <li v-for="m in group.children" :key="m.id" :class="{active:activeTab===m.menu_key}" @click="selectMenu(m.menu_key)">{{ m.menu_name }}</li>
+      </ul>
+    </template>
+  </aside>
+  <div v-if="isMobile && sidebarOpen" class="sidebar-overlay" @click="sidebarOpen=false"></div>
+
+  <main class="oa-main">
+    <header class="oa-header">
+      <button v-if="isMobile" class="menu-toggle" @click="toggleSidebar" aria-label="切换菜单">☰</button>
+      <h1>OA 系统管理台</h1>
+      <div class="header-actions">
+        <button class="btn-secondary" @click="reloadAll">刷新数据</button>
+        <button class="btn-danger" @click="logout">退出登录</button>
+      </div>
+    </header>
+
+    <!-- ===================================================
+         权限配置中心
+    ==================================================== -->
+    <section class="content-card" v-if="activeTab==='rbac_assign'">
+      <h2>权限配置中心</h2>
+      <p class="role-tip">
+        <strong>使用说明：</strong>
+        在「角色菜单配置」中为每个角色勾选可见菜单，保存后立即生效；
+        「用户角色分配」将员工加入对应角色；
+        「角色权限」用于细粒度操作控制（可选）。
+      </p>
+
+      <!-- Tab 切换 -->
+      <div class="perm-tabs">
+        <div :class="['perm-tab', permTab==='menu_matrix' ? 'active' : '']" @click="permTab='menu_matrix'">角色菜单配置</div>
+        <div :class="['perm-tab', permTab==='role_cards' ? 'active' : '']" @click="permTab='role_cards'">角色概览</div>
+        <div :class="['perm-tab', permTab==='user_assign' ? 'active' : '']" @click="permTab='user_assign'">用户角色分配</div>
+        <div :class="['perm-tab', permTab==='perm_assign' ? 'active' : '']" @click="permTab='perm_assign'">角色权限（高级）</div>
+      </div>
+
+      <!-- ================================================
+           Tab 1: 角色菜单矩阵（核心功能）
+      ================================================= -->
+      <div v-if="permTab==='menu_matrix'">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+          <div>
+            <strong>为每个角色勾选可以访问的菜单</strong>
+            <span style="color:#888;font-size:12px;margin-left:8px;">勾选后点击「保存」按钮生效</span>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <select v-model="matrixViewMode" style="padding:5px 10px;border:1px solid #ddd;border-radius:4px;font-size:13px;">
+              <option value="group">按菜单分组显示</option>
+              <option value="flat">平铺显示</option>
+            </select>
+            <button @click="saveAllRoleMenus" :disabled="saving" style="background:#4a90d9;color:#fff;border:none;padding:7px 18px;border-radius:5px;cursor:pointer;font-size:13px;">
+              {{ saving ? '保存中...' : '保存全部更改' }}
+            </button>
+          </div>
+        </div>
+
+        <!-- 预设模板 -->
+        <div style="margin-bottom:14px;padding:12px;background:#f8f8f8;border-radius:6px;">
+          <div style="font-size:13px;color:#666;margin-bottom:8px;font-weight:500;">快速套用预设权限模板：</div>
+          <div class="preset-list">
+            <button v-for="preset in rolePresets" :key="preset.code"
+              class="preset-btn"
+              @click="openPresetModal(preset)">
+              {{ preset.label }}
+            </button>
+          </div>
+          <hr style="margin:12px 0;border:none;border-top:1px solid #e8e8e8;" />
+          <div style="font-size:13px;color:#666;margin-bottom:6px;font-weight:500;">复制某角色的菜单配置到另一个角色：</div>
+          <div class="copy-perm-row">
+            <select v-model.number="copyFrom">
+              <option value="">-- 复制来源角色 --</option>
+              <option v-for="g in matrixGroups" :key="g.id" :value="g.id">{{ g.group_name }}</option>
+            </select>
+            <span class="arrow">→</span>
+            <select v-model.number="copyTo">
+              <option value="">-- 复制目标角色 --</option>
+              <option v-for="g in matrixGroups" :key="g.id" :value="g.id">{{ g.group_name }}</option>
+            </select>
+            <button @click="copyRoleMenus" :disabled="!copyFrom||!copyTo||copyFrom===copyTo"
+              style="padding:6px 14px;border:1px solid #4a90d9;color:#4a90d9;background:#fff;border-radius:5px;cursor:pointer;font-size:13px;transition:all .2s;"
+              onmouseover="this.style.background='#4a90d9';this.style.color='#fff'"
+              onmouseout="this.style.background='#fff';this.style.color='#4a90d9'">
+              复制
+            </button>
+          </div>
+        </div>
+
+        <!-- 预设模板弹窗 -->
+        <div class="preset-modal-mask" v-if="presetModal.open" @click.self="presetModal.open=false">
+          <div class="preset-modal">
+            <h4>套用「{{ presetModal.preset?.label }}」模板</h4>
+            <p class="preset-hint">选择要套用模板的角色（可多选），将覆盖该角色当前的菜单配置：</p>
+            <div class="role-check-list">
+              <label v-for="g in matrixGroups" :key="g.id"
+                :class="['role-check-item', presetModal.selectedIds.includes(g.id) ? 'selected' : '']"
+                @click="togglePresetTarget(g.id)">
+                {{ g.group_name }}
+              </label>
+            </div>
+            <div style="font-size:12px;color:#888;margin-bottom:14px;" v-if="presetModal.selectedIds.length">
+              已选 {{ presetModal.selectedIds.length }} 个角色
+            </div>
+            <div class="preset-modal-actions">
+              <button @click="presetModal.open=false" style="padding:7px 18px;border:1px solid #ddd;border-radius:5px;cursor:pointer;background:#fff;font-size:13px;">取消</button>
+              <button @click="confirmApplyPreset" :disabled="presetModal.selectedIds.length===0"
+                style="padding:7px 18px;border:none;border-radius:5px;cursor:pointer;background:#4a90d9;color:#fff;font-size:13px;font-weight:500;">
+                套用到 {{ presetModal.selectedIds.length }} 个角色
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div v-if="matrixSaveMsg" :class="['save-'+(matrixSaveMsg.ok?'success':'error')]" style="margin-bottom:10px;">
+          {{ matrixSaveMsg.text }}
+        </div>
+
+        <!-- 矩阵表格 -->
+        <div class="role-matrix-wrap">
+          <table class="role-matrix">
+            <thead>
+              <tr>
+                <th style="min-width:140px;">菜单</th>
+                <th v-for="g in matrixGroups" :key="g.id" style="min-width:80px;text-align:center;">
+                  <div>{{ g.group_name }}</div>
+                  <div style="font-size:11px;color:#888;font-weight:normal;">{{ getGroupMenuCount(g.id) }} 项</div>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <template v-if="matrixViewMode==='group'">
+                <template v-for="parentGroup in groupedMatrixMenus" :key="parentGroup.parent">
+                  <tr class="group-header">
+                    <td :colspan="matrixGroups.length+1">{{ parentGroup.parent }}</td>
+                  </tr>
+                  <tr v-for="menu in parentGroup.items" :key="menu.menu_key">
+                    <td>{{ menu.menu_name }}</td>
+                    <td v-for="g in matrixGroups" :key="g.id" class="check-cell" @click="toggleMenuForGroup(g.id, menu.menu_key)">
+                      <input type="checkbox"
+                        :checked="isMenuEnabled(g.id, menu.menu_key)"
+                        @click.stop="toggleMenuForGroup(g.id, menu.menu_key)"
+                      />
+                    </td>
+                  </tr>
+                </template>
+              </template>
+              <template v-else>
+                <tr v-for="menu in matrixMenus" :key="menu.menu_key">
+                  <td>
+                    <span style="color:#aaa;font-size:11px;margin-right:4px;">{{ menu.parent_name }}</span>
+                    {{ menu.menu_name }}
+                  </td>
+                  <td v-for="g in matrixGroups" :key="g.id" class="check-cell" @click="toggleMenuForGroup(g.id, menu.menu_key)">
+                    <input type="checkbox"
+                      :checked="isMenuEnabled(g.id, menu.menu_key)"
+                      @click.stop="toggleMenuForGroup(g.id, menu.menu_key)"
+                    />
+                  </td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="save-btn-wrap">
+          <button @click="saveAllRoleMenus" :disabled="saving" style="background:#4a90d9;color:#fff;border:none;padding:9px 24px;border-radius:5px;cursor:pointer;font-size:14px;font-weight:500;">
+            {{ saving ? '保存中...' : '保存全部更改' }}
+          </button>
+          <button @click="reloadMatrix" class="btn-secondary" style="font-size:14px;">重置（重新加载）</button>
+          <span v-if="matrixSaveMsg" :class="['save-'+(matrixSaveMsg.ok?'success':'error')]">{{ matrixSaveMsg.text }}</span>
+        </div>
+      </div>
+
+      <!-- ================================================
+           Tab 2: 角色概览（卡片）
+      ================================================= -->
+      <div v-if="permTab==='role_cards'">
+        <div class="role-cards">
+          <div v-for="g in matrixGroups" :key="g.id" class="role-card">
+            <div class="role-card-header">
+              <span class="role-card-title">{{ g.group_name }}</span>
+              <span class="role-card-count">{{ getGroupMenuCount(g.id) }} 个菜单</span>
+            </div>
+            <div class="role-card-menus">
+              <template v-if="getGroupMenuCount(g.id) === 0">
+                <span style="color:#aaa;font-size:12px;">未配置菜单权限</span>
+              </template>
+              <template v-else>
+                <span v-for="key in getGroupMenuKeys(g.id)" :key="key" class="menu-tag active">
+                  {{ getMenuName(key) }}
+                </span>
+              </template>
+            </div>
+            <div class="role-card-actions">
+              <button class="btn-mini" @click="permTab='menu_matrix'">配置菜单</button>
+              <button class="btn-mini btn-secondary" @click="quickSelectRole(g)">快速选择此角色</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================================================
+           Tab 3: 用户角色分配
+      ================================================= -->
+      <div v-if="permTab==='user_assign'">
+        <div class="assign-panel">
+          <div style="font-size:14px;font-weight:600;margin-bottom:12px;color:#333;">为用户分配角色</div>
+          <div class="assign-row">
+            <div class="assign-field">
+              <label>选择用户</label>
+              <select v-model.number="assignForm.user_id">
+                <option value="">-- 选择用户 --</option>
+                <option v-for="u in users" :key="u.id" :value="Number(u.id)">
+                  {{ u.real_name || u.username }} ({{ u.username }})
+                </option>
+              </select>
+            </div>
+            <div class="assign-field">
+              <label>分配角色</label>
+              <select v-model.number="assignForm.group_id">
+                <option value="">-- 选择角色 --</option>
+                <option v-for="g in groups" :key="g.id" :value="Number(g.id)">{{ g.group_name }}</option>
+              </select>
+            </div>
+            <div class="assign-field">
+              <label>&nbsp;</label>
+              <button @click="assignUserGroup" :disabled="!assignForm.user_id || !assignForm.group_id" style="padding:7px 18px;">分配</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 用户角色汇总表 -->
+        <div style="margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;">
+          <strong style="font-size:14px;">当前用户-角色绑定</strong>
+          <input v-model="userRoleKeyword" placeholder="搜索用户名..." style="padding:6px 12px;border:1px solid #ddd;border-radius:5px;font-size:13px;" />
+        </div>
+        <table class="table user-role-table">
+          <thead>
+            <tr>
+              <th>用户</th>
+              <th>用户名</th>
+              <th>已分配角色</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="u in filteredUsersWithRoles" :key="u.id">
+              <td>{{ u.real_name || u.username }}</td>
+              <td>{{ u.username }}</td>
+              <td>
+                <div class="tag-group">
+                  <template v-if="getUserGroups(u.id).length === 0">
+                    <span style="color:#aaa;font-size:12px;">未分配</span>
+                  </template>
+                  <template v-else>
+                    <span v-for="rel in getUserGroups(u.id)" :key="rel.id" class="tag">
+                      {{ rel.group_name }}
+                      <span style="cursor:pointer;margin-left:4px;color:#c62828;" @click="delAssign('user_group', rel.id)" title="移除">×</span>
+                    </span>
+                  </template>
+                </div>
+              </td>
+              <td>
+                <button class="btn-mini btn-secondary" @click="quickAssignUser(u)">快速分配</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- ================================================
+           Tab 4: 角色权限（高级，保留原来的逻辑）
+      ================================================= -->
+      <div v-if="permTab==='perm_assign'">
+        <p style="color:#888;font-size:13px;margin-bottom:16px;">
+          高级权限控制：为角色分配细粒度权限代码（主要影响 API 操作权限，菜单可见性建议使用上方的「角色菜单配置」）
+        </p>
+        <div class="assign-panel">
+          <div class="assign-row">
+            <div class="assign-field">
+              <label>选择角色</label>
+              <select v-model.number="assignForm2.group_id">
+                <option value="">-- 选择角色 --</option>
+                <option v-for="g in groups" :key="g.id" :value="Number(g.id)">{{ g.group_name }}</option>
+              </select>
+            </div>
+            <div class="assign-field">
+              <label>选择权限</label>
+              <select v-model.number="assignForm2.perm_id">
+                <option value="">-- 选择权限 --</option>
+                <option v-for="p in perms" :key="p.id" :value="Number(p.id)">
+                  [{{ p.module_name }}] {{ p.perm_name }}（{{ p.perm_code }}）
+                </option>
+              </select>
+            </div>
+            <div class="assign-field">
+              <label>&nbsp;</label>
+              <button @click="assignGroupPerm" :disabled="!assignForm2.group_id || !assignForm2.perm_id" style="padding:7px 18px;">分配</button>
+            </div>
+          </div>
+        </div>
+
+        <table class="table">
+          <thead>
+            <tr><th>角色</th><th>权限名</th><th>权限代码</th><th>操作</th></tr>
+          </thead>
+          <tbody>
+            <tr v-for="x in assignData.group_perms" :key="'gp'+x.id">
+              <td>{{x.group_name}}</td>
+              <td>{{x.perm_name}}</td>
+              <td><code style="font-size:11px;background:#f4f4f4;padding:2px 6px;border-radius:3px;">{{x.perm_code ?? ''}}</code></td>
+              <td><button class="btn-mini btn-danger" @click="delAssign('group_perm',x.id)">移除</button></td>
+            </tr>
+            <tr v-if="assignData.group_perms.length===0">
+              <td colspan="4" style="text-align:center;color:#aaa;padding:20px;">暂无数据</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+    </section>
+
+    <div class="editor-overlay" v-if="activeEditor" @click="closeEditor"></div>
+    <div class="detail-modal" v-if="detailDialog.open" @click.self="closeDetailDialog">
+      <div class="detail-card">
+        <h3>{{ detailDialog.title }}</h3>
+        <pre>{{ detailDialog.content }}</pre>
+        <button class="btn-secondary" @click="closeDetailDialog">关闭</button>
+      </div>
+    </div>
+    <p v-if="error" class="error global-error">{{ error }}</p>
+  </main>
+</div>
+
+<script>
+const { createApp, ref, reactive, computed, onMounted, onBeforeUnmount } = Vue;
+createApp({
+  setup() {
+    const activeTab   = ref('rbac_assign');
+    const permTab     = ref('menu_matrix');
+    const error       = ref('');
+    const user        = ref({});
+    const groupedMenus = ref([]);
+    const groups      = ref([]);
+    const perms       = ref([]);
+    const users       = ref([]);
+    const assignData  = ref({ user_groups: [], group_perms: [] });
+
+    // 矩阵相关
+    const matrixGroups    = ref([]);  // 所有角色
+    const matrixMenus     = ref([]);  // 所有菜单
+    const matrixBinds     = ref({});  // { group_id: { menu_key: bool } }
+    const matrixViewMode  = ref('group');
+    const matrixSaveMsg   = ref(null);
+    const saving          = ref(false);
+
+    // 预设模板弹窗状态
+    const presetModal = reactive({ open: false, preset: null, selectedIds: [] });
+    // 复制权限
+    const copyFrom = ref('');
+    const copyTo   = ref('');
+
+    // 用户角色搜索
+    const userRoleKeyword = ref('');
+    const assignForm  = reactive({ user_id: '', group_id: '' });
+    const assignForm2 = reactive({ group_id: '', perm_id: '' });
+    const sidebarOpen = ref(false);
+    const isMobile    = ref(window.innerWidth < 980);
+    const detailDialog = reactive({ open: false, title: '', content: '' });
+    const activeEditor = ref('');
+
+    // 菜单分组（用于矩阵）
+    const groupedMatrixMenus = computed(() => {
+      const map = {};
+      matrixMenus.value.forEach(m => {
+        const p = m.parent_name || '其他';
+        (map[p] = map[p] || { parent: p, items: [] }).items.push(m);
+      });
+      return Object.values(map);
+    });
+
+    // 预设模板
+    const rolePresets = [
+      {
+        code: 'consultant', label: '顾问',
+        keys: ['overview','todos','notifications','students','orders','receipts','referrers','external_contacts','external_contacts_local']
+      },
+      {
+        code: 'teacher', label: '班主任/教练',
+        keys: ['overview','todos','notifications','students','student_terms','delivery_logs','class_terms']
+      },
+      {
+        code: 'finance', label: '财务',
+        keys: ['overview','todos','notifications','finance','receipts','orders','invoices','invoice_profiles','payroll_slips']
+      },
+      {
+        code: 'hr', label: '人事',
+        keys: ['overview','todos','notifications','users','departments','payroll_periods','payroll_slips','contracts']
+      },
+      {
+        code: 'operator', label: '运营',
+        keys: ['overview','todos','notifications','materials','material_campaigns','material_claims','leads_funnel','boss_dashboard']
+      },
+      {
+        code: 'boss', label: '部门经理/老板',
+        keys: ['overview','todos','notifications','students','courses','orders','finance','receipts','referrers',
+               'delivery_logs','department_stats','users','boss_dashboard','leads_funnel',
+               'class_terms','student_terms','commission_calcs','payroll_slips']
+      },
+      {
+        code: 'admin', label: '超级管理员（全部）',
+        keys: '__all__'
+      }
+    ];
+
+    // ─── API ─────────────────────────────────────────────
+    const api = async (url, opt = {}) => {
+      const token = localStorage.getItem('oa_token') || '';
+      const baseHeaders = { 'Content-Type': 'application/json' };
+      if (token) { baseHeaders.Authorization = 'Bearer ' + token; baseHeaders['X-OA-Token'] = token; }
+      const headers = { ...baseHeaders, ...(opt.headers || {}) };
+      let r;
+      try { r = await fetch(url, { ...opt, headers }); } catch (e) { throw new Error(`网络异常（${url}）`); }
+      const text = await r.text();
+      let j = {};
+      try { j = text ? JSON.parse(text) : {}; } catch (_) { j = {}; }
+      if (r.status === 401) { localStorage.removeItem('oa_token'); localStorage.removeItem('oa_user'); top.location.href = './login.html'; throw new Error('登录已过期'); }
+      if (!r.ok || j.code !== 0) { throw new Error((j && j.message) || (text || '').slice(0, 160) || `HTTP ${r.status}`); }
+      if (!text) return null;
+      return Object.prototype.hasOwnProperty.call(j, 'data') ? j.data : j;
+    };
+
+    // ─── 加载数据 ────────────────────────────────────────
+    const loadMenus = async () => {
+      const uid = Number(user.value?.id || 0);
+      const rawMenus = uid ? await api(`/api/user_menus.php?user_id=${uid}`) : await api('/api/menu.php');
+      const m = {};
+      rawMenus.forEach(x => { const p = x.parent_name || '其他'; (m[p] = m[p] || []).push(x); });
+      groupedMenus.value = Object.keys(m).map(k => ({ parent: k, children: m[k] }));
+    };
+
+    const loadGroups    = async () => groups.value = await api('/api/rbac_groups.php');
+    const loadPerms     = async () => perms.value  = await api('/api/rbac_permissions.php');
+    const loadAssign    = async () => assignData.value = await api('/api/rbac_assign.php');
+    const loadUsers     = async () => users.value = await api('/api/users.php');
+
+    const loadMatrix = async () => {
+      try {
+        const data = await api('/api/rbac_role_menus.php');
+        matrixGroups.value = data.groups || [];
+        matrixMenus.value  = data.menus  || [];
+        // 初始化 matrixBinds
+        const binds = {};
+        matrixGroups.value.forEach(g => {
+          binds[g.id] = {};
+          const gBinds = data.binds?.[g.id] || {};
+          Object.keys(gBinds).forEach(k => { if (gBinds[k]) binds[g.id][k] = true; });
+        });
+        matrixBinds.value = binds;
+      } catch (e) {
+        error.value = '加载矩阵失败：' + e.message;
+      }
+    };
+
+    const reloadMatrix = async () => {
+      matrixSaveMsg.value = null;
+      await loadMatrix();
+    };
+
+    // ─── 矩阵操作 ────────────────────────────────────────
+    const isMenuEnabled = (groupId, menuKey) => {
+      return !!(matrixBinds.value[groupId]?.[menuKey]);
+    };
+
+    const toggleMenuForGroup = (groupId, menuKey) => {
+      if (!matrixBinds.value[groupId]) matrixBinds.value[groupId] = {};
+      matrixBinds.value[groupId][menuKey] = !matrixBinds.value[groupId][menuKey];
+    };
+
+    const getGroupMenuCount = (groupId) => {
+      const binds = matrixBinds.value[groupId] || {};
+      return Object.values(binds).filter(Boolean).length;
+    };
+
+    const getGroupMenuKeys = (groupId) => {
+      const binds = matrixBinds.value[groupId] || {};
+      return Object.keys(binds).filter(k => binds[k]);
+    };
+
+    const getMenuName = (key) => {
+      const menu = matrixMenus.value.find(m => m.menu_key === key);
+      return menu ? menu.menu_name : key;
+    };
+
+    const saveAllRoleMenus = async () => {
+      saving.value = true;
+      matrixSaveMsg.value = null;
+      try {
+        // 并行保存每个角色的菜单绑定
+        const tasks = matrixGroups.value.map(g => {
+          const keys = getGroupMenuKeys(g.id);
+          return api('/api/rbac_role_menus.php', {
+            method: 'POST',
+            body: JSON.stringify({ group_id: g.id, menu_keys: keys })
+          });
+        });
+        await Promise.all(tasks);
+        matrixSaveMsg.value = { ok: true, text: `保存成功！已更新 ${matrixGroups.value.length} 个角色的菜单配置` };
+        // 3秒后清除提示
+        setTimeout(() => { matrixSaveMsg.value = null; }, 4000);
+      } catch (e) {
+        matrixSaveMsg.value = { ok: false, text: '保存失败：' + e.message };
+      } finally {
+        saving.value = false;
+      }
+    };
+
+    // 套用预设模板 —— 打开弹窗
+    const openPresetModal = (preset) => {
+      presetModal.preset = preset;
+      presetModal.selectedIds = [];
+      presetModal.open = true;
+    };
+
+    const togglePresetTarget = (gid) => {
+      const idx = presetModal.selectedIds.indexOf(gid);
+      if (idx === -1) presetModal.selectedIds.push(gid);
+      else presetModal.selectedIds.splice(idx, 1);
+    };
+
+    const confirmApplyPreset = () => {
+      const preset = presetModal.preset;
+      if (!preset || presetModal.selectedIds.length === 0) return;
+      const allKeys = preset.keys === '__all__' ? matrixMenus.value.map(m => m.menu_key) : preset.keys;
+      presetModal.selectedIds.forEach(gid => {
+        const newBinds = {};
+        allKeys.forEach(k => { newBinds[k] = true; });
+        matrixBinds.value[gid] = newBinds;
+      });
+      presetModal.open = false;
+      matrixSaveMsg.value = { ok: true, text: `已套用「${preset.label}」到 ${presetModal.selectedIds.length} 个角色，请点击「保存全部更改」生效` };
+      setTimeout(() => { matrixSaveMsg.value = null; }, 5000);
+    };
+
+    // 复制角色菜单配置
+    const copyRoleMenus = () => {
+      if (!copyFrom.value || !copyTo.value || copyFrom.value === copyTo.value) return;
+      const srcBinds = matrixBinds.value[copyFrom.value] || {};
+      const fromName = matrixGroups.value.find(g => g.id === copyFrom.value)?.group_name || copyFrom.value;
+      const toName   = matrixGroups.value.find(g => g.id === copyTo.value)?.group_name || copyTo.value;
+      matrixBinds.value[copyTo.value] = { ...srcBinds };
+      matrixSaveMsg.value = { ok: true, text: `已将「${fromName}」的菜单配置复制到「${toName}」，请点击「保存全部更改」生效` };
+      setTimeout(() => { matrixSaveMsg.value = null; }, 5000);
+    };
+
+    // 套用预设模板（旧版，保留以防引用，但不再直接使用）
+    const applyPreset = (preset) => openPresetModal(preset);
+
+    const quickSelectRole = (g) => {
+      permTab.value = 'menu_matrix';
+    };
+
+    // ─── 用户角色 ─────────────────────────────────────────
+    const getUserGroups = (userId) => {
+      return assignData.value.user_groups.filter(x => Number(x.user_id) === Number(userId));
+    };
+
+    const filteredUsersWithRoles = computed(() => {
+      if (!userRoleKeyword.value) return users.value;
+      const kw = userRoleKeyword.value.toLowerCase();
+      return users.value.filter(u =>
+        (u.username || '').toLowerCase().includes(kw) ||
+        (u.real_name || '').toLowerCase().includes(kw)
+      );
+    });
+
+    const quickAssignUser = (u) => {
+      assignForm.user_id = Number(u.id);
+    };
+
+    const assignUserGroup = async () => {
+      error.value = '';
+      try {
+        await api('/api/rbac_assign.php', { method: 'POST', body: JSON.stringify({ type: 'user_group', ...assignForm }) });
+        assignForm.user_id = '';
+        assignForm.group_id = '';
+        await loadAssign();
+      } catch (e) { error.value = e.message; }
+    };
+
+    const assignGroupPerm = async () => {
+      error.value = '';
+      try {
+        await api('/api/rbac_assign.php', { method: 'POST', body: JSON.stringify({ type: 'group_perm', ...assignForm2 }) });
+        assignForm2.group_id = '';
+        assignForm2.perm_id = '';
+        await loadAssign();
+      } catch (e) { error.value = e.message; }
+    };
+
+    const delAssign = async (type, id) => {
+      try {
+        await api(`/api/rbac_assign.php?type=${type}&id=${id}`, { method: 'DELETE' });
+        await loadAssign();
+      } catch (e) { error.value = e.message; }
+    };
+
+    // ─── 导航 ─────────────────────────────────────────────
+    const menuPageMap = {
+      overview:'overview.html',students:'students.html',courses:'courses.html',orders:'orders.html',
+      referrers:'referrers.html',receipts:'receipts.html',delivery_logs:'delivery_logs.html',
+      department_stats:'department_stats.html',finance:'finance.html',todos:'todos.html',
+      notifications:'notifications.html',users:'users.html',departments:'departments.html',
+      menus:'menus.html',rbac_groups:'rbac_groups.html',rbac_permissions:'rbac_permissions.html',
+      rbac_assign:'rbac_assign.html',materials:'materials.html',material_campaigns:'material_campaigns.html',
+      material_claims:'material_claims.html',contracts:'contracts.html',invoice_profiles:'invoice_profiles.html',
+      invoices:'invoices.html',class_terms:'class_terms.html',student_terms:'student_terms.html',
+      shipments:'shipments.html',certificate_templates:'certificate_templates.html',
+      certificate_issues:'certificate_issues.html',commission_scopes:'commission_scopes.html',
+      commission_rules:'commission_rules.html',commission_calcs:'commission_calcs.html',
+      commission_adjustments:'commission_adjustments.html',payroll_periods:'payroll_periods.html',
+      payroll_slips:'payroll_slips.html',boss_dashboard:'boss_dashboard.html',leads_funnel:'leads_funnel.html'
+    };
+
+    const selectMenu = (menuKey) => {
+      const target = menuPageMap[menuKey];
+      if (target) {
+        if (isMobile.value) sidebarOpen.value = false;
+        if (!location.pathname.endsWith('/' + target)) { top.location.href = './index.html?page=' + menuKey; return; }
+      }
+      if (activeTab.value !== menuKey) activeTab.value = menuKey;
+      if (isMobile.value) sidebarOpen.value = false;
+    };
+
+    const toggleSidebar = () => { sidebarOpen.value = !sidebarOpen.value; };
+    const logout = () => { localStorage.removeItem('oa_token'); localStorage.removeItem('oa_user'); top.location.href = './login.html'; };
+    const viewRecord = (title, row) => { detailDialog.open = true; detailDialog.title = title; detailDialog.content = JSON.stringify(row, null, 2); };
+    const closeDetailDialog = () => { detailDialog.open = false; };
+    const openEditor = (key) => { activeEditor.value = key; };
+    const closeEditor = () => { activeEditor.value = ''; };
+
+    const reloadAll = async () => {
+      error.value = '';
+      try {
+        await Promise.all([loadGroups(), loadPerms(), loadAssign(), loadUsers(), loadMatrix(), loadMenus()]);
+      } catch (e) { error.value = e.message; }
+    };
+
+    const onResize = () => { isMobile.value = window.innerWidth < 980; if (!isMobile.value) sidebarOpen.value = false; };
+
+    onMounted(async () => {
+      window.addEventListener('resize', onResize);
+      const t = localStorage.getItem('oa_token');
+      const u = localStorage.getItem('oa_user');
+      if (!t) { top.location.href = './login.html'; return; }
+      try { user.value = JSON.parse(u || '{}'); } catch (_) { user.value = {}; }
+      await reloadAll();
+    });
+    onBeforeUnmount(() => window.removeEventListener('resize', onResize));
+
+    return {
+      activeTab, permTab, error, user, groupedMenus, groups, perms, users,
+      assignData, matrixGroups, matrixMenus, matrixBinds, matrixViewMode,
+      matrixSaveMsg, saving, groupedMatrixMenus, rolePresets, userRoleKeyword,
+      assignForm, assignForm2, sidebarOpen, isMobile, detailDialog, activeEditor,
+      presetModal, copyFrom, copyTo,
+      isMenuEnabled, toggleMenuForGroup, getGroupMenuCount, getGroupMenuKeys, getMenuName,
+      saveAllRoleMenus, reloadMatrix, applyPreset, openPresetModal, togglePresetTarget,
+      confirmApplyPreset, copyRoleMenus, quickSelectRole,
+      getUserGroups, filteredUsersWithRoles, quickAssignUser,
+      assignUserGroup, assignGroupPerm, delAssign,
+      toggleSidebar, selectMenu, logout, viewRecord, closeDetailDialog,
+      openEditor, closeEditor, reloadAll
+    };
+  }
+}).mount('#app');
+</script>
+</body>
+</html>

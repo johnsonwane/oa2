@@ -1,0 +1,11 @@
+# 敏感配置文件（勿提交）
+api/wecom_config.php
+
+# 环境变量文件
+.env
+.env.local
+.env.production
+
+# 系统文件
+.DS_Store
+Thumbs.db

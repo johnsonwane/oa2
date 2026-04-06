@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>状态流转</title>
+  <link rel="stylesheet" href="./assets/style.css" />
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <style>
+    html[data-embedded="1"] .oa-sidebar{display:none!important;}
+    html[data-embedded="1"] .oa-layout{display:block!important;}
+    html[data-embedded="1"] .oa-main{padding:12px 16px!important;}
+    html[data-embedded="1"] .oa-header{position:static!important;padding-left:0!important;}
+    html[data-embedded="1"] .header-actions a.btn-secondary{display:none!important;}
+    html[data-embedded="1"] .menu-toggle,html[data-embedded="1"] .sidebar-overlay{display:none!important;}html[data-embedded="1"] .oa-header h1{display:none!important;}
+    .table-container { overflow-x: auto; }
+    .data-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    .data-table th, .data-table td { padding: 12px; text-align: left; border-bottom: 1px solid #e5e7eb; }
+    .data-table th { background: #f9fafb; font-weight: 600; color: #374151; }
+    .data-table tr:hover { background: #f9fafb; }
+    .badge { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 500; }
+    .badge-blue { background: #dbeafe; color: #1e40af; }
+    .badge-green { background: #d1fae5; color: #065f46; }
+    .badge-yellow { background: #fef3c7; color: #92400e; }
+    .badge-red { background: #fee2e2; color: #991b1b; }
+    .badge-purple { background: #e9d5ff; color: #6b21a8; }
+    .badge-gray { background: #f3f4f6; color: #4b5563; }
+    .btn-sm { padding: 4px 12px; font-size: 12px; border-radius: 4px; border: none; cursor: pointer; margin-right: 4px; }
+    .btn-view { background: #3b82f6; color: white; }
+    .flow-arrow { color: #9ca3af; font-size: 16px; margin: 0 4px; }
+    .error-msg { color: #dc2626; padding: 12px; background: #fee2e2; border-radius: 6px; margin-bottom: 16px; }
+    .search-bar { display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+    .search-bar input { padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; }
+    .search-bar button { padding: 8px 16px; background: #3b82f6; color: white; border: none; border-radius: 6px; cursor: pointer; }
+    .timeline { display: flex; align-items: center; flex-wrap: wrap; }
+    .timeline-item { display: flex; align-items: center; }
+  </style>
+  <script>
+    (function(){
+      var p = new URLSearchParams(location.search);
+      if (p.get("embedded") === "1") document.documentElement.setAttribute("data-embedded","1");
+    })();
+  </script>
+</head>
+<body>
+<div id="app" class="oa-layout">
+  <main class="oa-main">
+    <header class="oa-header">
+      <h1>状态流转</h1>
+      <div class="header-actions">
+        <button class="btn-secondary" @click="loadData">刷新</button>
+        <button class="btn-danger" @click="logout">退出</button>
+      </div>
+    </header>
+    <section class="content-card">
+      <div class="search-bar">
+        <input type="text" v-model="searchKeyword" placeholder="搜索订单编号" />
+        <button @click="loadData">搜索</button>
+      </div>
+      <div v-if="error" class="error-msg">{{ error }}</div>
+      <div class="table-container">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>节点ID</th>
+              <th>订单编号</th>
+              <th>状态流转</th>
+              <th>变更时间</th>
+              <th>变更人</th>
+              <th>变更原因</th>
+              <th>备注</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="item in filteredItems" :key="item.node_id">
+              <td>{{ item.node_id }}</td>
+              <td>{{ item.order_no }}</td>
+              <td>
+                <div class="timeline">
+                  <span class="badge badge-gray">{{ item.prev_status }}</span>
+                  <span class="flow-arrow">→</span>
+                  <span class="badge" :class="getStatusClass(item.current_status)">{{ item.current_status }}</span>
+                </div>
+              </td>
+              <td>{{ item.change_time }}</td>
+              <td>{{ item.change_by }}</td>
+              <td>{{ item.change_reason }}</td>
+              <td>{{ item.remark }}</td>
+              <td>
+                <button class="btn-sm btn-view" @click="viewDetail(item)">详情</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+</div>
+<script>
+const { createApp, ref, reactive, onMounted, computed } = Vue;
+createApp({
+  setup() {
+    const items = ref([]);
+    const error = ref('');
+    const searchKeyword = ref('');
+    
+    const api = async(url, opt={}) => {
+      const token = localStorage.getItem('oa_token') || '';
+      const headers = {'Content-Type':'application/json'};
+      if (token) { headers['Authorization'] = 'Bearer ' + token; headers['X-OA-Token'] = token; }
+      let r;
+      try { r = await fetch(url, {...opt, headers}); }
+      catch(e) { throw new Error('网络异常'); }
+      const j = await r.json();
+      if (r.status === 401) { localStorage.removeItem('oa_token'); top.location.href = './login.html'; throw new Error('登录过期'); }
+      if (j.code !== 0) throw new Error(j.message || '请求失败');
+      return j.data;
+    };
+    
+    const loadData = async() => { 
+      error.value = ''; 
+      try { 
+        items.value = await api('/api/order_flow.php'); 
+      } catch(e) { 
+        error.value = e.message; 
+      } 
+    };
+    
+    const logout = () => { 
+      localStorage.removeItem('oa_token'); 
+      localStorage.removeItem('oa_user'); 
+      top.location.href = './login.html'; 
+    };
+    
+    const getStatusClass = (status) => {
+      const map = { 
+        '已创建': 'badge-gray', 
+        '待付款': 'badge-yellow', 
+        '部分付款': 'badge-blue', 
+        '已付清': 'badge-green', 
+        '处理中': 'badge-purple',
+        '已完成': 'badge-green',
+        '已退款': 'badge-red',
+        '已取消': 'badge-red'
+      };
+      return map[status] || 'badge-gray';
+    };
+    
+    const viewDetail = (item) => {
+      alert('查看流转详情: 节点' + item.node_id);
+    };
+    
+    const filteredItems = computed(() => {
+      return items.value.filter(item => {
+        return !searchKeyword.value || item.order_no.includes(searchKeyword.value);
+      });
+    });
+    
+    onMounted(async() => { 
+      if (!localStorage.getItem('oa_token')) { 
+        top.location.href = './login.html'; 
+        return; 
+      } 
+      await loadData(); 
+    });
+    
+    return { items, error, loadData, logout, searchKeyword, filteredItems, getStatusClass, viewDetail };
+  }
+}).mount('#app');
+</script>
+</body>
+</html>

@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>财务统计</title>
+  <link rel="stylesheet" href="./assets/style.css" />
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <style>
+    html[data-embedded="1"] .oa-sidebar{display:none!important;}
+    html[data-embedded="1"] .oa-layout{display:block!important;}
+    html[data-embedded="1"] .oa-main{padding:12px 16px!important;}
+    html[data-embedded="1"] .oa-header{position:static!important;padding-left:0!important;}
+    html[data-embedded="1"] .header-actions a.btn-secondary{display:none!important;}
+    html[data-embedded="1"] .menu-toggle,html[data-embedded="1"] .sidebar-overlay{display:none!important;}html[data-embedded="1"] .oa-header h1{display:none!important;}
+    .summary-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:24px;}
+    .card{background:#fff;border-radius:8px;padding:20px;box-shadow:0 1px 3px rgba(0,0,0,0.1);}
+    .card-title{font-size:14px;color:#6b7280;margin-bottom:8px;}
+    .card-value{font-size:24px;font-weight:700;color:#1f2937;}
+    .card-value.income{color:#dc2626;}
+    .card-value.expense{color:#16a34a;}
+    .card-value.balance{color:#2563eb;}
+    .table-container{overflow-x:auto;}
+    table{width:100%;border-collapse:collapse;font-size:14px;}
+    th,td{padding:10px 12px;text-align:left;border-bottom:1px solid #e5e7eb;}
+    th{background:#f9fafb;font-weight:600;color:#374151;}
+    tr:hover{background:#f9fafb;}
+    .trend-up{color:#dc2626;}
+    .trend-down{color:#16a34a;}
+  </style>
+  <script>
+    (function(){
+      var p = new URLSearchParams(location.search);
+      if (p.get("embedded") === "1") document.documentElement.setAttribute("data-embedded","1");
+    })();
+  </script>
+</head>
+<body>
+<div id="app" class="oa-layout">
+  <main class="oa-main">
+    <header class="oa-header">
+      <h1>财务统计</h1>
+      <div class="header-actions">
+        <button class="btn-secondary" @click="loadData">刷新</button>
+        <button class="btn-danger" @click="logout">退出</button>
+      </div>
+    </header>
+    <section class="content-card">
+      <div v-if="error" class="error-message">{{ error }}</div>
+      <div v-else>
+        <div class="summary-cards">
+          <div class="card">
+            <div class="card-title">本月收入</div>
+            <div class="card-value income">¥{{ summary.totalIncome.toLocaleString() }}</div>
+          </div>
+          <div class="card">
+            <div class="card-title">本月支出</div>
+            <div class="card-value expense">¥{{ summary.totalExpense.toLocaleString() }}</div>
+          </div>
+          <div class="card">
+            <div class="card-title">本月净结余</div>
+            <div class="card-value balance">¥{{ summary.netBalance.toLocaleString() }}</div>
+          </div>
+          <div class="card">
+            <div class="card-title">退费金额</div>
+            <div class="card-value">¥{{ summary.totalRefund.toLocaleString() }}</div>
+          </div>
+        </div>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>统计ID</th>
+                <th>月份/周期</th>
+                <th>收入总计</th>
+                <th>支出总计</th>
+                <th>净结余</th>
+                <th>学费收入</th>
+                <th>其他收入</th>
+                <th>人员成本</th>
+                <th>运营成本</th>
+                <th>退费金额</th>
+                <th>提成发放</th>
+                <th>统计时间</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="item in items" :key="item.id">
+                <td>{{ item.id }}</td>
+                <td>{{ item.period }}</td>
+                <td class="trend-up">¥{{ item.totalIncome.toLocaleString() }}</td>
+                <td class="trend-down">¥{{ item.totalExpense.toLocaleString() }}</td>
+                <td :class="item.netBalance>=0?'trend-up':'trend-down'">¥{{ item.netBalance.toLocaleString() }}</td>
+                <td>¥{{ item.tuitionIncome.toLocaleString() }}</td>
+                <td>¥{{ item.otherIncome.toLocaleString() }}</td>
+                <td>¥{{ item.staffCost.toLocaleString() }}</td>
+                <td>¥{{ item.opsCost.toLocaleString() }}</td>
+                <td>¥{{ item.refundAmount.toLocaleString() }}</td>
+                <td>¥{{ item.bonusPaid.toLocaleString() }}</td>
+                <td>{{ item.statTime }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+<script>
+const { createApp, ref, reactive, computed, onMounted } = Vue;
+createApp({
+  setup() {
+    const items = ref([]);
+    const error = ref('');
+    const summary = computed(() => {
+      if (!items.value.length) return { totalIncome:0, totalExpense:0, netBalance:0, totalRefund:0 };
+      const currentMonth = items.value[0];
+      return {
+        totalIncome: currentMonth.totalIncome,
+        totalExpense: currentMonth.totalExpense,
+        netBalance: currentMonth.netBalance,
+        totalRefund: currentMonth.refundAmount
+      };
+    });
+    const api = async(url, opt={}) => {
+      const token = localStorage.getItem('oa_token') || '';
+      const headers = {'Content-Type':'application/json'};
+      if (token) { headers['Authorization'] = 'Bearer ' + token; headers['X-OA-Token'] = token; }
+      let r;
+      try { r = await fetch(url, {...opt, headers}); }
+      catch(e) { throw new Error('网络异常'); }
+      const j = await r.json();
+      if (r.status === 401) { localStorage.removeItem('oa_token'); top.location.href = './login.html'; throw new Error('登录过期'); }
+      if (j.code !== 0) throw new Error(j.message || '请求失败');
+      return j.data;
+    };
+    const loadData = async() => {
+      error.value = '';
+      try { items.value = await api('/api/finance_stats.php'); }
+      catch(e) { error.value = e.message; }
+    };
+    const logout = () => { localStorage.removeItem('oa_token'); localStorage.removeItem('oa_user'); top.location.href = './login.html'; };
+    onMounted(async() => { if (!localStorage.getItem('oa_token')) { top.location.href = './login.html'; return; } await loadData(); });
+    return { items, error, summary, loadData, logout };
+  }
+}).mount('#app');
+</script>
+</body>
+</html>

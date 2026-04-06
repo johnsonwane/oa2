@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>系统设置</title>
+  <link rel="stylesheet" href="./assets/style.css" />
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <style>
+    html[data-embedded="1"] .oa-sidebar{display:none!important;}
+    html[data-embedded="1"] .oa-layout{display:block!important;}
+    html[data-embedded="1"] .oa-main{padding:12px 16px!important;}
+    html[data-embedded="1"] .oa-header{position:static!important;padding-left:0!important;}
+    html[data-embedded="1"] .header-actions a.btn-secondary{display:none!important;}
+    html[data-embedded="1"] .menu-toggle,html[data-embedded="1"] .sidebar-overlay{display:none!important;}html[data-embedded="1"] .oa-header h1{display:none!important;}
+    .config-type-badge{padding:4px 8px;border-radius:4px;font-size:12px;}
+    .type-company{background:#dbeafe;color:#1d4ed8;}
+    .type-notification{background:#d1fae5;color:#059669;}
+    .type-workflow{background:#fef3c7;color:#d97706;}
+    .type-custom{background:#e0e7ff;color:#4f46e5;}
+  </style>
+  <script>
+    (function(){
+      var p = new URLSearchParams(location.search);
+      if (p.get("embedded") === "1") document.documentElement.setAttribute("data-embedded","1");
+    })();
+  </script>
+</head>
+<body>
+<div id="app" class="oa-layout">
+  <main class="oa-main">
+    <header class="oa-header">
+      <h1>系统设置</h1>
+      <div class="header-actions">
+        <select v-model="filterCategory" @change="loadData" class="rank-select">
+          <option value="">全部分类</option>
+          <option value="公司信息">公司信息</option>
+          <option value="通知设置">通知设置</option>
+          <option value="流程配置">流程配置</option>
+          <option value="自定义字段">自定义字段</option>
+        </select>
+        <button class="btn-primary" @click="showAddModal = true">新增配置</button>
+        <button class="btn-secondary" @click="loadData">刷新</button>
+        <button class="btn-danger" @click="logout">退出</button>
+      </div>
+    </header>
+    <section class="content-card">
+      <div v-if="error" class="error-message">{{ error }}</div>
+      <div v-if="loading" class="loading">加载中...</div>
+      <table v-if="!loading && items.length > 0" class="data-table">
+        <thead>
+          <tr>
+            <th>配置ID</th>
+            <th>配置分类</th>
+            <th>配置项名称</th>
+            <th>当前值</th>
+            <th>配置说明</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="item in items" :key="item.id">
+            <td>{{ item.id }}</td>
+            <td>
+              <span :class="'config-type-badge type-' + item.categoryClass">{{ item.category }}</span>
+            </td>
+            <td>{{ item.name }}</td>
+            <td>{{ item.value }}</td>
+            <td>{{ item.description }}</td>
+            <td>
+              <button class="btn-small btn-primary" @click="editConfig(item)">编辑</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <div v-if="showAddModal" class="modal-overlay" @click="showAddModal = false">
+        <div class="modal" @click.stop>
+          <h3>新增配置</h3>
+          <div class="form-group">
+            <label>配置分类</label>
+            <select v-model="newConfig.category">
+              <option>公司信息</option>
+              <option>通知设置</option>
+              <option>流程配置</option>
+              <option>自定义字段</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>配置项名称</label>
+            <input type="text" v-model="newConfig.name" />
+          </div>
+          <div class="form-group">
+            <label>配置值</label>
+            <input type="text" v-model="newConfig.value" />
+          </div>
+          <div class="form-group">
+            <label>配置说明</label>
+            <textarea v-model="newConfig.description" rows="3"></textarea>
+          </div>
+          <div class="form-actions">
+            <button class="btn-primary" @click="addConfig">保存</button>
+            <button class="btn-secondary" @click="showAddModal = false">取消</button>
+          </div>
+        </div>
+      </div>
+      <div v-if="showEditModal" class="modal-overlay" @click="showEditModal = false">
+        <div class="modal" @click.stop>
+          <h3>编辑配置</h3>
+          <div class="form-group">
+            <label>配置项名称</label>
+            <input type="text" v-model="editingConfig.name" disabled />
+          </div>
+          <div class="form-group">
+            <label>配置值</label>
+            <input type="text" v-model="editingConfig.value" />
+          </div>
+          <div class="form-group">
+            <label>配置说明</label>
+            <textarea v-model="editingConfig.description" rows="3"></textarea>
+          </div>
+          <div class="form-actions">
+            <button class="btn-primary" @click="updateConfig">保存</button>
+            <button class="btn-secondary" @click="showEditModal = false">取消</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+<script>
+const { createApp, ref, reactive, onMounted } = Vue;
+createApp({
+  setup() {
+    const items = ref([]);
+    const error = ref('');
+    const loading = ref(false);
+    const filterCategory = ref('');
+    const showAddModal = ref(false);
+    const showEditModal = ref(false);
+    const newConfig = reactive({ category: '公司信息', name: '', value: '', description: '' });
+    const editingConfig = reactive({ id: '', name: '', value: '', description: '' });
+    const api = async(url, opt={}) => {
+      const token = localStorage.getItem('oa_token') || '';
+      const headers = {'Content-Type':'application/json'};
+      if (token) { headers['Authorization'] = 'Bearer ' + token; headers['X-OA-Token'] = token; }
+      let r;
+      try { r = await fetch(url, {...opt, headers}); }
+      catch(e) { throw new Error('网络异常'); }
+      const j = await r.json();
+      if (r.status === 401) { localStorage.removeItem('oa_token'); top.location.href = './login.html'; throw new Error('登录过期'); }
+      if (j.code !== 0) throw new Error(j.message || '请求失败');
+      return j.data;
+    };
+    const loadData = async() => {
+      error.value = '';
+      loading.value = true;
+      try {
+        let url = '/api/system_settings.php';
+        if (filterCategory.value) url += '?category=' + encodeURIComponent(filterCategory.value);
+        items.value = await api(url);
+      } catch(e) {
+        error.value = e.message;
+      } finally {
+        loading.value = false;
+      }
+    };
+    const addConfig = async() => {
+      if (!newConfig.name || !newConfig.value) { alert('请填写完整信息'); return; }
+      try {
+        await api('/api/system_settings.php', { method: 'POST', body: JSON.stringify({ category: newConfig.category, name: newConfig.name, value: newConfig.value, description: newConfig.description, action: 'add' }) });
+        alert('配置已添加');
+        showAddModal.value = false;
+        newConfig.name = '';
+        newConfig.value = '';
+        newConfig.description = '';
+        await loadData();
+      } catch(e) {
+        alert(e.message);
+      }
+    };
+    const editConfig = (item) => {
+      editingConfig.id = item.id;
+      editingConfig.name = item.name;
+      editingConfig.value = item.value;
+      editingConfig.description = item.description;
+      showEditModal.value = true;
+    };
+    const updateConfig = async() => {
+      try {
+        await api('/api/system_settings.php', { method: 'POST', body: JSON.stringify({ id: editingConfig.id, value: editingConfig.value, description: editingConfig.description, action: 'update' }) });
+        alert('配置已更新');
+        showEditModal.value = false;
+        await loadData();
+      } catch(e) {
+        alert(e.message);
+      }
+    };
+    const logout = () => { localStorage.removeItem('oa_token'); localStorage.removeItem('oa_user'); top.location.href = './login.html'; };
+    onMounted(async() => { if (!localStorage.getItem('oa_token')) { top.location.href = './login.html'; return; } await loadData(); });
+    return { items, error, loading, filterCategory, showAddModal, showEditModal, newConfig, editingConfig, loadData, addConfig, editConfig, updateConfig, logout };
+  }
+}).mount('#app');
+</script>
+</body>
+</html>

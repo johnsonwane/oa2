@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>成单管理</title>
+  <link rel="stylesheet" href="./assets/style.css" />
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <style>
+    html[data-embedded="1"] .oa-sidebar{display:none!important;}
+    html[data-embedded="1"] .oa-layout{display:block!important;}
+    html[data-embedded="1"] .oa-main{padding:12px 16px!important;}
+    html[data-embedded="1"] .oa-header{position:static!important;padding-left:0!important;}
+    html[data-embedded="1"] .header-actions a.btn-secondary{display:none!important;}
+    html[data-embedded="1"] .menu-toggle,html[data-embedded="1"] .sidebar-overlay{display:none!important;}html[data-embedded="1"] .oa-header h1{display:none!important;}
+    [v-cloak]{display:none;}
+    .toolbar,.inline-search,.editor-actions,.actions{display:flex;flex-wrap:wrap;gap:10px;align-items:center;}
+    .toolbar{justify-content:space-between;margin-bottom:16px;}
+    .inline-search input,.inline-search select,.editor-grid input,.editor-grid select,.editor-grid textarea{padding:10px 12px;border:1px solid #d7deea;border-radius:10px;background:#fff;box-sizing:border-box;}
+    .inline-search input{min-width:300px;}
+    .summary-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:16px;}
+    .summary-card{padding:14px 16px;border:1px solid #e5ebf3;border-radius:14px;background:linear-gradient(180deg,#ffffff,#f8fbff);}
+    .summary-card span{color:#64748b;font-size:13px;}
+    .summary-card strong{display:block;margin-top:8px;font-size:26px;color:#1d4ed8;}
+    .editor-card{margin-bottom:16px;padding:16px;border:1px solid #e5ebf3;border-radius:14px;background:#fbfdff;}
+    .editor-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;}
+    .editor-grid .full{grid-column:1/-1;}
+    .table-wrap{overflow:auto;}
+    .table{min-width:1550px;}
+    .muted{margin:0 0 16px;color:#64748b;font-size:13px;}
+    .error{margin-bottom:16px;padding:10px 12px;border:1px solid #fecaca;border-radius:10px;background:#fef2f2;color:#b91c1c;}
+    .badge{display:inline-flex;align-items:center;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:600;}
+    .badge.待付款{background:#e5e7eb;color:#374151;}
+    .badge.部分付款{background:#fef3c7;color:#b45309;}
+    .badge.已付清{background:#dcfce7;color:#166534;}
+    .badge.已退款{background:#fee2e2;color:#b91c1c;}
+    .empty-tip{text-align:center;padding:28px 0;color:#64748b;}
+  </style>
+  <script>
+    (function(){
+      var p = new URLSearchParams(location.search);
+      if (p.get("embedded") === "1") document.documentElement.setAttribute("data-embedded","1");
+    })();
+  </script>
+</head>
+<body>
+<div id="app" class="oa-layout" v-cloak>
+  <main class="oa-main">
+    <header class="oa-header">
+      <h1>成单管理</h1>
+      <div class="header-actions">
+        <button class="btn-secondary" @click="loadData">刷新数据</button>
+        <button class="btn-danger" @click="logout">退出登录</button>
+      </div>
+    </header>
+    <section class="content-card">
+      <p class="muted">管理所有成交订单，覆盖订单类型、付款进度、签约顾问与负责销售，适合日常签单追踪。</p>
+
+      <div class="toolbar">
+        <form class="inline-search" @submit.prevent="loadData">
+          <input v-model.trim="keyword" placeholder="搜索订单编号/客户/课程/顾问" />
+          <select v-model="statusFilter">
+            <option value="">全部付款状态</option>
+            <option value="待付款">待付款</option>
+            <option value="部分付款">部分付款</option>
+            <option value="已付清">已付清</option>
+            <option value="已退款">已退款</option>
+          </select>
+          <button type="submit" class="btn-secondary">查询</button>
+        </form>
+        <button @click="openCreate">新增订单</button>
+      </div>
+
+      <div class="summary-grid">
+        <div class="summary-card"><span>订单总数</span><strong>{{ filteredItems.length }}</strong></div>
+        <div class="summary-card"><span>订单金额</span><strong>¥{{ formatMoney(totalOrderAmount) }}</strong></div>
+        <div class="summary-card"><span>已回款</span><strong>¥{{ formatMoney(totalPaidAmount) }}</strong></div>
+        <div class="summary-card"><span>待付款订单</span><strong>{{ unpaidCount }}</strong></div>
+      </div>
+
+      <div v-if="showEditor" class="editor-card">
+        <h3>{{ form.id ? '编辑订单' : '新增订单' }}</h3>
+        <div class="editor-grid">
+          <input v-model.trim="form.order_no" placeholder="订单编号" />
+          <input v-model.trim="form.customer_name" placeholder="客户姓名" />
+          <input v-model.trim="form.related_student" placeholder="关联学员" />
+          <input v-model.trim="form.course_name" placeholder="课程名称" />
+          <select v-model="form.order_type">
+            <option value="首单">首单</option>
+            <option value="续单">续单</option>
+            <option value="增课">增课</option>
+          </select>
+          <input v-model.number="form.order_amount" type="number" step="0.01" placeholder="订单金额(元)" />
+          <input v-model.number="form.paid_amount" type="number" step="0.01" placeholder="已付金额(元)" />
+          <select v-model="form.payment_status">
+            <option value="待付款">待付款</option>
+            <option value="部分付款">部分付款</option>
+            <option value="已付清">已付清</option>
+            <option value="已退款">已退款</option>
+          </select>
+          <input v-model="form.order_time" type="datetime-local" placeholder="下单时间" />
+          <input v-model.trim="form.signing_consultant" placeholder="签约顾问" />
+          <input v-model.trim="form.sales_owner" placeholder="负责销售" />
+          <textarea v-model.trim="form.remark" class="full" rows="2" placeholder="备注"></textarea>
+        </div>
+        <div class="editor-actions" style="margin-top:12px;">
+          <button @click="saveItem">{{ form.id ? '保存修改' : '提交新增' }}</button>
+          <button type="button" class="btn-secondary" @click="cancelEdit">取消</button>
+        </div>
+      </div>
+
+      <p v-if="error" class="error">{{ error }}</p>
+
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>订单ID</th>
+              <th>订单编号</th>
+              <th>客户姓名</th>
+              <th>课程名称</th>
+              <th>订单类型</th>
+              <th>订单金额(元)</th>
+              <th>已付金额(元)</th>
+              <th>付款状态</th>
+              <th>下单时间</th>
+              <th>签约顾问</th>
+              <th>负责销售</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="item in filteredItems" :key="item.id">
+              <td>{{ item.id }}</td>
+              <td>{{ item.order_no }}</td>
+              <td>{{ item.customer_name }}</td>
+              <td>{{ item.course_name }}</td>
+              <td>{{ item.order_type }}</td>
+              <td>¥{{ formatMoney(item.order_amount) }}</td>
+              <td>¥{{ formatMoney(item.paid_amount) }}</td>
+              <td><span :class="['badge', item.payment_status]">{{ item.payment_status }}</span></td>
+              <td>{{ item.order_time }}</td>
+              <td>{{ item.signing_consultant }}</td>
+              <td>{{ item.sales_owner }}</td>
+              <td>
+                <div class="actions">
+                  <button class="btn-mini btn-secondary" @click="editItem(item)">编辑</button>
+                  <button class="btn-mini btn-danger" @click="removeItem(item)">删除</button>
+                </div>
+              </td>
+            </tr>
+            <tr v-if="!filteredItems.length">
+              <td colspan="12" class="empty-tip">暂无匹配的订单记录</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+</div>
+<script>
+const { createApp, ref, reactive, computed, onMounted } = Vue;
+createApp({
+  setup() {
+    const endpoint = '/api/deal_management.php';
+    const items = ref([]);
+    const keyword = ref('');
+    const statusFilter = ref('');
+    const error = ref('');
+    const showEditor = ref(false);
+    const toInput = (value) => (value || '').replace(' ', 'T').slice(0, 16);
+    const fromInput = (value) => value ? `${value.replace('T', ' ')}:00` : '';
+    const createDefaults = () => ({
+      id: 0,
+      order_no: '',
+      customer_name: '',
+      course_name: '',
+      order_type: '首单',
+      order_amount: 0,
+      paid_amount: 0,
+      payment_status: '待付款',
+      order_time: '',
+      signing_consultant: '',
+      sales_owner: '',
+      related_student: '',
+      remark: ''
+    });
+    const form = reactive(createDefaults());
+    const api = async(url, opt={}) => {
+      const token = localStorage.getItem('oa_token') || '';
+      const headers = {'Content-Type':'application/json'};
+      if (token) { headers['Authorization'] = 'Bearer ' + token; headers['X-OA-Token'] = token; }
+      let r;
+      try { r = await fetch(url, {...opt, headers}); }
+      catch(e) { throw new Error('网络异常'); }
+      const j = await r.json();
+      if (r.status === 401) { localStorage.removeItem('oa_token'); top.location.href = './login.html'; throw new Error('登录过期'); }
+      if (j.code !== 0) throw new Error(j.message || '请求失败');
+      return j.data;
+    };
+    const loadData = async() => {
+      error.value = '';
+      try {
+        const query = keyword.value ? `?keyword=${encodeURIComponent(keyword.value)}` : '';
+        items.value = await api(endpoint + query);
+      } catch(e) {
+        error.value = e.message;
+      }
+    };
+    const resetForm = () => Object.assign(form, createDefaults());
+    const openCreate = () => { resetForm(); showEditor.value = true; };
+    const cancelEdit = () => { resetForm(); showEditor.value = false; };
+    const editItem = (item) => {
+      Object.assign(form, {
+        ...item,
+        order_time: toInput(item.order_time),
+        order_amount: Number(item.order_amount || 0),
+        paid_amount: Number(item.paid_amount || 0)
+      });
+      showEditor.value = true;
+    };
+    const saveItem = async() => {
+      error.value = '';
+      try {
+        const payload = { ...form, order_time: fromInput(form.order_time) };
+        await api(endpoint, { method: form.id ? 'PUT' : 'POST', body: JSON.stringify(payload) });
+        cancelEdit();
+        await loadData();
+      } catch(e) {
+        error.value = e.message;
+      }
+    };
+    const removeItem = async(item) => {
+      if (!confirm(`确认删除订单「${item.order_no}」吗？`)) return;
+      error.value = '';
+      try {
+        await api(`${endpoint}?id=${encodeURIComponent(item.id)}`, { method: 'DELETE' });
+        await loadData();
+      } catch(e) {
+        error.value = e.message;
+      }
+    };
+    const filteredItems = computed(() => items.value.filter(item => !statusFilter.value || item.payment_status === statusFilter.value));
+    const totalOrderAmount = computed(() => filteredItems.value.reduce((sum, item) => sum + Number(item.order_amount || 0), 0));
+    const totalPaidAmount = computed(() => filteredItems.value.reduce((sum, item) => sum + Number(item.paid_amount || 0), 0));
+    const unpaidCount = computed(() => filteredItems.value.filter(item => item.payment_status === '待付款').length);
+    const formatMoney = (value) => Number(value || 0).toFixed(2);
+    const logout = () => { localStorage.removeItem('oa_token'); localStorage.removeItem('oa_user'); top.location.href = './login.html'; };
+    onMounted(async() => { const t = localStorage.getItem('oa_token'); if (!t) { top.location.href = './login.html'; return; } await loadData(); });
+    return { items, keyword, statusFilter, error, showEditor, form, filteredItems, totalOrderAmount, totalPaidAmount, unpaidCount, formatMoney, loadData, openCreate, cancelEdit, editItem, saveItem, removeItem, logout };
+  }
+}).mount('#app');
+</script>
+</body>
+</html>

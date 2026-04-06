@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>OA-1.0.0</title><link rel="stylesheet" href="./assets/style.css"/><script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script></head>
+<body><div class="oa-layout"><main><div id="app" class="oa-main" v-cloak>
+  <header class="oa-header"><h1>添加人账号备注映射</h1><div class="header-actions"><a class="btn-secondary" href="./index.html?page=external_contacts_local" target="_top">返回本地版</a><button @click="load">刷新</button></div></header>
+  <section class="content-card">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
+      <input v-model.trim="form.follower_account" placeholder="添加人账号" style="padding:6px 8px;border:1px solid #d1d5db;border-radius:6px;min-width:220px"/>
+      <input v-model.trim="form.account_note" placeholder="备注映射（显示值）" style="padding:6px 8px;border:1px solid #d1d5db;border-radius:6px;min-width:260px"/>
+      <button @click="save">保存/更新</button>
+    </div>
+    <p v-if="success" style="color:#16a34a">{{success}}</p><p v-if="error" class="error">{{error}}</p>
+    <table class="table"><thead><tr><th>ID</th><th>添加人账号</th><th>备注映射</th><th>更新时间</th><th>操作</th></tr></thead>
+      <tbody><tr v-for="r in list" :key="r.id"><td>{{r.id}}</td><td>{{r.follower_account}}</td><td>{{r.account_note}}</td><td>{{r.updated_at||'-'}}</td><td><button @click="remove(r.id)">删除</button></td></tr></tbody>
+    </table>
+  </section>
+</div></main></div>
+<script>
+const {createApp,ref,onMounted} = Vue;
+createApp({setup(){
+  const list=ref([]),error=ref(''),success=ref('');
+  const form=ref({follower_account:'',account_note:''});
+  const req=async(url,opt={})=>{const token=localStorage.getItem('oa_token')||'';const headers={...(opt.headers||{})};if(token){headers.Authorization='Bearer '+token;headers['X-OA-Token']=token;}const r=await fetch(url,{...opt,headers});const t=await r.text();let j={};try{j=t?JSON.parse(t):{}}catch(_ ){}if(r.status===401){localStorage.removeItem('oa_token');localStorage.removeItem('oa_user');top.location.href='./login.html';throw new Error('登录已过期，请重新登录');}if(!r.ok||j.code!==0) throw new Error(j.message||'请求失败');return j;};
+  const load=async()=>{try{error.value='';const j=await req('/api/external_contacts_local_account_notes.php');list.value=j.data||[];}catch(e){error.value=e.message;}};
+  const save=async()=>{try{error.value='';success.value='';await req('/api/external_contacts_local_account_notes.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(form.value)});success.value='保存成功';form.value={follower_account:'',account_note:''};await load();}catch(e){error.value=e.message;}};
+  const remove=async(id)=>{try{error.value='';success.value='';await req('/api/external_contacts_local_account_notes.php?id='+id,{method:'DELETE'});success.value='删除成功';await load();}catch(e){error.value=e.message;}};
+  onMounted(load);
+  return {list,error,success,form,load,save,remove};
+}}).mount('#app');
+</script></body></html>

@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>退款管理</title>
+  <link rel="stylesheet" href="./assets/style.css" />
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <style>
+    html[data-embedded="1"] .oa-sidebar{display:none!important;}
+    html[data-embedded="1"] .oa-layout{display:block!important;}
+    html[data-embedded="1"] .oa-main{padding:12px 16px!important;}
+    html[data-embedded="1"] .oa-header{position:static!important;padding-left:0!important;}
+    html[data-embedded="1"] .header-actions a.btn-secondary{display:none!important;}
+    html[data-embedded="1"] .menu-toggle,html[data-embedded="1"] .sidebar-overlay{display:none!important;}html[data-embedded="1"] .oa-header h1{display:none!important;}
+    .status-pending{background:#fff7ed;color:#c2410c;padding:2px 8px;border-radius:4px;font-size:12px;}
+    .status-approved{background:#f0fdf4;color:#15803d;padding:2px 8px;border-radius:4px;font-size:12px;}
+    .status-rejected{background:#fef2f2;color:#dc2626;padding:2px 8px;border-radius:4px;font-size:12px;}
+    .status-processing{background:#eff6ff;color:#2563eb;padding:2px 8px;border-radius:4px;font-size:12px;}
+    .status-completed{background:#f0fdf4;color:#15803d;padding:2px 8px;border-radius:4px;font-size:12px;}
+    .table-container{overflow-x:auto;margin-top:16px;}
+    table{width:100%;border-collapse:collapse;font-size:14px;}
+    th,td{padding:10px 12px;text-align:left;border-bottom:1px solid #e5e7eb;white-space:nowrap;}
+    th{background:#f9fafb;font-weight:600;color:#374151;}
+    tr:hover{background:#f9fafb;}
+    .btn-sm{padding:4px 10px;font-size:12px;margin-right:6px;}
+    .modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:1000;}
+    .modal{background:#fff;border-radius:8px;width:500px;max-width:90%;padding:24px;box-shadow:0 10px 25px rgba(0,0,0,0.1);}
+    .modal h2{margin-top:0;margin-bottom:16px;color:#1f2937;}
+    .form-group{margin-bottom:16px;}
+    .form-group label{display:block;margin-bottom:6px;font-weight:500;color:#374151;}
+    .form-group input,.form-group select,.form-group textarea{width:100%;padding:8px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:14px;}
+    .form-group textarea{resize:vertical;min-height:80px;}
+    .modal-actions{display:flex;justify-content:flex-end;gap:12px;margin-top:20px;}
+  </style>
+  <script>
+    (function(){
+      var p = new URLSearchParams(location.search);
+      if (p.get("embedded") === "1") document.documentElement.setAttribute("data-embedded","1");
+    })();
+  </script>
+</head>
+<body>
+<div id="app" class="oa-layout">
+  <main class="oa-main">
+    <header class="oa-header">
+      <h1>退款管理</h1>
+      <div class="header-actions">
+        <button class="btn-primary" @click="showModal=true">新建退款</button>
+        <button class="btn-secondary" @click="loadData">刷新</button>
+        <button class="btn-danger" @click="logout">退出</button>
+      </div>
+    </header>
+    <section class="content-card">
+      <div v-if="error" class="error-message">{{ error }}</div>
+      <div v-else>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>退款ID</th>
+                <th>订单编号</th>
+                <th>学员姓名</th>
+                <th>课程名称</th>
+                <th>原订单金额</th>
+                <th>已付金额</th>
+                <th>申请退款金额</th>
+                <th>退款原因</th>
+                <th>退款状态</th>
+                <th>申请人</th>
+                <th>审批人</th>
+                <th>申请时间</th>
+                <th>审批时间</th>
+                <th>完成时间</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="item in items" :key="item.id">
+                <td>{{ item.id }}</td>
+                <td>{{ item.orderNo }}</td>
+                <td>{{ item.studentName }}</td>
+                <td>{{ item.courseName }}</td>
+                <td>{{ item.orderAmount }}</td>
+                <td>{{ item.paidAmount }}</td>
+                <td>{{ item.refundAmount }}</td>
+                <td>{{ item.reason }}</td>
+                <td><span :class="'status-'+item.statusClass">{{ item.statusText }}</span></td>
+                <td>{{ item.applicant }}</td>
+                <td>{{ item.approver }}</td>
+                <td>{{ item.applyTime }}</td>
+                <td>{{ item.approveTime }}</td>
+                <td>{{ item.completeTime }}</td>
+                <td>
+                  <button v-if="item.status==='pending'" class="btn-sm btn-primary" @click="approve(item.id)">审批</button>
+                  <button v-if="item.status==='approved'" class="btn-sm btn-secondary" @click="execute(item.id)">执行退款</button>
+                  <button class="btn-sm btn-secondary" @click="viewDetail(item.id)">详情</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div v-if="showModal" class="modal-overlay" @click.self="showModal=false">
+  <div class="modal">
+    <h2>新建退款申请</h2>
+    <div class="form-group">
+      <label>订单编号</label>
+      <input v-model="form.orderNo" placeholder="请输入订单编号" />
+    </div>
+    <div class="form-group">
+      <label>学员姓名</label>
+      <input v-model="form.studentName" placeholder="请输入学员姓名" />
+    </div>
+    <div class="form-group">
+      <label>课程名称</label>
+      <input v-model="form.courseName" placeholder="请输入课程名称" />
+    </div>
+    <div class="form-group">
+      <label>原订单金额(元)</label>
+      <input v-model.number="form.orderAmount" type="number" placeholder="请输入原订单金额" />
+    </div>
+    <div class="form-group">
+      <label>已付金额(元)</label>
+      <input v-model.number="form.paidAmount" type="number" placeholder="请输入已付金额" />
+    </div>
+    <div class="form-group">
+      <label>申请退款金额(元)</label>
+      <input v-model.number="form.refundAmount" type="number" placeholder="请输入申请退款金额" />
+    </div>
+    <div class="form-group">
+      <label>退款原因</label>
+      <select v-model="form.reason">
+        <option value="">请选择退款原因</option>
+        <option value="课程不合适">课程不合适</option>
+        <option value="时间冲突">时间冲突</option>
+        <option value="经济困难">经济困难</option>
+        <option value="教学质量">教学质量</option>
+        <option value="其他">其他</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" @click="showModal=false">取消</button>
+      <button class="btn-primary" @click="submitForm">提交申请</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const { createApp, ref, reactive, onMounted } = Vue;
+createApp({
+  setup() {
+    const items = ref([]);
+    const error = ref('');
+    const showModal = ref(false);
+    const form = reactive({
+      orderNo: '', studentName: '', courseName: '', orderAmount: 0, paidAmount: 0, refundAmount: 0, reason: ''
+    });
+    const api = async(url, opt={}) => {
+      const token = localStorage.getItem('oa_token') || '';
+      const headers = {'Content-Type':'application/json'};
+      if (token) { headers['Authorization'] = 'Bearer ' + token; headers['X-OA-Token'] = token; }
+      let r;
+      try { r = await fetch(url, {...opt, headers}); }
+      catch(e) { throw new Error('网络异常'); }
+      const j = await r.json();
+      if (r.status === 401) { localStorage.removeItem('oa_token'); top.location.href = './login.html'; throw new Error('登录过期'); }
+      if (j.code !== 0) throw new Error(j.message || '请求失败');
+      return j.data;
+    };
+    const loadData = async() => {
+      error.value = '';
+      try { items.value = await api('/api/refund_center.php'); }
+      catch(e) { error.value = e.message; }
+    };
+    const logout = () => { localStorage.removeItem('oa_token'); localStorage.removeItem('oa_user'); top.location.href = './login.html'; };
+    const submitForm = async() => {
+      try {
+        await api('/api/refund_center.php', { method:'POST', body:JSON.stringify({ action:'create', ...form }) });
+        showModal.value = false;
+        await loadData();
+      } catch(e) { alert(e.message); }
+    };
+    const approve = async(id) => {
+      try { await api('/api/refund_center.php', { method:'POST', body:JSON.stringify({ action:'approve', id }) }); await loadData(); }
+      catch(e) { alert(e.message); }
+    };
+    const execute = async(id) => {
+      try { await api('/api/refund_center.php', { method:'POST', body:JSON.stringify({ action:'execute', id }) }); await loadData(); }
+      catch(e) { alert(e.message); }
+    };
+    const viewDetail = (id) => { alert('查看详情: '+id); };
+    onMounted(async() => { if (!localStorage.getItem('oa_token')) { top.location.href = './login.html'; return; } await loadData(); });
+    return { items, error, loadData, logout, showModal, form, submitForm, approve, execute, viewDetail };
+  }
+}).mount('#app');
+</script>
+</body>
+</html>

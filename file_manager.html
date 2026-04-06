@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>文件管理</title>
+  <link rel="stylesheet" href="./assets/style.css" />
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <style>
+    html[data-embedded="1"] .oa-sidebar{display:none!important;}
+    html[data-embedded="1"] .oa-layout{display:block!important;}
+    html[data-embedded="1"] .oa-main{padding:12px 16px!important;}
+    html[data-embedded="1"] .oa-header{position:static!important;padding-left:0!important;}
+    html[data-embedded="1"] .header-actions a.btn-secondary{display:none!important;}
+    html[data-embedded="1"] .menu-toggle,html[data-embedded="1"] .sidebar-overlay{display:none!important;}html[data-embedded="1"] .oa-header h1{display:none!important;}
+    .file-type-badge{padding:4px 8px;border-radius:4px;font-size:12px;}
+    .type-contract{background:#dbeafe;color:#1d4ed8;}
+    .type-invoice{background:#fee2e2;color:#dc2626;}
+    .type-certificate{background:#d1fae5;color:#059669;}
+    .type-qualification{background:#fef3c7;color:#d97706;}
+    .type-other{background:#f3f4f6;color:#6b7280;}
+    .status-normal{color:#059669;}
+    .status-expired{color:#dc2626;}
+    .status-deleted{color:#9ca3af;}
+  </style>
+  <script>
+    (function(){
+      var p = new URLSearchParams(location.search);
+      if (p.get("embedded") === "1") document.documentElement.setAttribute("data-embedded","1");
+    })();
+  </script>
+</head>
+<body>
+<div id="app" class="oa-layout">
+  <main class="oa-main">
+    <header class="oa-header">
+      <h1>文件管理</h1>
+      <div class="header-actions">
+        <select v-model="filterType" @change="loadData" class="rank-select">
+          <option value="">全部类型</option>
+          <option value="合同">合同</option>
+          <option value="发票">发票</option>
+          <option value="证书">证书</option>
+          <option value="资质">资质</option>
+          <option value="其他">其他</option>
+        </select>
+        <button class="btn-primary" @click="showUploadModal = true">上传文件</button>
+        <button class="btn-secondary" @click="loadData">刷新</button>
+        <button class="btn-danger" @click="logout">退出</button>
+      </div>
+    </header>
+    <section class="content-card">
+      <div v-if="error" class="error-message">{{ error }}</div>
+      <div v-if="loading" class="loading">加载中...</div>
+      <table v-if="!loading && items.length > 0" class="data-table">
+        <thead>
+          <tr>
+            <th>文件ID</th>
+            <th>文件名称</th>
+            <th>文件类型</th>
+            <th>关联对象</th>
+            <th>上传人</th>
+            <th>上传时间</th>
+            <th>文件大小</th>
+            <th>状态</th>
+            <th>备注</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="item in items" :key="item.id">
+            <td>{{ item.id }}</td>
+            <td>{{ item.name }}</td>
+            <td>
+              <span :class="'file-type-badge type-' + item.typeClass">{{ item.type }}</span>
+            </td>
+            <td>{{ item.related }}</td>
+            <td>{{ item.uploader }}</td>
+            <td>{{ item.uploadTime }}</td>
+            <td>{{ item.size }}</td>
+            <td :class="'status-' + item.statusClass">{{ item.status }}</td>
+            <td>{{ item.remark || '-' }}</td>
+            <td>
+              <button class="btn-small" @click="download(item)">下载</button>
+              <button class="btn-small btn-danger" @click="deleteFile(item)">删除</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <div v-if="showUploadModal" class="modal-overlay" @click="showUploadModal = false">
+        <div class="modal" @click.stop>
+          <h3>上传文件</h3>
+          <div class="form-group">
+            <label>文件类型</label>
+            <select v-model="newFile.type">
+              <option>合同</option>
+              <option>发票</option>
+              <option>证书</option>
+              <option>资质</option>
+              <option>其他</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>关联对象</label>
+            <input type="text" v-model="newFile.related" placeholder="如：学员张三/订单12345" />
+          </div>
+          <div class="form-group">
+            <label>文件</label>
+            <input type="file" @change="handleFileChange" />
+          </div>
+          <div class="form-group">
+            <label>备注</label>
+            <textarea v-model="newFile.remark" rows="3"></textarea>
+          </div>
+          <div class="form-actions">
+            <button class="btn-primary" @click="uploadFile">上传</button>
+            <button class="btn-secondary" @click="showUploadModal = false">取消</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+<script>
+const { createApp, ref, reactive, onMounted } = Vue;
+createApp({
+  setup() {
+    const items = ref([]);
+    const error = ref('');
+    const loading = ref(false);
+    const filterType = ref('');
+    const showUploadModal = ref(false);
+    const selectedFile = ref(null);
+    const newFile = reactive({ type: '合同', related: '', remark: '' });
+    const api = async(url, opt={}) => {
+      const token = localStorage.getItem('oa_token') || '';
+      const headers = {'Content-Type':'application/json'};
+      if (token) { headers['Authorization'] = 'Bearer ' + token; headers['X-OA-Token'] = token; }
+      let r;
+      try { r = await fetch(url, {...opt, headers}); }
+      catch(e) { throw new Error('网络异常'); }
+      const j = await r.json();
+      if (r.status === 401) { localStorage.removeItem('oa_token'); top.location.href = './login.html'; throw new Error('登录过期'); }
+      if (j.code !== 0) throw new Error(j.message || '请求失败');
+      return j.data;
+    };
+    const loadData = async() => {
+      error.value = '';
+      loading.value = true;
+      try {
+        let url = '/api/file_manager.php';
+        if (filterType.value) url += '?type=' + encodeURIComponent(filterType.value);
+        items.value = await api(url);
+      } catch(e) {
+        error.value = e.message;
+      } finally {
+        loading.value = false;
+      }
+    };
+    const handleFileChange = (e) => {
+      selectedFile.value = e.target.files[0];
+    };
+    const uploadFile = async() => {
+      if (!newFile.related || !selectedFile.value) { alert('请填写完整信息'); return; }
+      try {
+        await api('/api/file_manager.php', { method: 'POST', body: JSON.stringify({ type: newFile.type, related: newFile.related, fileName: selectedFile.value.name, fileSize: (selectedFile.value.size / 1024).toFixed(2) + 'KB', remark: newFile.remark, action: 'upload' }) });
+        alert('文件上传成功');
+        showUploadModal.value = false;
+        newFile.related = '';
+        newFile.remark = '';
+        selectedFile.value = null;
+        await loadData();
+      } catch(e) {
+        alert(e.message);
+      }
+    };
+    const download = (item) => {
+      alert('下载文件：' + item.name);
+    };
+    const deleteFile = async(item) => {
+      if (!confirm('确认删除该文件？')) return;
+      try {
+        await api('/api/file_manager.php', { method: 'POST', body: JSON.stringify({ id: item.id, action: 'delete' }) });
+        alert('文件已删除');
+        await loadData();
+      } catch(e) {
+        alert(e.message);
+      }
+    };
+    const logout = () => { localStorage.removeItem('oa_token'); localStorage.removeItem('oa_user'); top.location.href = './login.html'; };
+    onMounted(async() => { if (!localStorage.getItem('oa_token')) { top.location.href = './login.html'; return; } await loadData(); });
+    return { items, error, loading, filterType, showUploadModal, newFile, selectedFile, loadData, handleFileChange, uploadFile, download, deleteFile, logout };
+  }
+}).mount('#app');
+</script>
+</body>
+</html>

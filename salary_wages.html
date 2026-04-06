@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>工资管理</title>
+  <link rel="stylesheet" href="./assets/style.css" />
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <style>
+    html[data-embedded="1"] .oa-sidebar{display:none!important;}
+    html[data-embedded="1"] .oa-layout{display:block!important;}
+    html[data-embedded="1"] .oa-main{padding:12px 16px!important;}
+    html[data-embedded="1"] .oa-header{position:static!important;padding-left:0!important;}
+    html[data-embedded="1"] .header-actions a.btn-secondary{display:none!important;}
+    html[data-embedded="1"] .menu-toggle,html[data-embedded="1"] .sidebar-overlay{display:none!important;}html[data-embedded="1"] .oa-header h1{display:none!important;}
+    .filter-bar{display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;}
+    .filter-bar select,.filter-bar input{padding:8px 12px;border:1px solid #d1d5db;border-radius:6px;}
+    .table-container{overflow-x:auto;}
+    table{width:100%;border-collapse:collapse;font-size:14px;}
+    th,td{padding:10px 12px;text-align:right;border-bottom:1px solid #e5e7eb;}
+    th:first-child,td:first-child,th:nth-child(2),td:nth-child(2),th:nth-child(3),td:nth-child(3){text-align:left;}
+    th{background:#f9fafb;font-weight:600;color:#374151;}
+    tr:hover{background:#f9fafb;}
+    .status-pending{background:#fff7ed;color:#c2410c;padding:2px 8px;border-radius:4px;font-size:12px;}
+    .status-paid{background:#f0fdf4;color:#15803d;padding:2px 8px;border-radius:4px;font-size:12px;}
+    .btn-sm{padding:4px 10px;font-size:12px;margin-right:6px;}
+    .modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:1000;}
+    .modal{background:#fff;border-radius:8px;width:600px;max-width:90%;padding:24px;box-shadow:0 10px 25px rgba(0,0,0,0.1);max-height:90vh;overflow-y:auto;}
+    .modal h2{margin-top:0;margin-bottom:16px;color:#1f2937;}
+    .form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+    .form-group{margin-bottom:16px;}
+    .form-group label{display:block;margin-bottom:6px;font-weight:500;color:#374151;}
+    .form-group input,.form-group select{width:100%;padding:8px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:14px;}
+    .modal-actions{display:flex;justify-content:flex-end;gap:12px;margin-top:20px;}
+  </style>
+  <script>
+    (function(){
+      var p = new URLSearchParams(location.search);
+      if (p.get("embedded") === "1") document.documentElement.setAttribute("data-embedded","1");
+    })();
+  </script>
+</head>
+<body>
+<div id="app" class="oa-layout">
+  <main class="oa-main">
+    <header class="oa-header">
+      <h1>工资管理</h1>
+      <div class="header-actions">
+        <button class="btn-primary" @click="showModal=true">新建工资单</button>
+        <button class="btn-secondary" @click="loadData">刷新</button>
+        <button class="btn-danger" @click="logout">退出</button>
+      </div>
+    </header>
+    <section class="content-card">
+      <div v-if="error" class="error-message">{{ error }}</div>
+      <div v-else>
+        <div class="filter-bar">
+          <select v-model="filters.month" @change="filterData">
+            <option value="">全部月份</option>
+            <option v-for="m in months" :key="m" :value="m">{{ m }}</option>
+          </select>
+          <select v-model="filters.department" @change="filterData">
+            <option value="">全部部门</option>
+            <option v-for="d in departments" :key="d" :value="d">{{ d }}</option>
+          </select>
+          <input v-model="filters.name" placeholder="搜索员工姓名" @input="filterData" />
+        </div>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>工资单ID</th>
+                <th>员工姓名</th>
+                <th>部门</th>
+                <th>职位</th>
+                <th>工资月份</th>
+                <th>基本工资</th>
+                <th>岗位工资</th>
+                <th>绩效工资</th>
+                <th>加班费</th>
+                <th>应发合计</th>
+                <th>社保扣款</th>
+                <th>公积金扣款</th>
+                <th>个税</th>
+                <th>其他扣款</th>
+                <th>实发工资</th>
+                <th>状态</th>
+                <th>发放日期</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="item in filteredItems" :key="item.id">
+                <td>{{ item.id }}</td>
+                <td>{{ item.name }}</td>
+                <td>{{ item.department }}</td>
+                <td>{{ item.position }}</td>
+                <td>{{ item.salaryMonth }}</td>
+                <td>¥{{ item.baseSalary.toLocaleString() }}</td>
+                <td>¥{{ item.positionSalary.toLocaleString() }}</td>
+                <td>¥{{ item.performanceSalary.toLocaleString() }}</td>
+                <td>¥{{ item.overtimePay.toLocaleString() }}</td>
+                <td>¥{{ item.totalGross.toLocaleString() }}</td>
+                <td>¥{{ item.socialSecurity.toLocaleString() }}</td>
+                <td>¥{{ item.housingFund.toLocaleString() }}</td>
+                <td>¥{{ item.tax.toLocaleString() }}</td>
+                <td>¥{{ item.otherDeduction.toLocaleString() }}</td>
+                <td><strong>¥{{ item.netSalary.toLocaleString() }}</strong></td>
+                <td><span :class="'status-'+item.statusClass">{{ item.statusText }}</span></td>
+                <td>{{ item.paidDate }}</td>
+                <td>
+                  <button v-if="item.status==='pending'" class="btn-sm btn-primary" @click="confirmPay(item.id)">确认发放</button>
+                  <button class="btn-sm btn-secondary" @click="viewDetail(item.id)">详情</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div v-if="showModal" class="modal-overlay" @click.self="showModal=false">
+  <div class="modal">
+    <h2>新建工资单</h2>
+    <div class="form-row">
+      <div class="form-group">
+        <label>员工姓名</label>
+        <input v-model="form.name" placeholder="请输入员工姓名" />
+      </div>
+      <div class="form-group">
+        <label>部门</label>
+        <select v-model="form.department">
+          <option value="">请选择部门</option>
+          <option>销售部</option>
+          <option>教务部</option>
+          <option>运营部</option>
+          <option>财务部</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>职位</label>
+        <input v-model="form.position" placeholder="请输入职位" />
+      </div>
+      <div class="form-group">
+        <label>工资月份</label>
+        <input type="month" v-model="form.salaryMonth" />
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>基本工资(元)</label>
+        <input v-model.number="form.baseSalary" type="number" placeholder="6000-15000" />
+      </div>
+      <div class="form-group">
+        <label>岗位工资(元)</label>
+        <input v-model.number="form.positionSalary" type="number" />
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>绩效工资(元)</label>
+        <input v-model.number="form.performanceSalary" type="number" />
+      </div>
+      <div class="form-group">
+        <label>加班费(元)</label>
+        <input v-model.number="form.overtimePay" type="number" />
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" @click="showModal=false">取消</button>
+      <button class="btn-primary" @click="submitForm">提交</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const { createApp, ref, reactive, computed, onMounted } = Vue;
+createApp({
+  setup() {
+    const items = ref([]);
+    const filteredItems = ref([]);
+    const error = ref('');
+    const showModal = ref(false);
+    const filters = reactive({ month: '', department: '', name: '' });
+    const form = reactive({
+      name: '', department: '', position: '', salaryMonth: '', baseSalary: 0, positionSalary: 0, performanceSalary: 0, overtimePay: 0
+    });
+    const months = computed(() => [...new Set(items.value.map(i => i.salaryMonth))].sort().reverse());
+    const departments = computed(() => [...new Set(items.value.map(i => i.department))]);
+    const api = async(url, opt={}) => {
+      const token = localStorage.getItem('oa_token') || '';
+      const headers = {'Content-Type':'application/json'};
+      if (token) { headers['Authorization'] = 'Bearer ' + token; headers['X-OA-Token'] = token; }
+      let r;
+      try { r = await fetch(url, {...opt, headers}); }
+      catch(e) { throw new Error('网络异常'); }
+      const j = await r.json();
+      if (r.status === 401) { localStorage.removeItem('oa_token'); top.location.href = './login.html'; throw new Error('登录过期'); }
+      if (j.code !== 0) throw new Error(j.message || '请求失败');
+      return j.data;
+    };
+    const loadData = async() => {
+      error.value = '';
+      try { items.value = await api('/api/salary_wages.php'); filteredItems.value = [...items.value]; }
+      catch(e) { error.value = e.message; }
+    };
+    const filterData = () => {
+      filteredItems.value = items.value.filter(item => {
+        if (filters.month && item.salaryMonth !== filters.month) return false;
+        if (filters.department && item.department !== filters.department) return false;
+        if (filters.name && !item.name.includes(filters.name)) return false;
+        return true;
+      });
+    };
+    const submitForm = async() => {
+      try {
+        await api('/api/salary_wages.php', { method:'POST', body:JSON.stringify({ action:'create', ...form }) });
+        showModal.value = false;
+        await loadData();
+      } catch(e) { alert(e.message); }
+    };
+    const confirmPay = async(id) => {
+      try { await api('/api/salary_wages.php', { method:'POST', body:JSON.stringify({ action:'confirm', id }) }); await loadData(); }
+      catch(e) { alert(e.message); }
+    };
+    const viewDetail = (id) => { alert('查看详情: '+id); };
+    const logout = () => { localStorage.removeItem('oa_token'); localStorage.removeItem('oa_user'); top.location.href = './login.html'; };
+    onMounted(async() => { if (!localStorage.getItem('oa_token')) { top.location.href = './login.html'; return; } await loadData(); });
+    return { items, filteredItems, error, filters, months, departments, showModal, form, loadData, filterData, submitForm, confirmPay, viewDetail, logout };
+  }
+}).mount('#app');
+</script>
+</body>
+</html>

@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OA-1.0.0</title>
+  <link rel="stylesheet" href="./assets/style.css" />
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+<style>html[data-embedded="1"] .oa-sidebar{display:none!important;}html[data-embedded="1"] .oa-layout{display:block!important;}html[data-embedded="1"] .oa-main{padding:12px 16px!important;}html[data-embedded="1"] .oa-header{position:static!important;padding-left:0!important;}html[data-embedded="1"] .header-actions a.btn-secondary{display:none!important;}html[data-embedded="1"] .menu-toggle,html[data-embedded="1"] .sidebar-overlay{display:none!important;}html[data-embedded="1"] .oa-header h1{display:none!important;}</style><script>(function(){var p=new URLSearchParams(location.search);if(p.get("embedded")==="1"){document.documentElement.setAttribute("data-embedded","1");}})();</script></head>
+<body>
+<div id="app" class="oa-layout" :class="{'mobile': isMobile, 'sidebar-open': sidebarOpen}" v-cloak>
+  <aside class="oa-sidebar" :class="{'open': sidebarOpen}">
+    <div class="brand">OA-1.0.0</div>
+    <div class="user-box">{{ user.real_name || user.username }}（{{ user.role || '访客' }}）</div>
+    <button v-if="isMobile && sidebarOpen" class="sidebar-close" @click="sidebarOpen=false" aria-label="收起菜单">×</button>
+    <template v-for="group in groupedMenus" :key="group.parent">
+      <div class="group-title">{{ group.parent }}</div>
+      <ul class="menu-tree simple">
+        <li v-for="m in group.children" :key="m.id" :class="{active:activeTab===m.menu_key}" @click="selectMenu(m.menu_key)">{{ m.menu_name }}</li>
+      </ul>
+    </template>
+  </aside>
+  <div v-if="isMobile && sidebarOpen" class="sidebar-overlay" @click="sidebarOpen=false"></div>
+
+  <main class="oa-main">
+    <header class="oa-header">
+      <button v-if="isMobile" class="menu-toggle" @click="toggleSidebar" aria-label="切换菜单">☰</button>
+      <h1>OA 系统管理台</h1>
+      <div class="header-actions">
+        <button class="btn-secondary" @click="reloadAll">刷新数据</button>
+        <button class="btn-secondary" v-if="canImportExportTab()" @click="exportCurrentTab">导出Excel(CSV)</button>
+        <button class="btn-secondary" v-if="canImportExportTab()" @click="triggerImport">导入Excel(CSV)</button>
+        <input ref="importFileRef" type="file" accept=".csv" style="display:none" @change="handleImportFile">
+        <button class="btn-danger" @click="logout">退出登录</button>
+      </div>
+    </header>
+
+    <section class="content-card" v-if="activeTab==='departments'">
+      <h2>部门管理</h2>
+      <p class="role-tip"><strong>岗位引导：</strong>组织架构变化先更新部门，再调整岗位与可见范围，确保统计口径和分成归属正确。</p>
+      <div class="section-actions"><button type="button" @click="openEditor('department', false)">新增部门</button></div><form :class="['inline-form','editor-form',{show:activeEditor==='department'}]" @submit.prevent="saveDepartment"><input v-model.trim="departmentForm.dept_name" placeholder="部门名称" required><input v-model.trim="departmentForm.dept_code" placeholder="部门编码" required><input v-model.trim="departmentForm.parent_name" placeholder="上级部门"><input v-model.number="departmentForm.sort_no" type="number" placeholder="排序"><button>{{departmentForm.id?'保存部门':'新增部门'}}</button><button type="button" class="btn-secondary" @click="closeEditor">取消</button></form>
+      <table class="table"><thead><tr><th>ID</th><th>部门</th><th>编码</th><th>上级</th><th>操作</th></tr></thead><tbody><tr v-for="d in departments" :key="d.id"><td>{{d.id}}</td><td>{{d.dept_name}}</td><td>{{d.dept_code}}</td><td>{{d.parent_name}}</td><td><button class="btn-mini btn-secondary" @click="viewRecord('部门详情',d)">查看</button><button class="btn-mini" @click="editDepartment(d)">编辑</button></td></tr></tbody></table>
+    </section>
+
+    <div class="editor-overlay" v-if="activeEditor" @click="closeEditor"></div>
+    <div class="detail-modal" v-if="detailDialog.open" @click.self="closeDetailDialog"><div class="detail-card"><h3>{{ detailDialog.title }}</h3><pre>{{ detailDialog.content }}</pre><button class="btn-secondary" @click="closeDetailDialog">关闭</button></div></div>
+    <p v-if="error" class="error global-error">{{ error }}</p>
+  </main>
+</div>
+<script>
+const { createApp, ref, reactive, onMounted, onBeforeUnmount } = Vue;
+createApp({
+  setup() {
+    const activeTab = ref('departments');
+    const error = ref('');
+    const user = ref({});
+    const summary = ref({ students: 0, courses: 0, orders: 0, todos_open: 0, notifications_unread: 0 });
+    const students=ref([]),courses=ref([]),orders=ref([]),referrers=ref([]),receipts=ref([]),deliveryLogs=ref([]),departmentStats=ref([]),todos=ref([]),notifications=ref([]),users=ref([]),departments=ref([]),menus=ref([]),groups=ref([]),perms=ref([]);
+    const finance=ref({list:[],summary:{income:0,expense:0,balance:0}});
+    const assignData=ref({user_groups:[],group_perms:[]});
+    const groupedMenus=ref([]);
+    const studentKeyword=ref(''),studentCategory=ref(''),orderKeyword=ref(''),referrerKeyword=ref(''),userKeyword=ref('');
+    const departmentOptions=ref([]),positionOptions=ref([]),roleOptions=ref([]),receiptChannelOptions=ref([]);
+
+    const studentForm=reactive({id:0,name:'',gender:'',birthday:'',phone:'',wechat_name:'',wechat:'',id_no:'',level:'',intention_level:'',follow_status:'',source:'',enrolled_courses_text:'',consultant:'',delivery_coach:'',address:'',remark:''});
+    const courseForm=reactive({id:0,course_name:'',coach_name:'',period_weeks:0,price:0,status:1});
+    const orderForm=reactive({id:0,student_id:'',course_id:'',payment_stage:'full',total_amount:0,paid_amount:0,sales_commission_amount:0,seller_user_id:0,seller_role:'',seller_commission_amount:0,referrer_id:0,referrer_commission_amount:0,student_wechat_name:'',student_mobile:'',student_address:'',payment_time:'',receipt_time:'',refund_time:'',refund_amount:0,remark:'',pay_status:0});
+    const financeForm=reactive({id:0,record_type:'income',item_name:'',amount:0,record_date:''});
+    const referrerForm=reactive({id:0,name:'',wechat_name:'',phone:'',channel:'',commission_type:'rate',commission_rate:0,fixed_amount:0,payout_detail:'',remark:'',status:1});
+    const receiptForm=reactive({id:0,order_id:'',receipt_no:'',amount:0,channel:'',receiver_user_id:0,pay_method:'',pay_time:'',refund_time:'',refund_amount:0,verified_status:0,remark:''});
+    const deliveryLogForm=reactive({id:0,student_id:'',coach_user_id:0,progress_stage:'',content:'',log_date:''});
+    const todoForm=reactive({id:0,title:'',priority:'中',status:'todo',due_date:''});
+    const notificationForm=reactive({id:0,title:'',content:'',is_read:0});
+    const userForm=reactive({id:0,username:'',employee_no:'',company_name:'',real_name:'',birthday:'',role:'',gender:'',mobile:'',email:'',social_city:'',hukou_place:'',hukou_type:'',id_no:'',birth_date:'',age:0,native_place:'',ethnicity:'',marital_status:'',home_address:'',emergency_contact:'',education:'',graduation_school:'',major:'',department:'',position:'',hire_date:'',contract_years:'',working_days:0,contract_end_date:'',is_probation:1,probation_salary:0,regular_date:'',regular_salary:0,bank_name:'',bank_card_no:'',salary_adjust_records:'',employment_status:'在职',leave_date:'',remark:'',status:1,password:''});
+    const departmentForm=reactive({id:0,dept_name:'',dept_code:'',parent_name:'',sort_no:99,status:1,remark:''});
+    const menuForm=reactive({id:0,parent_name:'系统管理',menu_name:'',menu_key:'',path:'',icon:'',sort_no:99,status:1});
+    const groupForm=reactive({id:0,group_name:'',group_code:'',remark:'',status:1});
+    const permForm=reactive({id:0,perm_name:'',perm_code:'',module_name:'系统管理',remark:'',status:1});
+    const assignForm=reactive({user_id:'',group_id:''});
+    const assignForm2=reactive({group_id:'',perm_id:''});
+    const sidebarOpen=ref(false);
+    const isMobile=ref(window.innerWidth<980);
+    const detailDialog=reactive({open:false,title:'',content:''});
+    const activeEditor=ref('');
+    const importFileRef=ref(null);
+
+    const api=async(url,opt={})=>{const token=localStorage.getItem('oa_token')||'';const baseHeaders={'Content-Type':'application/json'};if(token){baseHeaders.Authorization='Bearer '+token;baseHeaders['X-OA-Token']=token;}const headers={...baseHeaders,...(opt.headers||{})};let r;try{r=await fetch(url,{...opt,headers});}catch(e){throw new Error(`请求失败：网络异常（${url}）`);}const text=await r.text();let j={};try{j=text?JSON.parse(text):{};}catch(_){j={};}if(r.status===401){localStorage.removeItem('oa_token');localStorage.removeItem('oa_user');top.location.href='./login.html';throw new Error('登录已过期，请重新登录');}if(!r.ok||j.code!==0){const detail=(j&&j.message)||(text||'').slice(0,160);throw new Error(detail||`请求失败（HTTP ${r.status} ${r.statusText}）`);}if(!text)return null;return Object.prototype.hasOwnProperty.call(j,'data')?j.data:j;};
+    const loadSummary=async()=>{const q=new URLSearchParams(); if(user.value?.id) q.set('user_id',String(user.value.id)); summary.value=await api(`/api/dashboard_summary.php?${q.toString()}`);};
+    const loadStudents=async()=>{const q=new URLSearchParams(); if(studentKeyword.value) q.set('keyword',studentKeyword.value); if(studentCategory.value) q.set('student_category',studentCategory.value); if(user.value?.id) q.set('user_id',String(user.value.id)); students.value=await api(`/api/students.php?${q.toString()}`);};
+    const loadCourses=async()=>courses.value=await api('/api/courses.php');
+    const loadOrders=async()=>{const q=new URLSearchParams(); if(orderKeyword.value) q.set('keyword',orderKeyword.value); if(user.value?.id) q.set('user_id',String(user.value.id)); orders.value=await api(`/api/orders.php?${q.toString()}`);};
+    const loadReferrers=async()=>{const q=referrerKeyword.value?`?keyword=${encodeURIComponent(referrerKeyword.value)}`:'';referrers.value=await api(`/api/referrers.php${q}`);};
+    const loadFinance=async()=>finance.value=await api('/api/finance.php');
+    const loadReceipts=async()=>receipts.value=await api('/api/receipts.php');
+    const loadDeliveryLogs=async()=>{const q=new URLSearchParams(); if(user.value?.id) q.set('user_id',String(user.value.id)); deliveryLogs.value=await api(`/api/delivery_logs.php?${q.toString()}`);};
+    const loadDepartmentStats=async()=>{const q=new URLSearchParams(); if(user.value?.id) q.set('user_id',String(user.value.id)); try{departmentStats.value=await api(`/api/department_stats.php?${q.toString()}`);}catch(e){departmentStats.value=[];}};
+    const loadTodos=async()=>todos.value=await api('/api/todos.php');
+    const loadNotifications=async()=>notifications.value=await api('/api/notifications.php');
+    const loadUsers=async()=>{const q=userKeyword.value?`?keyword=${encodeURIComponent(userKeyword.value)}`:'';users.value=await api(`/api/users.php${q}`);};
+    const loadDepartments=async()=>departments.value=await api('/api/departments.php');
+    const loadMetaOptions=async()=>{const x=await api('/api/meta_options.php');departmentOptions.value=x.departments||[];positionOptions.value=x.positions||[];roleOptions.value=x.roles||[];receiptChannelOptions.value=x.receipt_channels||[];};
+    const loadMenus=async()=>{const uid=Number(user.value?.id||0);menus.value=uid?await api(`/api/user_menus.php?user_id=${uid}`):await api('/api/menu.php'); const m={}; menus.value.forEach(x=>{const p=x.parent_name||'其他';(m[p]=m[p]||[]).push(x)}); groupedMenus.value=Object.keys(m).map(k=>({parent:k,children:m[k]})); if(menus.value.length && !menus.value.some(x=>x.menu_key===activeTab.value)){activeTab.value=menus.value[0].menu_key;}};
+    const loadGroups=async()=>groups.value=await api('/api/rbac_groups.php');
+    const loadPerms=async()=>perms.value=await api('/api/rbac_permissions.php');
+    const loadAssign=async()=>assignData.value=await api('/api/rbac_assign.php');
+
+    const createHelper=async(url,form,loader)=>{error.value=''; try{await api(url,{method:'POST',body:JSON.stringify(form)}); await loader();}catch(e){error.value=e.message;}};
+
+    const formatCourses=(val)=>{try{const arr=Array.isArray(val)?val:JSON.parse(val||'[]');return Array.isArray(arr)?arr.join(','):'';}catch(e){return String(val||'');}};
+    const paymentStageLabel=(v)=>({deposit:'定金',middle:'中期款',final:'尾款',full:'全款'}[v]||'全款');
+    const saveStudent=async()=>{error.value='';try{const payload={...studentForm,enrolled_courses:(studentForm.enrolled_courses_text||'').split(',').map(x=>x.trim()).filter(Boolean)};if(studentForm.id){await api('/api/students.php',{method:'PUT',body:JSON.stringify(payload)});}else{await api('/api/students.php',{method:'POST',body:JSON.stringify(payload)});}resetStudentForm();await loadStudents();closeEditor();}catch(e){error.value=e.message;}};
+    
+    const resetStudentForm=()=>Object.assign(studentForm,{id:0,name:'',gender:'',birthday:'',phone:'',wechat_name:'',wechat:'',id_no:'',level:'',intention_level:'',follow_status:'',source:'',enrolled_courses_text:'',consultant:'',delivery_coach:'',address:'',remark:''});
+    const editStudent=(row)=>{openEditor('student', true);return Object.assign(studentForm,{id:Number(row.id),name:row.name||'',gender:row.gender||'',birthday:row.birthday||'',phone:row.phone||'',wechat_name:row.wechat_name||'',wechat:row.wechat||'',id_no:row.id_no||'',level:row.level||'',intention_level:row.intention_level||'',follow_status:row.follow_status||'',source:row.source||'',enrolled_courses_text:formatCourses(row.enrolled_courses),consultant:row.consultant||'',delivery_coach:row.delivery_coach||'',address:row.address||'',remark:row.remark||''});};
+    const resetUserForm=()=>Object.assign(userForm,{id:0,username:'',employee_no:'',company_name:'',real_name:'',birthday:'',role:'',gender:'',mobile:'',email:'',social_city:'',hukou_place:'',hukou_type:'',id_no:'',birth_date:'',age:0,native_place:'',ethnicity:'',marital_status:'',home_address:'',emergency_contact:'',education:'',graduation_school:'',major:'',department:'',position:'',hire_date:'',contract_years:'',working_days:0,contract_end_date:'',is_probation:1,probation_salary:0,regular_date:'',regular_salary:0,bank_name:'',bank_card_no:'',salary_adjust_records:'',employment_status:'在职',leave_date:'',remark:'',status:1,password:''});
+    const editUser=(row)=>{openEditor('user', true);return Object.assign(userForm,{id:Number(row.id),username:row.username||'',employee_no:row.employee_no||'',company_name:row.company_name||'',real_name:row.real_name||'',birthday:row.birthday||'',role:row.role||'',gender:row.gender||'',mobile:row.mobile||'',email:row.email||'',social_city:row.social_city||'',hukou_place:row.hukou_place||'',hukou_type:row.hukou_type||'',id_no:row.id_no||'',birth_date:row.birth_date||'',age:Number(row.age||0),native_place:row.native_place||'',ethnicity:row.ethnicity||'',marital_status:row.marital_status||'',home_address:row.home_address||'',emergency_contact:row.emergency_contact||'',education:row.education||'',graduation_school:row.graduation_school||'',major:row.major||'',department:row.department||'',position:row.position||'',hire_date:row.hire_date||'',contract_years:row.contract_years||'',working_days:Number(row.working_days||0),contract_end_date:row.contract_end_date||'',is_probation:Number(row.is_probation??1),probation_salary:Number(row.probation_salary||0),regular_date:row.regular_date||'',regular_salary:Number(row.regular_salary||0),bank_name:row.bank_name||'',bank_card_no:row.bank_card_no||'',salary_adjust_records:row.salary_adjust_records||'',employment_status:row.employment_status||'在职',leave_date:row.leave_date||'',remark:row.remark||'',status:Number(row.status||1),password:''});};
+
+    const resetCourseForm=()=>Object.assign(courseForm,{id:0,course_name:'',coach_name:'',period_weeks:0,price:0,status:1});
+    const editCourse=(row)=>{openEditor('course', true);return Object.assign(courseForm,{id:Number(row.id),course_name:row.course_name||'',coach_name:row.coach_name||'',period_weeks:Number(row.period_weeks||0),price:Number(row.price||0),status:Number(row.status||1)});};
+    const saveCourse=async()=>{error.value='';try{if(courseForm.id){await api('/api/courses.php',{method:'PUT',body:JSON.stringify(courseForm)});}else{await api('/api/courses.php',{method:'POST',body:JSON.stringify(courseForm)});}resetCourseForm();await loadCourses();closeEditor();}catch(e){error.value=e.message;}};
+
+    const resetOrderForm=()=>Object.assign(orderForm,{id:0,student_id:'',course_id:'',payment_stage:'full',total_amount:0,paid_amount:0,sales_commission_amount:0,seller_user_id:0,seller_role:'',seller_commission_amount:0,referrer_id:0,referrer_commission_amount:0,student_wechat_name:'',student_mobile:'',student_address:'',payment_time:'',receipt_time:'',refund_time:'',refund_amount:0,remark:'',pay_status:0});
+    const editOrder=(row)=>{openEditor('order', true);return Object.assign(orderForm,{id:Number(row.id),student_id:Number(row.student_id||0),course_id:Number(row.course_id||0),payment_stage:row.payment_stage||'full',total_amount:Number(row.total_amount||row.amount||0),paid_amount:Number(row.paid_amount||row.amount||0),sales_commission_amount:Number(row.sales_commission_amount||0),seller_user_id:Number(row.seller_user_id||0),seller_role:row.seller_role||'',seller_commission_amount:Number(row.seller_commission_amount||0),referrer_id:Number(row.referrer_id||0),referrer_commission_amount:Number(row.referrer_commission_amount||0),student_wechat_name:row.student_wechat_name||'',student_mobile:row.student_mobile||'',student_address:row.student_address||'',payment_time:(row.payment_time||'').replace(' ','T'),receipt_time:(row.receipt_time||'').replace(' ','T'),refund_time:(row.refund_time||'').replace(' ','T'),refund_amount:Number(row.refund_amount||0),remark:row.remark||'',pay_status:Number(row.pay_status||0)});};
+    const saveOrder=async()=>{error.value='';try{const payload={...orderForm,payment_time:orderForm.payment_time?orderForm.payment_time.replace('T',' '):'',receipt_time:orderForm.receipt_time?orderForm.receipt_time.replace('T',' '):'',refund_time:orderForm.refund_time?orderForm.refund_time.replace('T',' '):''};if(orderForm.id){await api('/api/orders.php',{method:'PUT',body:JSON.stringify(payload)});}else{await api('/api/orders.php',{method:'POST',body:JSON.stringify(payload)});}resetOrderForm();await loadOrders();closeEditor();}catch(e){error.value=e.message;}};
+
+    const resetFinanceForm=()=>Object.assign(financeForm,{id:0,record_type:'income',item_name:'',amount:0,record_date:''});
+    const editFinance=(row)=>{openEditor('finance', true);return Object.assign(financeForm,{id:Number(row.id),record_type:row.record_type||'income',item_name:row.item_name||'',amount:Number(row.amount||0),record_date:row.record_date||''});};
+    const saveFinance=async()=>{error.value='';try{if(financeForm.id){await api('/api/finance.php',{method:'PUT',body:JSON.stringify(financeForm)});}else{await api('/api/finance.php',{method:'POST',body:JSON.stringify(financeForm)});}resetFinanceForm();await loadFinance();closeEditor();}catch(e){error.value=e.message;}};
+
+    const resetTodoForm=()=>Object.assign(todoForm,{id:0,title:'',priority:'中',status:'todo',due_date:''});
+    const editTodo=(row)=>{openEditor('todo', true);return Object.assign(todoForm,{id:Number(row.id),title:row.title||'',priority:row.priority||'中',status:row.status||'todo',due_date:row.due_date||''});};
+    const saveTodo=async()=>{error.value='';try{if(todoForm.id){await api('/api/todos.php',{method:'PUT',body:JSON.stringify(todoForm)});}else{await api('/api/todos.php',{method:'POST',body:JSON.stringify(todoForm)});}resetTodoForm();await loadTodos();closeEditor();}catch(e){error.value=e.message;}};
+
+    const resetNotificationForm=()=>Object.assign(notificationForm,{id:0,title:'',content:'',is_read:0});
+    const editNotification=(row)=>{openEditor('notification', true);return Object.assign(notificationForm,{id:Number(row.id),title:row.title||'',content:row.content||'',is_read:Number(row.is_read||0)});};
+    const saveNotification=async()=>{error.value='';try{if(notificationForm.id){await api('/api/notifications.php',{method:'PUT',body:JSON.stringify(notificationForm)});}else{await api('/api/notifications.php',{method:'POST',body:JSON.stringify(notificationForm)});}resetNotificationForm();await loadNotifications();closeEditor();}catch(e){error.value=e.message;}};
+
+    const resetReferrerForm=()=>Object.assign(referrerForm,{id:0,name:'',wechat_name:'',phone:'',channel:'',commission_type:'rate',commission_rate:0,fixed_amount:0,payout_detail:'',remark:'',status:1});
+    const editReferrer=(row)=>{openEditor('referrer', true);return Object.assign(referrerForm,{id:Number(row.id),name:row.name||'',wechat_name:row.wechat_name||'',phone:row.phone||'',channel:row.channel||'',commission_type:row.commission_type||'rate',commission_rate:Number(row.commission_rate||0),fixed_amount:Number(row.fixed_amount||0),payout_detail:row.payout_detail||'',remark:row.remark||'',status:Number(row.status||1)});};
+    const saveReferrer=async()=>{error.value='';try{if(referrerForm.id){await api('/api/referrers.php',{method:'PUT',body:JSON.stringify(referrerForm)});}else{await api('/api/referrers.php',{method:'POST',body:JSON.stringify(referrerForm)});}resetReferrerForm();await loadReferrers();closeEditor();}catch(e){error.value=e.message;}};
+
+    const resetReceiptForm=()=>Object.assign(receiptForm,{id:0,order_id:'',receipt_no:'',amount:0,channel:'',receiver_user_id:0,pay_method:'',pay_time:'',refund_time:'',refund_amount:0,verified_status:0,remark:''});
+    const editReceipt=(row)=>{openEditor('receipt', true);return Object.assign(receiptForm,{id:Number(row.id),order_id:Number(row.order_id||0),receipt_no:row.receipt_no||'',amount:Number(row.amount||0),channel:row.channel||'',receiver_user_id:Number(row.receiver_user_id||0),pay_method:row.pay_method||'',pay_time:(row.pay_time||'').replace(' ','T'),refund_time:(row.refund_time||'').replace(' ','T'),refund_amount:Number(row.refund_amount||0),verified_status:Number(row.verified_status||0),remark:row.remark||''});};
+    const saveReceipt=async()=>{error.value='';try{const payload={...receiptForm,pay_time:receiptForm.pay_time?receiptForm.pay_time.replace('T',' '):'',refund_time:receiptForm.refund_time?receiptForm.refund_time.replace('T',' '):''}; if(receiptForm.id){await api('/api/receipts.php',{method:'PUT',body:JSON.stringify(payload)});}else{await api('/api/receipts.php',{method:'POST',body:JSON.stringify(payload)});}resetReceiptForm();await loadReceipts();closeEditor();}catch(e){error.value=e.message;}};
+
+    const resetDeliveryLogForm=()=>Object.assign(deliveryLogForm,{id:0,student_id:'',coach_user_id:0,progress_stage:'',content:'',log_date:''});
+    const editDeliveryLog=(row)=>{openEditor('delivery', true);return Object.assign(deliveryLogForm,{id:Number(row.id),student_id:Number(row.student_id||0),coach_user_id:Number(row.coach_user_id||0),progress_stage:row.progress_stage||'',content:row.content||'',log_date:row.log_date||''});};
+    const saveDeliveryLog=async()=>{error.value='';try{if(deliveryLogForm.id){await api('/api/delivery_logs.php',{method:'PUT',body:JSON.stringify(deliveryLogForm)});}else{await api('/api/delivery_logs.php',{method:'POST',body:JSON.stringify(deliveryLogForm)});}resetDeliveryLogForm();await loadDeliveryLogs();closeEditor();}catch(e){error.value=e.message;}};
+
+    const resetDepartmentForm=()=>Object.assign(departmentForm,{id:0,dept_name:'',dept_code:'',parent_name:'',sort_no:99,status:1,remark:''});
+    const editDepartment=(row)=>{openEditor('department', true);return Object.assign(departmentForm,{id:Number(row.id),dept_name:row.dept_name||'',dept_code:row.dept_code||'',parent_name:row.parent_name||'',sort_no:Number(row.sort_no||99),status:Number(row.status||1),remark:row.remark||''});};
+    const saveDepartment=async()=>{error.value='';try{if(departmentForm.id){await api('/api/departments.php',{method:'PUT',body:JSON.stringify(departmentForm)});}else{await api('/api/departments.php',{method:'POST',body:JSON.stringify(departmentForm)});}resetDepartmentForm();await Promise.all([loadDepartments(),loadMetaOptions()]);closeEditor();}catch(e){error.value=e.message;}};
+
+    const saveUser=async()=>{error.value='';try{if(userForm.id){await api('/api/users.php',{method:'PUT',body:JSON.stringify(userForm)});}else{await api('/api/users.php',{method:'POST',body:JSON.stringify(userForm)});}resetUserForm();await loadUsers();closeEditor();}catch(e){error.value=e.message;}};
+
+    const resetMenuForm=()=>Object.assign(menuForm,{id:0,parent_name:'系统管理',menu_name:'',menu_key:'',path:'',icon:'',sort_no:99,status:1});
+    const editMenu=(row)=>{openEditor('menu', true);return Object.assign(menuForm,{id:Number(row.id),parent_name:row.parent_name||'',menu_name:row.menu_name||'',menu_key:row.menu_key||'',path:row.path||'',icon:row.icon||'',sort_no:Number(row.sort_no||99),status:Number(row.status||1)});};
+    const saveMenu=async()=>{error.value='';try{if(menuForm.id){await api('/api/menu.php',{method:'PUT',body:JSON.stringify(menuForm)});}else{await api('/api/menu.php',{method:'POST',body:JSON.stringify(menuForm)});}resetMenuForm();await loadMenus();closeEditor();}catch(e){error.value=e.message;}};
+
+    const resetGroupForm=()=>Object.assign(groupForm,{id:0,group_name:'',group_code:'',remark:'',status:1});
+    const editGroup=(row)=>{openEditor('group', true);return Object.assign(groupForm,{id:Number(row.id),group_name:row.group_name||'',group_code:row.group_code||'',remark:row.remark||'',status:Number(row.status||1)});};
+    const saveGroup=async()=>{error.value='';try{if(groupForm.id){await api('/api/rbac_groups.php',{method:'PUT',body:JSON.stringify(groupForm)});}else{await api('/api/rbac_groups.php',{method:'POST',body:JSON.stringify(groupForm)});}resetGroupForm();await loadGroups();closeEditor();}catch(e){error.value=e.message;}};
+
+    const resetPermForm=()=>Object.assign(permForm,{id:0,perm_name:'',perm_code:'',module_name:'系统管理',remark:'',status:1});
+    const editPerm=(row)=>{openEditor('perm', true);return Object.assign(permForm,{id:Number(row.id),perm_name:row.perm_name||'',perm_code:row.perm_code||'',module_name:row.module_name||'系统管理',remark:row.remark||'',status:Number(row.status||1)});};
+    const savePerm=async()=>{error.value='';try{if(permForm.id){await api('/api/rbac_permissions.php',{method:'PUT',body:JSON.stringify(permForm)});}else{await api('/api/rbac_permissions.php',{method:'POST',body:JSON.stringify(permForm)});}resetPermForm();await loadPerms();closeEditor();}catch(e){error.value=e.message;}};
+
+
+    const ioConfig={
+      students:{url:'/api/students.php',list:(d)=>d},
+      courses:{url:'/api/courses.php',list:(d)=>d},
+      orders:{url:'/api/orders.php',list:(d)=>d},
+      finance:{url:'/api/finance.php',list:(d)=>d.list||[]},
+      todos:{url:'/api/todos.php',list:(d)=>d},
+      notifications:{url:'/api/notifications.php',list:(d)=>d},
+      users:{url:'/api/users.php',list:(d)=>d},
+      departments:{url:'/api/departments.php',list:(d)=>d},
+      menus:{url:'/api/menu.php',list:(d)=>d},
+      rbac_groups:{url:'/api/rbac_groups.php',list:(d)=>d},
+      rbac_permissions:{url:'/api/rbac_permissions.php',list:(d)=>d},
+      referrers:{url:'/api/referrers.php',list:(d)=>d},
+      receipts:{url:'/api/receipts.php',list:(d)=>d},
+      delivery_logs:{url:'/api/delivery_logs.php',list:(d)=>d}
+    };
+
+    const canImportExportTab=()=>!!ioConfig[activeTab.value];
+
+    const csvEscape=(v)=>{const t=String(v??''); if(/[",\n]/.test(t)) return '"'+t.replace(/"/g,'""')+'"'; return t;};
+    const toCsv=(rows)=>{if(!rows.length) return ''; const headers=[...new Set(rows.flatMap(r=>Object.keys(r||{})))]; const lines=[headers.join(',')]; rows.forEach(r=>lines.push(headers.map(h=>csvEscape(r?.[h]??'')).join(','))); return '\uFEFF'+lines.join('\n');};
+    const parseCsvLine=(line)=>{const out=[]; let cur=''; let q=false; for(let i=0;i<line.length;i++){const ch=line[i]; if(ch==='"'){ if(q && line[i+1]==='"'){cur+='"'; i++;} else {q=!q;} } else if(ch===',' && !q){out.push(cur); cur='';} else {cur+=ch;} } out.push(cur); return out;};
+    const splitCsvRows=(text)=>{const rows=[]; let cur=''; let q=false; for(let i=0;i<text.length;i++){const ch=text[i]; if(ch==='"'){ if(q && text[i+1]==='"'){cur+='""'; i++;} else {q=!q; cur+=ch;} } else if((ch==='\n'||ch==='\r') && !q){ if(ch==='\r' && text[i+1]==='\n') i++; if(cur.trim()!=='') rows.push(cur); cur=''; } else {cur+=ch;} } if(cur.trim()!=='') rows.push(cur); return rows;};
+    const fromCsv=(text)=>{const rows=splitCsvRows(text.replace(/^\uFEFF/,'')); if(!rows.length) return []; const headers=parseCsvLine(rows[0]); return rows.slice(1).map(l=>{const vals=parseCsvLine(l); const o={}; headers.forEach((h,i)=>o[h]=vals[i]??''); return o;});};
+    const normalizeSlashDate=(v)=>{if(typeof v!=='string') return v; const t=v.trim(); if(!t||!t.includes('/')) return v; const m=t.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})(?:[ T](\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?$/); if(!m) return v; const y=m[1]; const mm=m[2].padStart(2,'0'); const dd=m[3].padStart(2,'0'); if(!m[4]) return `${y}-${mm}-${dd}`; const hh=m[4].padStart(2,'0'); const mi=m[5].padStart(2,'0'); const ss=(m[6]||'00').padStart(2,'0'); return `${y}-${mm}-${dd} ${hh}:${mi}:${ss}`;};
+    const cleanImportRow=(row)=>{const o={...row}; delete o.id; delete o.created_at; delete o.updated_at; Object.keys(o).forEach(k=>{o[k]=normalizeSlashDate(o[k]);}); if('enrolled_courses' in o && typeof o.enrolled_courses==='string' && o.enrolled_courses.trim().startsWith('[')){ try{o.enrolled_courses=JSON.parse(o.enrolled_courses);}catch(_){}}; return o;};
+    const decodeImportFile=async(file)=>{const buf=await file.arrayBuffer(); try{return new TextDecoder('utf-8',{fatal:true}).decode(buf);}catch(_){try{return new TextDecoder('gb18030').decode(buf);}catch(__){return new TextDecoder().decode(buf);}}};
+
+    const exportCurrentTab=async()=>{
+      if(!canImportExportTab()) return;
+      error.value='';
+      try{
+        const conf=ioConfig[activeTab.value];
+        const data=await api(conf.url);
+        const rows=conf.list(data)||[];
+        const blob=new Blob([toCsv(rows)],{type:'text/csv;charset=utf-8;'});
+        const a=document.createElement('a');
+        a.href=URL.createObjectURL(blob);
+        a.download=`${activeTab.value}_all.csv`;
+        document.body.appendChild(a); a.click(); a.remove();
+      }catch(e){error.value=e.message;}
+    };
+
+    const triggerImport=()=>{ if(!canImportExportTab()||!importFileRef.value) return; importFileRef.value.value=''; importFileRef.value.click(); };
+
+    const handleImportFile=async(ev)=>{
+      const f=ev.target.files&&ev.target.files[0];
+      if(!f) return;
+      if(!confirm('导入会先删除当前页面全部旧数据，再导入新数据，是否继续？')) return;
+      error.value='';
+      try{
+        const conf=ioConfig[activeTab.value];
+        const text=await decodeImportFile(f);
+        const rows=fromCsv(text);
+        const oldData=await api(conf.url);
+        const oldRows=conf.list(oldData)||[];
+        for(const r of oldRows){ if(r&&r.id!==undefined&&r.id!==null){ await api(`${conf.url}?id=${encodeURIComponent(r.id)}`,{method:'DELETE'}); } }
+        for(const r of rows){ await api(conf.url,{method:'POST',body:JSON.stringify(cleanImportRow(r))}); }
+        await reloadAll();
+      }catch(e){error.value=e.message;}
+    };
+
+    const assignUserGroup=()=>createHelper('/api/rbac_assign.php',{type:'user_group',...assignForm},loadAssign);
+    const assignGroupPerm=()=>createHelper('/api/rbac_assign.php',{type:'group_perm',...assignForm2},loadAssign);
+    const delAssign=async(type,id)=>{try{await api(`/api/rbac_assign.php?type=${type}&id=${id}`,{method:'DELETE'}); await loadAssign();}catch(e){error.value=e.message;}};
+
+    const reloadAll=async()=>{error.value=''; try{await Promise.all([loadDepartments(), loadMenus()]);}catch(e){error.value=e.message;}};
+    const toggleSidebar=()=>{sidebarOpen.value=!sidebarOpen.value;};
+    const menuPageMap={overview:'overview.html',students:'students.html',courses:'courses.html',orders:'orders.html',referrers:'referrers.html',receipts:'receipts.html',delivery_logs:'delivery_logs.html',department_stats:'department_stats.html',finance:'finance.html',todos:'todos.html',notifications:'notifications.html',users:'users.html',departments:'departments.html',menus:'menus.html',rbac_groups:'rbac_groups.html',rbac_permissions:'rbac_permissions.html',rbac_assign:'rbac_assign.html',materials:'materials.html',material_campaigns:'material_campaigns.html',material_claims:'material_claims.html',contracts:'contracts.html',invoice_profiles:'invoice_profiles.html',invoices:'invoices.html',class_terms:'class_terms.html',student_terms:'student_terms.html',shipments:'shipments.html',certificate_templates:'certificate_templates.html',certificate_issues:'certificate_issues.html',commission_scopes:'commission_scopes.html',commission_rules:'commission_rules.html',commission_calcs:'commission_calcs.html',commission_adjustments:'commission_adjustments.html',payroll_periods:'payroll_periods.html',payroll_slips:'payroll_slips.html'};
+    const selectMenu=(menuKey)=>{const target=menuPageMap[menuKey]; if(target){if(isMobile.value) sidebarOpen.value=false; if(!location.pathname.endsWith('/'+target)){top.location.href='./index.html?page='+menuKey; return;}} if(activeTab.value!==menuKey){activeTab.value=menuKey;} if(isMobile.value) sidebarOpen.value=false;};
+    const viewRecord=(title,row)=>{detailDialog.open=true;detailDialog.title=title;detailDialog.content=JSON.stringify(row,null,2);};
+    const closeDetailDialog=()=>{detailDialog.open=false;};
+    const openEditor=(key,isEdit=true)=>{if(!isEdit){const resetMap={student:resetStudentForm,course:resetCourseForm,order:resetOrderForm,referrer:resetReferrerForm,receipt:resetReceiptForm,delivery:resetDeliveryLogForm,finance:resetFinanceForm,todo:resetTodoForm,notification:resetNotificationForm,user:resetUserForm,department:resetDepartmentForm,menu:resetMenuForm,perm:resetPermForm,group:resetGroupForm};if(resetMap[key])resetMap[key]();}activeEditor.value=key;};
+    const closeEditor=()=>{activeEditor.value='';};
+    const logout=()=>{localStorage.removeItem('oa_token');localStorage.removeItem('oa_user');top.location.href='./login.html';};
+
+    const onResize=()=>{isMobile.value=window.innerWidth<980; if(!isMobile.value){sidebarOpen.value=false;}};
+    onMounted(async()=>{window.addEventListener('resize',onResize);const t=localStorage.getItem('oa_token');const u=localStorage.getItem('oa_user');if(!t){top.location.href='./login.html';return;}try{user.value=JSON.parse(u||'{}');}catch(_){user.value={};}await reloadAll();});
+    onBeforeUnmount(()=>window.removeEventListener('resize',onResize));
+
+    return {activeTab,error,user,summary,students,courses,orders,referrers,receipts,deliveryLogs,departmentStats,finance,todos,notifications,users,departments,menus,groups,perms,assignData,groupedMenus,departmentOptions,positionOptions,roleOptions,receiptChannelOptions,studentKeyword,studentCategory,orderKeyword,referrerKeyword,userKeyword,sidebarOpen,isMobile,detailDialog,activeEditor,importFileRef,toggleSidebar,selectMenu,viewRecord,closeDetailDialog,openEditor,closeEditor,canImportExportTab,exportCurrentTab,triggerImport,handleImportFile,decodeImportFile,
+      studentForm,courseForm,orderForm,financeForm,referrerForm,receiptForm,deliveryLogForm,todoForm,notificationForm,userForm,departmentForm,menuForm,groupForm,permForm,assignForm,assignForm2,
+      formatCourses,paymentStageLabel,saveStudent,editStudent,resetStudentForm,saveCourse,editCourse,resetCourseForm,saveOrder,editOrder,resetOrderForm,saveFinance,editFinance,resetFinanceForm,resetReferrerForm,editReferrer,saveReferrer,resetReceiptForm,editReceipt,saveReceipt,resetDeliveryLogForm,editDeliveryLog,saveDeliveryLog,saveTodo,editTodo,resetTodoForm,saveNotification,editNotification,resetNotificationForm,saveDepartment,editDepartment,resetDepartmentForm,saveUser,editUser,resetUserForm,saveMenu,editMenu,resetMenuForm,saveGroup,editGroup,resetGroupForm,savePerm,editPerm,resetPermForm,assignUserGroup,assignGroupPerm,delAssign,reloadAll,logout};
+  }
+}).mount('#app');
+</script>
+</body>
+</html>

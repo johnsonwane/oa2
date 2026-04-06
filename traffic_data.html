@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>引流数据 - OA</title>
+  <link rel="stylesheet" href="./assets/style.css" />
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <style>
+    html[data-embedded="1"] .oa-sidebar{display:none!important;}
+    html[data-embedded="1"] .oa-layout{display:block!important;}
+    html[data-embedded="1"] .oa-main{padding:12px 16px!important;}
+    html[data-embedded="1"] .oa-header{position:static!important;padding-left:0!important;}
+    html[data-embedded="1"] .header-actions a.btn-secondary{display:none!important;}
+    html[data-embedded="1"] .menu-toggle,html[data-embedded="1"] .sidebar-overlay{display:none!important;}html[data-embedded="1"] .oa-header h1{display:none!important;}
+    .stat-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-bottom:16px;}
+    .stat-card{background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:14px;text-align:center;}
+    .stat-card .label{font-size:12px;color:#64748b;margin-bottom:4px;}
+    .stat-card .value{font-size:20px;font-weight:700;color:#1e293b;}
+  </style>
+  <script>
+    (function(){
+      var p = new URLSearchParams(location.search);
+      if (p.get("embedded") === "1") {
+        document.documentElement.setAttribute("data-embedded","1");
+      }
+    })();
+  </script>
+</head>
+<body>
+<div id="app" class="oa-layout">
+  <aside class="oa-sidebar">
+    <div class="brand">OA-1.0.0</div>
+    <div class="user-box">测试用户</div>
+  </aside>
+
+  <main class="oa-main">
+    <header class="oa-header">
+      <h1>引流数据</h1>
+      <div class="header-actions">
+        <button class="btn-secondary" @click="reloadData">刷新数据</button>
+        <button class="btn-danger" @click="logout">退出登录</button>
+      </div>
+    </header>
+
+    <section class="content-card">
+      <h2>渠道引流数据统计</h2>
+      <p class="role-tip"><strong>岗位引导：</strong>运营负责人每日查看引流数据，及时调整投放策略；财务关注留资成本与ROI。</p>
+
+      <!-- 汇总卡片 -->
+      <div class="stat-cards" v-if="summary">
+        <div class="stat-card"><div class="label">总曝光量</div><div class="value">{{ formatNum(summary.total_exposure) }}</div></div>
+        <div class="stat-card"><div class="label">总点击量</div><div class="value">{{ formatNum(summary.total_clicks) }}</div></div>
+        <div class="stat-card"><div class="label">平均点击率</div><div class="value">{{ summary.avg_click_rate }}%</div></div>
+        <div class="stat-card"><div class="label">总留资人数</div><div class="value">{{ summary.total_leads }}</div></div>
+        <div class="stat-card"><div class="label">平均留资成本</div><div class="value">¥{{ summary.avg_lead_cost }}</div></div>
+        <div class="stat-card"><div class="label">总转化报名</div><div class="value">{{ summary.total_conversions }}</div></div>
+      </div>
+
+      <!-- 筛选栏 -->
+      <div class="filter-bar">
+        <input v-model="filterDate" type="date" @change="applyFilter" title="筛选日期" />
+        <select v-model="filterChannel" @change="applyFilter">
+          <option value="">全部渠道</option>
+          <option v-for="ch in channelOptions" :key="ch" :value="ch">{{ ch }}</option>
+        </select>
+      </div>
+
+      <!-- 数据表格 -->
+      <table class="table">
+        <thead>
+          <tr>
+            <th>日期</th><th>渠道</th><th>曝光量</th><th>点击量</th><th>点击率</th>
+            <th>留资人数</th><th>留资成本(元)</th><th>转化报名数</th><th>转化成本(元)</th><th>ROI</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="r in filteredItems" :key="r.id">
+            <td>{{ r.stat_date }}</td>
+            <td>{{ r.channel }}</td>
+            <td>{{ r.exposure }}</td>
+            <td>{{ r.clicks }}</td>
+            <td>{{ r.click_rate }}%</td>
+            <td>{{ r.lead_count }}</td>
+            <td>{{ r.lead_cost }}</td>
+            <td>{{ r.conversion_count }}</td>
+            <td>{{ r.conversion_cost }}</td>
+            <td :style="{color: r.roi >= 1 ? '#16a34a' : '#dc2626', fontWeight: 600}">{{ r.roi }}</td>
+          </tr>
+          <tr v-if="filteredItems.length === 0"><td colspan="10" style="text-align:center;color:#999;">暂无数据</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <p v-if="error" class="error global-error">{{ error }}</p>
+  </main>
+</div>
+
+<script>
+const { createApp, ref, computed, onMounted } = Vue;
+createApp({
+  setup() {
+    const items = ref([]);
+    const filterDate = ref('');
+    const filterChannel = ref('');
+    const error = ref('');
+    const channelOptions = ['抖音', '小红书', '快手', '视频号', 'B站', '知乎'];
+
+    const api = async (url, opt = {}) => {
+      const token = localStorage.getItem('oa_token') || '';
+      const baseHeaders = { 'Content-Type': 'application/json' };
+      if (token) { baseHeaders.Authorization = 'Bearer ' + token; baseHeaders['X-OA-Token'] = token; }
+      const headers = { ...baseHeaders, ...(opt.headers || {}) };
+      let r;
+      try { r = await fetch(url, { ...opt, headers }); } catch (e) { throw new Error('网络异常（' + url + '）'); }
+      const j = await r.json();
+      if (r.status === 401) { localStorage.removeItem('oa_token'); localStorage.removeItem('oa_user'); top.location.href = './login.html'; throw new Error('登录已过期'); }
+      if (j.code !== 0) throw new Error(j.message || '请求失败');
+      return j.data;
+    };
+
+    const loadData = async () => {
+      error.value = '';
+      try {
+        const q = new URLSearchParams();
+        if (filterDate.value) q.set('date', filterDate.value);
+        if (filterChannel.value) q.set('channel', filterChannel.value);
+        items.value = await api('/api/traffic_data.php?' + q.toString());
+      } catch (e) { error.value = e.message; }
+    };
+
+    const summary = computed(() => {
+      if (!items.value.length) return null;
+      const totalExposure = items.value.reduce((s, r) => s + (r.exposure || 0), 0);
+      const totalClicks = items.value.reduce((s, r) => s + (r.clicks || 0), 0);
+      const totalLeads = items.value.reduce((s, r) => s + (r.lead_count || 0), 0);
+      const totalCost = items.value.reduce((s, r) => s + (r.lead_cost * r.lead_count || 0), 0);
+      const totalConversions = items.value.reduce((s, r) => s + (r.conversion_count || 0), 0);
+      const totalConversionCost = items.value.reduce((s, r) => s + (r.conversion_cost * r.conversion_count || 0), 0);
+      return {
+        total_exposure: totalExposure,
+        total_clicks: totalClicks,
+        avg_click_rate: totalExposure > 0 ? (totalClicks / totalExposure * 100).toFixed(2) : '0.00',
+        total_leads: totalLeads,
+        avg_lead_cost: totalLeads > 0 ? (totalCost / totalLeads).toFixed(2) : '0.00',
+        total_conversions: totalConversions
+      };
+    });
+
+    const filteredItems = computed(() => items.value);
+
+    const formatNum = (n) => {
+      if (n >= 10000) return (n / 10000).toFixed(1) + '万';
+      return n.toLocaleString();
+    };
+
+    const applyFilter = () => loadData();
+    const reloadData = () => loadData();
+    const logout = () => { localStorage.removeItem('oa_token'); localStorage.removeItem('oa_user'); top.location.href = './login.html'; };
+
+    onMounted(async () => {
+      const t = localStorage.getItem('oa_token');
+      if (!t) { top.location.href = './login.html'; return; }
+      await loadData();
+    });
+
+    return { items, filterDate, filterChannel, error, summary, filteredItems, channelOptions, formatNum, applyFilter, reloadData, logout };
+  }
+}).mount('#app');
+</script>
+</body>
+</html>

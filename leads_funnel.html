@@ -1,0 +1,362 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OA-1.0.0</title>
+  <link rel="stylesheet" href="./assets/style.css" />
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+<style>
+html[data-embedded="1"] .oa-sidebar{display:none!important;}
+html[data-embedded="1"] .oa-layout{display:block!important;}
+html[data-embedded="1"] .oa-main{padding:12px 16px!important;}
+html[data-embedded="1"] .oa-header{position:static!important;padding-left:0!important;}
+
+.section-title{font-size:15px;font-weight:600;margin:20px 0 10px;color:#374151;border-left:3px solid #2563eb;padding-left:8px}
+.overview-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin:12px 0}
+.ov-card{background:#fff;border-radius:10px;padding:16px 18px;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+.ov-card .ov-label{font-size:12px;color:#6b7280;margin-bottom:4px}
+.ov-card .ov-value{font-size:26px;font-weight:700;color:#111827}
+.ov-card .ov-sub{font-size:11px;color:#9ca3af;margin-top:3px}
+.ov-card.c-blue .ov-value{color:#1d4ed8}
+.ov-card.c-green .ov-value{color:#059669}
+.ov-card.c-orange .ov-value{color:#d97706}
+.ov-card.c-purple .ov-value{color:#7c3aed}
+
+/* 漏斗可视化 */
+.funnel-visual{display:flex;flex-direction:column;gap:0;margin:16px 0;background:#fff;border-radius:12px;padding:20px;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+.funnel-stage{display:flex;align-items:center;gap:12px;padding:6px 0}
+.funnel-stage+.funnel-stage{border-top:1px dashed #f0f0f0}
+.funnel-stage .fs-name{width:90px;font-size:13px;color:#374151;font-weight:600;flex-shrink:0;text-align:right}
+.funnel-stage .fs-bar-wrap{flex:1;background:#f3f4f6;border-radius:20px;overflow:hidden;height:28px}
+.funnel-stage .fs-bar{height:100%;border-radius:20px;display:flex;align-items:center;padding:0 12px;font-size:12px;color:#fff;font-weight:700;min-width:40px;transition:width .5s ease}
+.funnel-stage .fs-num{width:80px;font-size:14px;font-weight:700;text-align:right;flex-shrink:0}
+.funnel-stage .fs-rate{width:60px;font-size:12px;color:#6b7280;text-align:right;flex-shrink:0}
+.fs-bar.s1{background:linear-gradient(90deg,#818cf8,#6366f1)}
+.fs-bar.s2{background:linear-gradient(90deg,#60a5fa,#3b82f6)}
+.fs-bar.s3{background:linear-gradient(90deg,#34d399,#10b981)}
+.fs-bar.s4{background:linear-gradient(90deg,#fb923c,#f97316)}
+.fs-bar.s5{background:linear-gradient(90deg,#fbbf24,#f59e0b)}
+
+/* 渠道表格 */
+.channel-table{width:100%;border-collapse:collapse;font-size:13px;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+.channel-table th{background:#f8fafc;padding:10px 12px;text-align:left;font-weight:600;color:#555;border-bottom:2px solid #e5e7eb}
+.channel-table td{padding:9px 12px;border-bottom:1px solid #f0f0f0;vertical-align:middle}
+.channel-table tr:hover td{background:#fafafa}
+.channel-table .num{text-align:right;font-variant-numeric:tabular-nums}
+.conv-bar{display:flex;align-items:center;gap:6px}
+.conv-bar-track{flex:1;height:8px;background:#f3f4f6;border-radius:4px;overflow:hidden}
+.conv-bar-fill{height:100%;background:#10b981;border-radius:4px}
+
+/* 活动详情表 */
+.campaign-table{width:100%;border-collapse:collapse;font-size:12px;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+.campaign-table th{background:#f8fafc;padding:8px 10px;text-align:left;font-weight:600;color:#555;border-bottom:2px solid #e5e7eb}
+.campaign-table td{padding:7px 10px;border-bottom:1px solid #f0f0f0;vertical-align:middle}
+.campaign-table tr:hover td{background:#fafafa}
+.channel-badge{display:inline-block;padding:2px 7px;border-radius:6px;font-size:11px;background:#eff6ff;color:#1d4ed8;font-weight:600}
+
+/* 顾问效率表 */
+.consult-table{width:100%;border-collapse:collapse;font-size:13px;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+.consult-table th{background:#f8fafc;padding:10px 12px;text-align:left;font-weight:600;color:#555;border-bottom:2px solid #e5e7eb}
+.consult-table td{padding:9px 12px;border-bottom:1px solid #f0f0f0;vertical-align:middle}
+.consult-table tr:hover td{background:#fafafa}
+.rank-no{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;font-size:12px;font-weight:700;background:#e5e7eb;color:#374151}
+.rank-no.top1{background:#fbbf24;color:#78350f}
+.rank-no.top2{background:#d1d5db;color:#374151}
+.rank-no.top3{background:#fed7aa;color:#7c2d12}
+
+/* 筛选表单 */
+.filter-bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding:12px 16px;background:#fff;border-radius:10px;box-shadow:0 1px 4px rgba(0,0,0,.08);margin:12px 0}
+.filter-bar label{font-size:13px;color:#374151}
+.filter-bar select,.filter-bar input[type=date],.filter-bar input[type=text]{padding:7px 10px;border:1px solid #d1d5db;border-radius:7px;font-size:13px;background:#fff;min-width:130px}
+
+.empty-tip{text-align:center;padding:32px 16px;color:#9ca3af;font-size:14px}
+</style>
+<script>(function(){var p=new URLSearchParams(location.search);if(p.get("embedded")==="1"){document.documentElement.setAttribute("data-embedded","1");}})();</script>
+</head>
+<body>
+<div id="app" v-cloak>
+  <main style="padding:16px;max-width:1280px;margin:0 auto">
+    <h2 style="margin:0 0 4px;font-size:20px;color:#111827">引流漏斗分析</h2>
+    <p style="margin:0 0 14px;font-size:13px;color:#6b7280">追踪从引流活动到最终成交的全链路转化数据</p>
+
+    <!-- 筛选栏 -->
+    <div class="filter-bar">
+      <label>渠道
+        <select v-model="filter.channel" @change="loadData">
+          <option value="">全部渠道</option>
+          <option v-for="c in channelList" :key="c" :value="c">{{ c }}</option>
+        </select>
+      </label>
+      <label>开始日期
+        <input type="date" v-model="filter.date_from" @change="loadData">
+      </label>
+      <label>结束日期
+        <input type="date" v-model="filter.date_to" @change="loadData">
+      </label>
+      <button @click="loadData" style="padding:7px 16px;border-radius:7px;background:#2563eb;color:#fff;border:none;cursor:pointer;font-size:13px">刷新</button>
+      <button @click="resetFilter" class="btn-secondary" style="padding:7px 12px;border-radius:7px;font-size:13px">重置</button>
+    </div>
+
+    <div v-if="loading" style="text-align:center;padding:40px;color:#888;font-size:15px">加载中...</div>
+    <div v-if="error" style="color:#dc2626;padding:12px;background:#fef2f2;border-radius:8px;margin-bottom:12px">{{ error }}</div>
+
+    <template v-if="data && !loading">
+      <!-- 整体概览 -->
+      <div class="section-title">📊 整体概览</div>
+      <div class="overview-grid">
+        <div class="ov-card c-blue">
+          <div class="ov-label">进行中活动</div>
+          <div class="ov-value">{{ data.overall.active_campaigns }}</div>
+          <div class="ov-sub">个活动正在运行</div>
+        </div>
+        <div class="ov-card">
+          <div class="ov-label">总资料领取</div>
+          <div class="ov-value">{{ data.overall.total_claims }}</div>
+          <div class="ov-sub">次资料领取记录</div>
+        </div>
+        <div class="ov-card">
+          <div class="ov-label">追踪线索</div>
+          <div class="ov-value">{{ data.overall.tracked_leads }}</div>
+          <div class="ov-sub">来自活动的线索</div>
+        </div>
+        <div class="ov-card">
+          <div class="ov-label">全部线索</div>
+          <div class="ov-value">{{ data.overall.total_leads }}</div>
+          <div class="ov-sub">总线索数量</div>
+        </div>
+        <div class="ov-card c-green">
+          <div class="ov-label">成交学员</div>
+          <div class="ov-value">{{ data.overall.total_converted }}</div>
+          <div class="ov-sub">转化率 {{ data.overall.overall_conversion_rate }}%</div>
+        </div>
+        <div class="ov-card c-orange">
+          <div class="ov-label">已付款订单</div>
+          <div class="ov-value">{{ data.overall.paid_orders }}</div>
+          <div class="ov-sub">产生收入</div>
+        </div>
+        <div class="ov-card c-purple">
+          <div class="ov-label">总收款金额</div>
+          <div class="ov-value" style="font-size:20px">¥{{ fmtMoney(data.overall.total_revenue) }}</div>
+          <div class="ov-sub">已付款订单合计</div>
+        </div>
+      </div>
+
+      <!-- 漏斗可视化 -->
+      <div class="section-title">🔻 转化漏斗</div>
+      <div class="funnel-visual">
+        <div class="funnel-stage" v-for="(stage, idx) in funnelStages" :key="idx">
+          <div class="fs-name">{{ stage.label }}</div>
+          <div class="fs-bar-wrap">
+            <div class="fs-bar" :class="'s'+(idx+1)" :style="{width: stage.pct+'%'}">
+              {{ stage.pct >= 12 ? stage.pct + '%' : '' }}
+            </div>
+          </div>
+          <div class="fs-num">{{ stage.value }}</div>
+          <div class="fs-rate" v-if="idx > 0" style="color:#6b7280;font-size:12px">↓{{ stage.pct }}%</div>
+          <div class="fs-rate" v-else style="color:#6b7280;font-size:12px">基准</div>
+        </div>
+      </div>
+
+      <!-- 渠道漏斗 -->
+      <div class="section-title">📡 渠道转化对比</div>
+      <div v-if="data.channel_funnel && data.channel_funnel.length > 0">
+        <table class="channel-table">
+          <thead>
+            <tr>
+              <th>渠道</th>
+              <th class="num">活动数</th>
+              <th class="num">资料领取</th>
+              <th class="num">线索数</th>
+              <th class="num">成交数</th>
+              <th style="min-width:120px">线索→成交率</th>
+              <th class="num">收款金额</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="row in data.channel_funnel" :key="row.channel">
+              <td><span class="channel-badge">{{ row.channel || '未知渠道' }}</span></td>
+              <td class="num">{{ row.campaign_count }}</td>
+              <td class="num">{{ row.claim_count }}</td>
+              <td class="num">{{ row.lead_count }}</td>
+              <td class="num" style="color:#059669;font-weight:600">{{ row.converted_count }}</td>
+              <td>
+                <div class="conv-bar">
+                  <div class="conv-bar-track">
+                    <div class="conv-bar-fill" :style="{width: Math.min(Number(row.lead_to_sale_rate),100)+'%'}"></div>
+                  </div>
+                  <span style="font-size:12px;color:#374151;font-weight:600;flex-shrink:0">{{ row.lead_to_sale_rate }}%</span>
+                </div>
+              </td>
+              <td class="num" style="color:#d97706;font-weight:600">¥{{ fmtMoney(row.total_revenue) }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div v-else class="empty-tip">暂无渠道数据，请先配置引流活动</div>
+
+      <!-- 活动详情 -->
+      <div class="section-title">🎯 活动详细漏斗</div>
+      <div v-if="data.campaign_funnel && data.campaign_funnel.length > 0">
+        <table class="campaign-table">
+          <thead>
+            <tr>
+              <th>活动名称</th>
+              <th>渠道</th>
+              <th style="text-align:right">领取</th>
+              <th style="text-align:right">线索</th>
+              <th style="text-align:right">已认领</th>
+              <th style="text-align:right">成交</th>
+              <th style="text-align:right">转化率</th>
+              <th style="text-align:right">收款</th>
+              <th style="text-align:right">人均产值</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="row in data.campaign_funnel" :key="row.campaign_id">
+              <td style="font-weight:600;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" :title="row.campaign_name">{{ row.campaign_name }}</td>
+              <td><span class="channel-badge">{{ row.channel || '-' }}</span></td>
+              <td style="text-align:right">{{ row.claim_count }}</td>
+              <td style="text-align:right">{{ row.lead_count }}</td>
+              <td style="text-align:right;color:#6366f1">{{ row.claimed_count }}</td>
+              <td style="text-align:right;color:#059669;font-weight:600">{{ row.converted_count }}</td>
+              <td style="text-align:right">
+                <span :style="{color: Number(row.conversion_rate)>=30?'#059669':Number(row.conversion_rate)>=10?'#d97706':'#dc2626',fontWeight:600}">{{ row.conversion_rate }}%</span>
+              </td>
+              <td style="text-align:right;color:#d97706;font-weight:600">¥{{ fmtMoney(row.total_revenue) }}</td>
+              <td style="text-align:right;color:#6b7280">¥{{ fmtMoney(row.revenue_per_claim) }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div v-else class="empty-tip">暂无活动数据</div>
+
+      <!-- 顾问效率排名 -->
+      <div class="section-title">👤 顾问跟进效率</div>
+      <div v-if="data.consultant_stats && data.consultant_stats.length > 0">
+        <table class="consult-table">
+          <thead>
+            <tr>
+              <th style="width:40px">#</th>
+              <th>顾问</th>
+              <th>部门</th>
+              <th style="text-align:right">持有线索</th>
+              <th style="text-align:right">已成交</th>
+              <th style="min-width:120px">成交转化率</th>
+              <th style="text-align:right">创收金额</th>
+              <th style="text-align:right">均单金额</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="(row, idx) in data.consultant_stats" :key="idx">
+              <td>
+                <span class="rank-no" :class="idx===0?'top1':idx===1?'top2':idx===2?'top3':''">{{ idx+1 }}</span>
+              </td>
+              <td style="font-weight:600">{{ row.consultant_name }}</td>
+              <td style="color:#6b7280">{{ row.department || '-' }}</td>
+              <td style="text-align:right">{{ row.total_leads }}</td>
+              <td style="text-align:right;color:#059669;font-weight:600">{{ row.converted_count }}</td>
+              <td>
+                <div class="conv-bar">
+                  <div class="conv-bar-track">
+                    <div class="conv-bar-fill" :style="{width: Math.min(Number(row.conversion_rate),100)+'%'}"></div>
+                  </div>
+                  <span style="font-size:12px;color:#374151;font-weight:600;flex-shrink:0;width:36px;text-align:right">{{ row.conversion_rate }}%</span>
+                </div>
+              </td>
+              <td style="text-align:right;color:#d97706;font-weight:600">¥{{ fmtMoney(row.total_revenue) }}</td>
+              <td style="text-align:right;color:#6b7280">¥{{ fmtMoney(row.avg_order_amount) }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div v-else class="empty-tip">暂无顾问数据</div>
+
+    </template>
+  </main>
+</div>
+<script>
+const { createApp, ref, reactive, computed, onMounted } = Vue;
+createApp({
+  setup() {
+    const loading = ref(false);
+    const error = ref('');
+    const data = ref(null);
+    const channelList = ref([]);
+    const filter = reactive({ channel: '', date_from: '', date_to: '' });
+
+    const api = async (url, opt = {}) => {
+      const token = localStorage.getItem('oa_token') || '';
+      const headers = { 'Content-Type': 'application/json' };
+      if (token) { headers.Authorization = 'Bearer ' + token; headers['X-OA-Token'] = token; }
+      let r;
+      try { r = await fetch(url, { ...opt, headers }); } catch (e) { throw new Error('网络异常：' + e.message); }
+      const text = await r.text();
+      let j = {};
+      try { j = text ? JSON.parse(text) : {}; } catch (_) { j = {}; }
+      if (r.status === 401) { localStorage.removeItem('oa_token'); top.location.href = './login.html'; throw new Error('登录已过期'); }
+      if (!r.ok || j.code !== 0) throw new Error((j && j.message) || '请求失败');
+      return Object.prototype.hasOwnProperty.call(j, 'data') ? j.data : j;
+    };
+
+    const loadData = async () => {
+      loading.value = true;
+      error.value = '';
+      try {
+        const q = new URLSearchParams();
+        if (filter.channel) q.set('channel', filter.channel);
+        if (filter.date_from) q.set('date_from', filter.date_from);
+        if (filter.date_to) q.set('date_to', filter.date_to);
+        const result = await api('/api/leads_funnel.php?' + q.toString());
+        data.value = result;
+        if (result.channel_list && result.channel_list.length) {
+          channelList.value = result.channel_list;
+        }
+      } catch (e) {
+        error.value = e.message;
+      } finally {
+        loading.value = false;
+      }
+    };
+
+    const resetFilter = () => {
+      filter.channel = '';
+      filter.date_from = '';
+      filter.date_to = '';
+      loadData();
+    };
+
+    const fmtMoney = (v) => {
+      const n = Number(v || 0);
+      if (n >= 10000) return (n / 10000).toFixed(1) + '万';
+      return n.toLocaleString('zh-CN', { maximumFractionDigits: 0 });
+    };
+
+    // 计算漏斗各阶段百分比（相对最大值）
+    const funnelStages = computed(() => {
+      if (!data.value) return [];
+      const o = data.value.overall;
+      const stages = [
+        { label: '线索总量', value: Number(o.total_leads || 0) },
+        { label: '活动追踪', value: Number(o.tracked_leads || 0) },
+        { label: '资料领取', value: Number(o.total_claims || 0) },
+        { label: '成交转化', value: Number(o.total_converted || 0) },
+        { label: '付款订单', value: Number(o.paid_orders || 0) },
+      ];
+      const max = stages[0].value || 1;
+      return stages.map(s => ({
+        ...s,
+        pct: s.value === 0 ? 0 : Math.max(Math.round(s.value / max * 100), 2)
+      }));
+    });
+
+    onMounted(() => {
+      loadData();
+    });
+
+    return { loading, error, data, channelList, filter, funnelStages, loadData, resetFilter, fmtMoney };
+  }
+}).mount('#app');
+</script>
+</body>
+</html>
