@@ -86,6 +86,80 @@ function get_legacy_menu_perm_map(): array
     ];
 }
 
+function get_role_menu_matrix(): array
+{
+    return [
+        '运营' => [
+            'overview', 'todos',
+            'works', 'channels', 'traffic_data', 'roi_analysis',
+            'leads_pool', 'leads_dispatch', 'leads_management',
+            'ops_funnel', 'leads_funnel',
+        ],
+        '顾问' => [
+            'overview', 'todos', 'notifications',
+            'leads_pool', 'leads_dispatch', 'leads_management',
+            'customer_files', 'followup_management', 'customer_transfer',
+            'deal_management', 'deal_status', 'deal_stats',
+            'order_management', 'order_multi', 'order_flow', 'orders',
+            'repurchase', 'repurchase_followup', 'repurchase_stats',
+            'students', 'courses', 'referrers',
+        ],
+        '班主任' => [
+            'overview', 'todos', 'notifications',
+            'students', 'delivery_logs', 'class_terms', 'student_terms', 'shipments', 'certificate_issues',
+            'order_management', 'order_flow', 'orders',
+            'customer_files', 'followup_management',
+            'receipts', 'refund_center',
+        ],
+        '教练' => [
+            'overview', 'todos', 'notifications',
+            'students', 'delivery_logs', 'class_terms', 'student_terms',
+            'order_management', 'orders',
+            'repurchase_followup',
+        ],
+        '财务' => [
+            'overview', 'todos', 'notifications',
+            'receipts', 'refund_center', 'refund_requests', 'finance_stats', 'finance',
+            'invoices', 'invoice_profiles', 'payment_callback_logs',
+            'commission_rules', 'commission_scopes', 'commission_calcs', 'commission_adjustments',
+            'payroll_periods', 'payroll_slips', 'salary_wages', 'salary_bonus',
+            'cost_profit', 'profit_analysis',
+            'department_stats', 'ops_dashboard',
+        ],
+        '部门经理' => [
+            'overview', 'todos',
+            'department_stats', 'ops_dashboard', 'ops_funnel', 'ops_rank',
+            'deal_stats', 'finance_stats',
+            'approval',
+        ],
+        '老板' => [
+            'overview', 'todos',
+            'boss_dashboard', 'department_stats', 'ops_dashboard', 'ops_funnel', 'ops_rank', 'leads_funnel',
+            'finance_stats', 'cost_profit', 'profit_analysis',
+            'commission_calcs', 'commission_adjustments',
+            'approval', 'system_settings',
+        ],
+    ];
+}
+
+function role_menus_from_matrix(string $role, array $allMenus): array
+{
+    $matrix = get_role_menu_matrix();
+    $allow = $matrix[$role] ?? null;
+    if ($allow === null) {
+        return [];
+    }
+    $allowSet = array_fill_keys($allow, true);
+    $visible = [];
+    foreach ($allMenus as $menu) {
+        $key = (string)($menu['menu_key'] ?? '');
+        if (isset($allowSet[$key])) {
+            $visible[] = $menu;
+        }
+    }
+    return $visible;
+}
+
 try {
     if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
         json_response(405, 'method not allowed', null, 405);
@@ -113,13 +187,37 @@ try {
     )->fetchAll();
     $allMenus = array_map('normalize_menu_row', $allMenus);
 
-    // ── 1. 超管 / 老板 → 直接返回全部菜单 ──────────────────────────
+    // ── 1. 超管 → 直接返回全部菜单 ──────────────────────────
     $role = trim((string)($user['role'] ?? ''));
-    if ($role === '超管' || $role === '老板' || stripos($role, 'admin') !== false) {
+    if ($role === '超管' || stripos($role, 'admin') !== false) {
         json_response(0, 'ok', $allMenus);
     }
 
-    // ── 2. 获取该用户所属的角色组 ID 列表 ─────────────────────────
+    // ── 2. 角色菜单矩阵（业务中心分组）──────────────────────────
+    $matrixMenus = role_menus_from_matrix($role, $allMenus);
+    if (!empty($matrixMenus)) {
+        if (!array_filter($matrixMenus, static function ($m) {
+            return (string)($m['menu_key'] ?? '') === 'todos';
+        })) {
+            foreach ($allMenus as $menu) {
+                if ((string)($menu['menu_key'] ?? '') === 'todos') {
+                    $matrixMenus[] = $menu;
+                    break;
+                }
+            }
+        }
+        usort($matrixMenus, static function ($a, $b) {
+            $sa = (int)($a['sort_no'] ?? 0);
+            $sb = (int)($b['sort_no'] ?? 0);
+            if ($sa !== $sb) {
+                return $sa < $sb ? -1 : ($sa > $sb ? 1 : 0);
+            }
+            return (int)($a['id'] ?? 0) - (int)($b['id'] ?? 0);
+        });
+        json_response(0, 'ok', $matrixMenus);
+    }
+
+    // ── 3. 获取该用户所属的角色组 ID 列表 ─────────────────────────
     $groupStmt = $pdo->prepare(
         'SELECT group_id FROM oa_user_group_rel WHERE user_id = ?'
     );
