@@ -3,8 +3,6 @@
  * roi_analysis.php — ROI分析 API
  * 各渠道、各活动的投入产出比分析
  */
-
-// 确保输出缓冲开启，捕获所有意外输出
 while (ob_get_level()) ob_end_clean();
 ob_start();
 
@@ -13,10 +11,7 @@ error_reporting(0);
 
 require_once __DIR__ . '/db.php';
 
-if (!headers_sent()) {
-    header('Content-Type: application/json; charset=utf-8');
-    header('X-Content-Type-Options: nosniff');
-}
+header('Content-Type: application/json; charset=utf-8');
 
 function json_response(int $code, string $message, $data = null, int $httpCode = 200): void
 {
@@ -48,6 +43,7 @@ function require_fields(array $data, array $fields): void
 try {
     $pdo = get_db_connection();
 
+    // 建表（首次）
     $pdo->exec("CREATE TABLE IF NOT EXISTS oa_roi_analysis (
         id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
         month VARCHAR(7) NOT NULL COMMENT '月份',
@@ -56,11 +52,44 @@ try {
         lead_count INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '引流人数',
         paid_count INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '付费转化数',
         paid_amount DECIMAL(10,2) NOT NULL DEFAULT 0.00 COMMENT '付费金额(元)',
-        roi DECIMAL(6,2) GENERATED ALWAYS AS (IF(ad_cost > 0, paid_amount / ad_cost, 0)) STORED COMMENT 'ROI',
-        profit DECIMAL(10,2) GENERATED ALWAYS AS (paid_amount - ad_cost) STORED COMMENT '毛利(元)',
+        roi DECIMAL(6,2) DEFAULT 0.00 COMMENT 'ROI',
+        profit DECIMAL(10,2) DEFAULT 0.00 COMMENT '毛利(元)',
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+    // 列迁移：补全所有旧表可能缺失的列
+    $cols = $pdo->query("SHOW COLUMNS FROM oa_roi_analysis")->fetchAll(PDO::FETCH_COLUMN);
+    if (!in_array('month', $cols)) {
+        $pdo->exec("ALTER TABLE oa_roi_analysis ADD COLUMN month VARCHAR(7) NOT NULL DEFAULT '2026-01' COMMENT '月份' AFTER id");
+    }
+    if (!in_array('channel_name', $cols)) {
+        $pdo->exec("ALTER TABLE oa_roi_analysis ADD COLUMN channel_name VARCHAR(100) NOT NULL DEFAULT '' COMMENT '渠道/活动名称'");
+    }
+    if (!in_array('ad_cost', $cols)) {
+        $pdo->exec("ALTER TABLE oa_roi_analysis ADD COLUMN ad_cost DECIMAL(10,2) NOT NULL DEFAULT 0.00 COMMENT '投放成本(元)'");
+    }
+    if (!in_array('lead_count', $cols)) {
+        $pdo->exec("ALTER TABLE oa_roi_analysis ADD COLUMN lead_count INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '引流人数'");
+    }
+    if (!in_array('paid_count', $cols)) {
+        $pdo->exec("ALTER TABLE oa_roi_analysis ADD COLUMN paid_count INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '付费转化数'");
+    }
+    if (!in_array('paid_amount', $cols)) {
+        $pdo->exec("ALTER TABLE oa_roi_analysis ADD COLUMN paid_amount DECIMAL(10,2) NOT NULL DEFAULT 0.00 COMMENT '付费金额(元)'");
+    }
+    if (!in_array('roi', $cols)) {
+        $pdo->exec("ALTER TABLE oa_roi_analysis ADD COLUMN roi DECIMAL(6,2) DEFAULT 0.00 COMMENT 'ROI'");
+    }
+    if (!in_array('profit', $cols)) {
+        $pdo->exec("ALTER TABLE oa_roi_analysis ADD COLUMN profit DECIMAL(10,2) DEFAULT 0.00 COMMENT '毛利(元)'");
+    }
+    if (!in_array('updated_at', $cols)) {
+        $pdo->exec("ALTER TABLE oa_roi_analysis ADD COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
+    }
+
+    // 更新 roi 和 profit 字段（如果有数据但字段为空）
+    $pdo->exec("UPDATE oa_roi_analysis SET roi = ROUND(IF(ad_cost > 0, paid_amount / ad_cost, 0), 2), profit = ROUND(paid_amount - ad_cost, 2) WHERE roi IS NULL OR roi = 0");
 
     $countStmt = $pdo->query("SELECT COUNT(*) FROM oa_roi_analysis");
     if ((int)$countStmt->fetchColumn() === 0) {
@@ -84,9 +113,9 @@ try {
             ['2026-03', 'B站起飞', 5200.00, 168, 12, 23760.00],
             ['2026-03', '知乎知+', 3200.00, 89, 6, 11880.00],
         ];
-        $stmt = $pdo->prepare("INSERT INTO oa_roi_analysis (month, channel_name, ad_cost, lead_count, paid_count, paid_amount) VALUES (?,?,?,?,?,?)");
+        $stmt = $pdo->prepare("INSERT INTO oa_roi_analysis (month, channel_name, ad_cost, lead_count, paid_count, paid_amount, roi, profit) VALUES (?,?,?,?,?,?, ROUND(IF(? > 0, ? / ?, 0), 2), ROUND(? - ?, 2))");
         foreach ($testData as $row) {
-            $stmt->execute($row);
+            $stmt->execute([$row[0], $row[1], $row[2], $row[3], $row[4], $row[5], $row[2], $row[5], $row[2], $row[5], $row[2]]);
         }
     }
 
@@ -100,11 +129,16 @@ try {
     if ($method === 'POST') {
         $d = request_body();
         require_fields($d, ['month', 'channel_name', 'ad_cost', 'lead_count', 'paid_count', 'paid_amount']);
-        $stmt = $pdo->prepare("INSERT INTO oa_roi_analysis (month, channel_name, ad_cost, lead_count, paid_count, paid_amount) VALUES (?,?,?,?,?,?)");
+        $adCost = (float)$d['ad_cost'];
+        $paidAmount = (float)$d['paid_amount'];
+        $roi = $adCost > 0 ? round($paidAmount / $adCost, 2) : 0;
+        $profit = round($paidAmount - $adCost, 2);
+        $stmt = $pdo->prepare("INSERT INTO oa_roi_analysis (month, channel_name, ad_cost, lead_count, paid_count, paid_amount, roi, profit) VALUES (?,?,?,?,?,?,?,?)");
         $stmt->execute([
             $d['month'], $d['channel_name'],
-            (float)$d['ad_cost'], (int)$d['lead_count'],
-            (int)$d['paid_count'], (float)$d['paid_amount']
+            $adCost, (int)$d['lead_count'],
+            (int)$d['paid_count'], $paidAmount,
+            $roi, $profit
         ]);
         json_response(0, 'created', ['id' => (int)$pdo->lastInsertId()]);
     }
@@ -117,6 +151,11 @@ try {
         $sets = []; $vals = [];
         foreach ($fields as $f) {
             if (array_key_exists($f, $d)) { $sets[] = "$f=?"; $vals[] = $d[$f]; }
+        }
+        // 更新 roi 和 profit
+        if (array_key_exists('ad_cost', $d) || array_key_exists('paid_amount', $d)) {
+            $sets[] = "roi=?"; $vals[] = $roi ?? 0;
+            $sets[] = "profit=?"; $vals[] = $profit ?? 0;
         }
         if (empty($sets)) json_response(400, '无更新字段', null, 400);
         $vals[] = $id;

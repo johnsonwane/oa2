@@ -6,6 +6,9 @@
  * 漏斗层级：
  *   活动曝光 → 资料领取(线索) → 顾问认领 → 成交订单 → 全款成交
  */
+while (ob_get_level()) ob_end_clean();
+ob_start();
+
 require_once __DIR__ . '/db.php';
 
 ini_set('display_errors', 0);

@@ -1,123 +1,246 @@
 -- =====================================================
 -- OA2 数据库补丁 v2：业务逻辑优化
 -- 执行方式：mysql -u root -p oa2 < db/patch_v2.sql
--- 兼容：MySQL 5.7+ / MySQL 8.0+（不依赖 MariaDB 专属语法）
+-- 兼容：MySQL 5.7+ / MySQL 8.0+
+-- 注意：phpMyAdmin 执行时请分段执行以下各块，或在命令行执行
 -- =====================================================
 
 USE oa2;
 
 -- =====================================================
--- 工具存储过程：安全 ADD COLUMN（字段不存在才加）
+-- 工具宏：用 PREPARE 方式安全添加列（避免 IF NOT EXISTS 语法）
 -- =====================================================
-DROP PROCEDURE IF EXISTS _safe_add_column;
-DELIMITER $$
-CREATE PROCEDURE _safe_add_column(
-  IN p_table  VARCHAR(64),
-  IN p_column VARCHAR(64),
-  IN p_ddl    TEXT
-)
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.COLUMNS
-    WHERE TABLE_SCHEMA = DATABASE()
-      AND TABLE_NAME   = p_table
-      AND COLUMN_NAME  = p_column
-  ) THEN
-    SET @sql = CONCAT('ALTER TABLE `', p_table, '` ADD COLUMN ', p_ddl);
-    PREPARE stmt FROM @sql;
-    EXECUTE stmt;
-    DEALLOCATE PREPARE stmt;
-  END IF;
-END$$
-DELIMITER ;
+-- 1. oa_student: birthday
+SET @sql = (SELECT IF(
+  EXISTS(SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='oa_student' AND COLUMN_NAME='birthday'),
+  'SELECT 1',
+  'ALTER TABLE oa_student ADD COLUMN birthday DATE DEFAULT NULL COMMENT "出生日期"'
+));
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
--- 工具存储过程：安全 ADD INDEX（索引不存在才加）
-DROP PROCEDURE IF EXISTS _safe_add_index;
-DELIMITER $$
-CREATE PROCEDURE _safe_add_index(
-  IN p_table VARCHAR(64),
-  IN p_index VARCHAR(64),
-  IN p_ddl   TEXT
-)
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.STATISTICS
-    WHERE TABLE_SCHEMA = DATABASE()
-      AND TABLE_NAME   = p_table
-      AND INDEX_NAME   = p_index
-  ) THEN
-    SET @sql = CONCAT('ALTER TABLE `', p_table, '` ADD INDEX ', p_ddl);
-    PREPARE stmt FROM @sql;
-    EXECUTE stmt;
-    DEALLOCATE PREPARE stmt;
-  END IF;
-END$$
-DELIMITER ;
+-- 2. oa_student: campaign_id
+SET @sql = (SELECT IF(
+  EXISTS(SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='oa_student' AND COLUMN_NAME='campaign_id'),
+  'SELECT 1',
+  'ALTER TABLE oa_student ADD COLUMN campaign_id INT UNSIGNED DEFAULT NULL COMMENT "引流活动ID，关联 oa_material_campaign.id"'
+));
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
--- =====================================================
--- 1. oa_student 表：新增所有缺失字段（兼容旧库 + v2 扩展）
--- =====================================================
--- 基础字段：旧库可能缺失
-CALL _safe_add_column('oa_student', 'birthday',
-  'birthday DATE DEFAULT NULL COMMENT \'出生日期\'');
+-- 3. oa_student: lead_source_type
+SET @sql = (SELECT IF(
+  EXISTS(SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='oa_student' AND COLUMN_NAME='lead_source_type'),
+  'SELECT 1',
+  'ALTER TABLE oa_student ADD COLUMN lead_source_type VARCHAR(30) DEFAULT "" COMMENT "线索来源类型：organic/campaign/referral/direct"'
+));
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
--- v2 扩展字段：引流追踪
-CALL _safe_add_column('oa_student', 'campaign_id',
-  'campaign_id INT UNSIGNED DEFAULT NULL COMMENT \'引流活动ID，关联 oa_material_campaign.id\'');
+-- 4. oa_student: owner_consultant_user_id
+SET @sql = (SELECT IF(
+  EXISTS(SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='oa_student' AND COLUMN_NAME='owner_consultant_user_id'),
+  'SELECT 1',
+  'ALTER TABLE oa_student ADD COLUMN owner_consultant_user_id INT UNSIGNED DEFAULT NULL COMMENT "归属顾问用户ID"'
+));
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
-CALL _safe_add_column('oa_student', 'lead_source_type',
-  'lead_source_type VARCHAR(30) DEFAULT \'\' COMMENT \'线索来源类型：organic/campaign/referral/direct\'');
+-- 5. oa_student: headteacher_user_id
+SET @sql = (SELECT IF(
+  EXISTS(SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='oa_student' AND COLUMN_NAME='headteacher_user_id'),
+  'SELECT 1',
+  'ALTER TABLE oa_student ADD COLUMN headteacher_user_id INT UNSIGNED DEFAULT NULL COMMENT "归属班主任用户ID"'
+));
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
--- v2 扩展字段：人员归属（顾问/班主任/教练）
-CALL _safe_add_column('oa_student', 'owner_consultant_user_id',
-  'owner_consultant_user_id INT UNSIGNED DEFAULT NULL COMMENT \'归属顾问用户ID\'');
+-- 6. oa_student: coach_user_id
+SET @sql = (SELECT IF(
+  EXISTS(SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='oa_student' AND COLUMN_NAME='coach_user_id'),
+  'SELECT 1',
+  'ALTER TABLE oa_student ADD COLUMN coach_user_id INT UNSIGNED DEFAULT NULL COMMENT "归属教练用户ID"'
+));
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
-CALL _safe_add_column('oa_student', 'headteacher_user_id',
-  'headteacher_user_id INT UNSIGNED DEFAULT NULL COMMENT \'归属班主任用户ID\'');
+-- 7. oa_student: lead_registered_at
+SET @sql = (SELECT IF(
+  EXISTS(SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='oa_student' AND COLUMN_NAME='lead_registered_at'),
+  'SELECT 1',
+  'ALTER TABLE oa_student ADD COLUMN lead_registered_at DATETIME DEFAULT NULL COMMENT "线索登记时间"'
+));
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
-CALL _safe_add_column('oa_student', 'coach_user_id',
-  'coach_user_id INT UNSIGNED DEFAULT NULL COMMENT \'归属教练用户ID\'');
+-- 8. oa_student: converted_at
+SET @sql = (SELECT IF(
+  EXISTS(SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='oa_student' AND COLUMN_NAME='converted_at'),
+  'SELECT 1',
+  'ALTER TABLE oa_student ADD COLUMN converted_at DATETIME DEFAULT NULL COMMENT "转化时间（付款）"'
+));
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
--- v2 扩展字段：时间节点
-CALL _safe_add_column('oa_student', 'lead_registered_at',
-  'lead_registered_at DATETIME DEFAULT NULL COMMENT \'线索登记时间\'');
+-- 9. oa_student: enrolled_courses
+SET @sql = (SELECT IF(
+  EXISTS(SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='oa_student' AND COLUMN_NAME='enrolled_courses'),
+  'SELECT 1',
+  'ALTER TABLE oa_student ADD COLUMN enrolled_courses JSON DEFAULT NULL COMMENT "已购课程JSON列表"'
+));
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
-CALL _safe_add_column('oa_student', 'converted_at',
-  'converted_at DATETIME DEFAULT NULL COMMENT \'转化时间（付款）\'');
+-- 10. oa_student 索引: campaign_id
+SET @sql = (SELECT IF(
+  EXISTS(SELECT 1 FROM information_schema.STATISTICS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='oa_student' AND INDEX_NAME='idx_student_campaign'),
+  'SELECT 1',
+  'ALTER TABLE oa_student ADD INDEX idx_student_campaign (campaign_id)'
+));
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
--- v2 扩展字段：已购课程
-CALL _safe_add_column('oa_student', 'enrolled_courses',
-  'enrolled_courses JSON DEFAULT NULL COMMENT \'已购课程JSON列表\');
+-- 11. oa_order: order_type
+SET @sql = (SELECT IF(
+  EXISTS(SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='oa_order' AND COLUMN_NAME='order_type'),
+  'SELECT 1',
+  "ALTER TABLE oa_order ADD COLUMN order_type ENUM('first','renewal','upgrade') NOT NULL DEFAULT 'first' COMMENT '订单类型：first首单/renewal续单/upgrade增课'"
+));
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
-CALL _safe_add_index('oa_student', 'idx_student_campaign',
-  'idx_student_campaign (campaign_id)');
+-- 12. oa_order 索引: order_type
+SET @sql = (SELECT IF(
+  EXISTS(SELECT 1 FROM information_schema.STATISTICS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='oa_order' AND INDEX_NAME='idx_order_type'),
+  'SELECT 1',
+  'ALTER TABLE oa_order ADD INDEX idx_order_type (order_type)'
+));
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
--- =====================================================
--- 2. oa_order 表：新增订单类型字段
--- =====================================================
-CALL _safe_add_column('oa_order', 'order_type',
-  'order_type ENUM(\'first\',\'renewal\',\'upgrade\') NOT NULL DEFAULT \'first\' COMMENT \'订单类型：first首单/renewal续单/upgrade增课\'');
+-- 13. oa_finance_record: source_type
+SET @sql = (SELECT IF(
+  EXISTS(SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='oa_finance_record' AND COLUMN_NAME='source_type'),
+  'SELECT 1',
+  'ALTER TABLE oa_finance_record ADD COLUMN source_type VARCHAR(30) DEFAULT "manual" COMMENT "来源类型：manual手动/order_payment订单收款/order_refund退款"'
+));
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
-CALL _safe_add_index('oa_order', 'idx_order_type',
-  'idx_order_type (order_type)');
+-- 14. oa_finance_record: source_id
+SET @sql = (SELECT IF(
+  EXISTS(SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='oa_finance_record' AND COLUMN_NAME='source_id'),
+  'SELECT 1',
+  'ALTER TABLE oa_finance_record ADD COLUMN source_id INT UNSIGNED DEFAULT NULL COMMENT "来源ID（订单ID或收款单ID）"'
+));
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
--- =====================================================
--- 3. oa_finance_record 表：增加来源关联字段，支持自动对账
--- =====================================================
-CALL _safe_add_column('oa_finance_record', 'source_type',
-  'source_type VARCHAR(30) DEFAULT \'manual\' COMMENT \'来源类型：manual手动/order_payment订单收款/order_refund退款\'');
+-- 15. oa_finance_record: operator_user_id
+SET @sql = (SELECT IF(
+  EXISTS(SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='oa_finance_record' AND COLUMN_NAME='operator_user_id'),
+  'SELECT 1',
+  'ALTER TABLE oa_finance_record ADD COLUMN operator_user_id INT UNSIGNED DEFAULT NULL COMMENT "操作人用户ID"'
+));
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
-CALL _safe_add_column('oa_finance_record', 'source_id',
-  'source_id INT UNSIGNED DEFAULT NULL COMMENT \'来源ID（订单ID或收款单ID）\'');
+-- 16. oa_finance_record: created_at
+SET @sql = (SELECT IF(
+  EXISTS(SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='oa_finance_record' AND COLUMN_NAME='created_at'),
+  'SELECT 1',
+  'ALTER TABLE oa_finance_record ADD COLUMN created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT "创建时间"'
+));
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
-CALL _safe_add_column('oa_finance_record', 'operator_user_id',
-  'operator_user_id INT UNSIGNED DEFAULT NULL COMMENT \'操作人用户ID\'');
+-- 17. oa_finance_record 索引: source_type, source_id
+SET @sql = (SELECT IF(
+  EXISTS(SELECT 1 FROM information_schema.STATISTICS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='oa_finance_record' AND INDEX_NAME='idx_finance_source'),
+  'SELECT 1',
+  'ALTER TABLE oa_finance_record ADD INDEX idx_finance_source (source_type, source_id)'
+));
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
-CALL _safe_add_column('oa_finance_record', 'created_at',
-  'created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT \'创建时间\'');
+-- 18. oa_commission_calc: term_rel_id
+SET @sql = (SELECT IF(
+  EXISTS(SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='oa_commission_calc' AND COLUMN_NAME='term_rel_id'),
+  'SELECT 1',
+  'ALTER TABLE oa_commission_calc ADD COLUMN term_rel_id INT UNSIGNED DEFAULT NULL COMMENT "学员-班期关系ID"'
+));
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
-CALL _safe_add_index('oa_finance_record', 'idx_finance_source',
-  'idx_finance_source (source_type, source_id)');
+-- 19. oa_commission_calc: calc_status
+SET @sql = (SELECT IF(
+  EXISTS(SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='oa_commission_calc' AND COLUMN_NAME='calc_status'),
+  'SELECT 1',
+  "ALTER TABLE oa_commission_calc ADD COLUMN calc_status VARCHAR(20) DEFAULT 'pending' COMMENT 'pending待计算/calculated已算/pre_final预提/final已终算'"
+));
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- 20. oa_commission_calc: pay_status
+SET @sql = (SELECT IF(
+  EXISTS(SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='oa_commission_calc' AND COLUMN_NAME='pay_status'),
+  'SELECT 1',
+  "ALTER TABLE oa_commission_calc ADD COLUMN pay_status VARCHAR(20) DEFAULT 'pending' COMMENT 'pending待发/released已发/withheld暂缓'"
+));
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- 21. oa_commission_calc: tier_id
+SET @sql = (SELECT IF(
+  EXISTS(SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='oa_commission_calc' AND COLUMN_NAME='tier_id'),
+  'SELECT 1',
+  'ALTER TABLE oa_commission_calc ADD COLUMN tier_id INT UNSIGNED DEFAULT NULL COMMENT "命中阶梯ID"'
+));
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- 22. oa_commission_calc: final_amount
+SET @sql = (SELECT IF(
+  EXISTS(SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='oa_commission_calc' AND COLUMN_NAME='final_amount'),
+  'SELECT 1',
+  'ALTER TABLE oa_commission_calc ADD COLUMN final_amount DECIMAL(10,2) DEFAULT NULL COMMENT "终算后最终金额"'
+));
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- 23. oa_commission_calc: settled_at
+SET @sql = (SELECT IF(
+  EXISTS(SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='oa_commission_calc' AND COLUMN_NAME='settled_at'),
+  'SELECT 1',
+  'ALTER TABLE oa_commission_calc ADD COLUMN settled_at DATETIME DEFAULT NULL COMMENT "实际发放时间"'
+));
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- 24. oa_commission_calc 索引: term_rel_id
+SET @sql = (SELECT IF(
+  EXISTS(SELECT 1 FROM information_schema.STATISTICS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='oa_commission_calc' AND INDEX_NAME='idx_calc_term_rel'),
+  'SELECT 1',
+  'ALTER TABLE oa_commission_calc ADD INDEX idx_calc_term_rel (term_rel_id)'
+));
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- 25. oa_commission_calc 索引: calc_status, pay_status
+SET @sql = (SELECT IF(
+  EXISTS(SELECT 1 FROM information_schema.STATISTICS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='oa_commission_calc' AND INDEX_NAME='idx_calc_status'),
+  'SELECT 1',
+  'ALTER TABLE oa_commission_calc ADD INDEX idx_calc_status (calc_status, pay_status)'
+));
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- 26. oa_student_term_rel: commission_info
+SET @sql = (SELECT IF(
+  EXISTS(SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='oa_student_term_rel' AND COLUMN_NAME='commission_info'),
+  'SELECT 1',
+  'ALTER TABLE oa_student_term_rel ADD COLUMN commission_info JSON DEFAULT NULL COMMENT "分成快照JSON（终算后写入）"'
+));
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- 27. oa_student_term_rel: commission_calc_ids
+SET @sql = (SELECT IF(
+  EXISTS(SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='oa_student_term_rel' AND COLUMN_NAME='commission_calc_ids'),
+  'SELECT 1',
+  'ALTER TABLE oa_student_term_rel ADD COLUMN commission_calc_ids VARCHAR(255) DEFAULT "" COMMENT "分成记录ID列表，逗号分隔"'
+));
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- 28. oa_student_term_rel: commission_calc_at
+SET @sql = (SELECT IF(
+  EXISTS(SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='oa_student_term_rel' AND COLUMN_NAME='commission_calc_at'),
+  'SELECT 1',
+  'ALTER TABLE oa_student_term_rel ADD COLUMN commission_calc_at DATETIME DEFAULT NULL COMMENT "分成计算时间"'
+));
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- 29. oa_order: commission_status
+SET @sql = (SELECT IF(
+  EXISTS(SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='oa_order' AND COLUMN_NAME='commission_status'),
+  'SELECT 1',
+  "ALTER TABLE oa_order ADD COLUMN commission_status VARCHAR(20) DEFAULT 'pending' COMMENT 'pending待触发/calculated已算'"
+));
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 -- =====================================================
 -- 4. 新增运营角色到 oa_user_group
@@ -171,11 +294,11 @@ AND p.perm_code IN ('menu_orders','menu_courses','menu_referrers');
 -- 7. 新增菜单：引流漏斗、老板看板
 -- =====================================================
 INSERT INTO oa_menu (parent_name, menu_name, menu_key, path, icon, sort_no, status) VALUES
-('经营分析', '引流漏斗', 'leads_funnel', '/leads_funnel', '📈', 31, 1),
-('经营分析', '老板看板', 'boss_dashboard', '/boss_dashboard', '👑', 32, 1),
-('运营管理', '资料库', 'materials_ops', '/materials', '📦', 41, 1),
-('运营管理', '资料投放', 'material_campaigns_ops', '/material_campaigns', '📡', 42, 1),
-('运营管理', '资料领取', 'material_claims_ops', '/material_claims', '📥', 43, 1)
+('经营分析', '引流漏斗', 'leads_funnel', '/leads_funnel', '&#x1F4C8;', 31, 1),
+('经营分析', '老板看板', 'boss_dashboard', '/boss_dashboard', '&#x1F451;', 32, 1),
+('运营管理', '资料库', 'materials_ops', '/materials', '&#x1F4E6;', 41, 1),
+('运营管理', '资料投放', 'material_campaigns_ops', '/material_campaigns', '&#x1F4F1;', 42, 1),
+('运营管理', '资料领取', 'material_claims_ops', '/material_claims', '&#x1F4E5;', 43, 1)
 ON DUPLICATE KEY UPDATE menu_name=VALUES(menu_name), parent_name=VALUES(parent_name), path=VALUES(path), icon=VALUES(icon), sort_no=VALUES(sort_no), status=VALUES(status);
 
 -- =====================================================
@@ -199,7 +322,7 @@ CREATE TABLE IF NOT EXISTS oa_commission_tier (
 
 -- 顾问阶梯（示例数据，按实际业务调整）
 INSERT INTO oa_commission_tier (role_type, tier_name, min_amount, max_amount, rate, start_date, status) VALUES
-('consultant', '顾问 6万以下档',      0.00,    60000.00, 0.0350, '2026-01-01', 1),
+('consultant', '顾问 6万以下档',       0.00,    60000.00, 0.0350, '2026-01-01', 1),
 ('consultant', '顾问 6-8万档',       60000.01, 80000.00, 0.0400, '2026-01-01', 1),
 ('consultant', '顾问 8-10万档',      80000.01, 100000.00, 0.0450, '2026-01-01', 1),
 ('consultant', '顾问 10万以上档',   100000.01, NULL,      0.0500, '2026-01-01', 1)
@@ -214,48 +337,15 @@ INSERT INTO oa_commission_tier (role_type, tier_name, min_amount, max_amount, ra
 ON DUPLICATE KEY UPDATE tier_name=VALUES(tier_name), rate=VALUES(rate), max_amount=VALUES(max_amount);
 
 -- =====================================================
--- 9. 扩展 oa_commission_calc 字段（关联班期 + 状态机）
--- =====================================================
-CALL _safe_add_column('oa_commission_calc', 'term_rel_id',
-  'term_rel_id INT UNSIGNED DEFAULT NULL COMMENT \'学员-班期关系ID，关联 oa_student_term_rel.id\'');
-CALL _safe_add_column('oa_commission_calc', 'calc_status',
-  'calc_status VARCHAR(20) DEFAULT \'pending\' COMMENT \'pending待计算/calculated已算/pre_final预提/final已终算\'');
-CALL _safe_add_column('oa_commission_calc', 'pay_status',
-  'pay_status VARCHAR(20) DEFAULT \'pending\' COMMENT \'pending待发/released已发/withheld暂缓\'');
-CALL _safe_add_column('oa_commission_calc', 'tier_id',
-  'tier_id INT UNSIGNED DEFAULT NULL COMMENT \'命中阶梯ID\'');
-CALL _safe_add_column('oa_commission_calc', 'final_amount',
-  'final_amount DECIMAL(10,2) DEFAULT NULL COMMENT \'终算后最终金额（NULL=同预提金额）\'');
-CALL _safe_add_column('oa_commission_calc', 'settled_at',
-  'settled_at DATETIME DEFAULT NULL COMMENT \'实际发放时间\'');
-
-CALL _safe_add_index('oa_commission_calc', 'idx_calc_term_rel',
-  'idx_calc_term_rel (term_rel_id)');
-CALL _safe_add_index('oa_commission_calc', 'idx_calc_status',
-  'idx_calc_status (calc_status, pay_status)');
-
--- =====================================================
--- 10. 扩展 oa_student_term_rel（存放分成快照）
--- =====================================================
-CALL _safe_add_column('oa_student_term_rel', 'commission_info',
-  'commission_info JSON DEFAULT NULL COMMENT \'分成快照JSON（终算后写入）\'');
-CALL _safe_add_column('oa_student_term_rel', 'commission_calc_ids',
-  'commission_calc_ids VARCHAR(255) DEFAULT \'\' COMMENT \'分成记录ID列表，逗号分隔\'');
-CALL _safe_add_column('oa_student_term_rel', 'commission_calc_at',
-  'commission_calc_at DATETIME DEFAULT NULL COMMENT \'分成计算时间\'');
-
--- =====================================================
 -- 11. 扩展 oa_order（标记是否已触发过分成计算）
--- =====================================================
-CALL _safe_add_column('oa_order', 'commission_status',
-  'commission_status VARCHAR(20) DEFAULT \'pending\' COMMENT \'pending待触发/calculated已算\'');
+-- （commission_status 列已在上面 #29 处添加）
 
 -- =====================================================
 -- 12. 替换分成基础规则为兜底规则（阶梯无法命中时使用）
 -- =====================================================
 INSERT INTO oa_commission_rule (rule_name, role_type, calc_base, commission_type, rate, fixed_amount, priority_no, start_date, end_date, status) VALUES
 -- 顾问兜底：订单类型区分（最低档）
-('顾问首单兜底',    'consultant',         'order', 'rate', 0.0350, 0, 10, '2026-01-01', NULL, 1),
+('顾问首单兜底',    'consultant',          'order', 'rate', 0.0350, 0, 10, '2026-01-01', NULL, 1),
 ('顾问续单兜底',    'consultant_renewal', 'order', 'rate', 0.0350, 0, 11, '2026-01-01', NULL, 1),
 ('顾问增课兜底',    'consultant_upgrade', 'order', 'rate', 0.0350, 0, 12, '2026-01-01', NULL, 1),
 -- 教练兜底
@@ -263,12 +353,6 @@ INSERT INTO oa_commission_rule (rule_name, role_type, calc_base, commission_type
 ('教练续单兜底',    'coach_renewal',      'order', 'rate', 0.0300, 0, 21, '2026-01-01', NULL, 1),
 ('教练增课兜底',    'coach_upgrade',      'order', 'rate', 0.0300, 0, 22, '2026-01-01', NULL, 1)
 ON DUPLICATE KEY UPDATE rate=VALUES(rate), priority_no=VALUES(priority_no), start_date=VALUES(start_date), status=VALUES(status);
-
--- =====================================================
--- 清理工具存储过程
--- =====================================================
-DROP PROCEDURE IF EXISTS _safe_add_column;
-DROP PROCEDURE IF EXISTS _safe_add_index;
 
 -- =====================================================
 -- 完成提示

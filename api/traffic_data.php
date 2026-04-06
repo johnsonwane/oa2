@@ -64,6 +64,36 @@ try {
         UNIQUE KEY uk_date_channel (stat_date, channel)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 
+    // 列迁移：补全所有旧表可能缺失的列
+    $cols = $pdo->query("SHOW COLUMNS FROM oa_traffic_data")->fetchAll(PDO::FETCH_COLUMN);
+    if (!in_array('channel', $cols)) {
+        $pdo->exec("ALTER TABLE oa_traffic_data ADD COLUMN channel VARCHAR(50) NOT NULL DEFAULT '' COMMENT '渠道'");
+    }
+    if (!in_array('exposure', $cols)) {
+        $pdo->exec("ALTER TABLE oa_traffic_data ADD COLUMN exposure INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '曝光量'");
+    }
+    if (!in_array('clicks', $cols)) {
+        $pdo->exec("ALTER TABLE oa_traffic_data ADD COLUMN clicks INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '点击量'");
+    }
+    if (!in_array('click_rate', $cols)) {
+        $pdo->exec("ALTER TABLE oa_traffic_data ADD COLUMN click_rate DECIMAL(5,2) DEFAULT 0.00 COMMENT '点击率(%)'");
+    }
+    if (!in_array('lead_count', $cols)) {
+        $pdo->exec("ALTER TABLE oa_traffic_data ADD COLUMN lead_count INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '留资人数'");
+    }
+    if (!in_array('lead_cost', $cols)) {
+        $pdo->exec("ALTER TABLE oa_traffic_data ADD COLUMN lead_cost DECIMAL(8,2) DEFAULT 0.00 COMMENT '留资成本(元)'");
+    }
+    if (!in_array('conversion_count', $cols)) {
+        $pdo->exec("ALTER TABLE oa_traffic_data ADD COLUMN conversion_count INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '转化报名数'");
+    }
+    if (!in_array('conversion_cost', $cols)) {
+        $pdo->exec("ALTER TABLE oa_traffic_data ADD COLUMN conversion_cost DECIMAL(8,2) DEFAULT 0.00 COMMENT '转化成本(元)'");
+    }
+    if (!in_array('roi', $cols)) {
+        $pdo->exec("ALTER TABLE oa_traffic_data ADD COLUMN roi DECIMAL(6,2) DEFAULT 0.00 COMMENT 'ROI'");
+    }
+
     $countStmt = $pdo->query("SELECT COUNT(*) FROM oa_traffic_data");
     if ((int)$countStmt->fetchColumn() === 0) {
         $testData = [];

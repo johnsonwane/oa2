@@ -3,11 +3,42 @@
  * leads_pool.php — 线索池 API
  * 所有未分配线索统一入池，销售可主动领取或系统自动分配
  */
-require_once __DIR__ . '/db.php';
+while (ob_get_level()) ob_end_clean();
+ob_start();
 
 ini_set('display_errors', 0);
 error_reporting(0);
+
+require_once __DIR__ . '/db.php';
+
 header('Content-Type: application/json; charset=utf-8');
+
+function json_response(int $code, string $message, $data = null, int $httpCode = 200): void
+{
+    http_response_code($httpCode);
+    echo json_encode([
+        'code' => $code,
+        'message' => $message,
+        'data' => $data,
+    ], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+function request_body(): array
+{
+    $raw = file_get_contents('php://input');
+    $data = json_decode($raw, true);
+    return is_array($data) ? $data : [];
+}
+
+function require_fields(array $data, array $fields): void
+{
+    foreach ($fields as $field) {
+        if (!isset($data[$field]) || trim((string)$data[$field]) === '') {
+            json_response(400, "字段 {$field} 不能为空", null, 400);
+        }
+    }
+}
 
 try {
     $pdo = get_db_connection();
@@ -90,13 +121,6 @@ try {
         $d = request_body();
         $id = (int)($d['id'] ?? 0);
         if ($id <= 0) json_response(400, 'id非法', null, 400);
-
-        // 领取线索时自动填充分配信息
-        if (!empty($d['assign_status']) && $d['assign_status'] === '已领取') {
-            $user = auth_user();
-            $d['assign_to'] = $user['real_name'] ?? '';
-            $d['assign_time'] = date('Y-m-d H:i:s');
-        }
 
         $fields = ['customer_name', 'phone', 'source_channel', 'tag', 'campaign', 'assign_status', 'assign_time', 'assign_to'];
         $sets = []; $vals = [];
