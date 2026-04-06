@@ -3,30 +3,24 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>培训公司 OA</title>
+  <title>OA-1.0.0</title>
   <link rel="stylesheet" href="./assets/style.css" />
   <style>
-    .app-shell{display:flex;min-height:100vh}
+    /* index.html 专属布局，由 style.css 提供基础样式 */
     .content-shell{flex:1;display:flex;flex-direction:column;min-width:0}
-    .page-frame{flex:1;border:0;width:100%;background:#f3f6fb;border-top:1px solid #e5e7eb}
-    .oa-header{padding:12px 20px;background:linear-gradient(180deg,#f8fbff,#f3f6fb);position:sticky;top:0;z-index:30;border-bottom:1px solid #e5e7eb}
-    .oa-header h1{margin:0;font-size:22px}
-    .oa-sidebar{box-shadow:inset -1px 0 0 rgba(255,255,255,.08)}
-    /* 菜单加载骨架 */
-    .menu-skeleton{padding:10px 16px;}
-    .skeleton-item{height:14px;background:linear-gradient(90deg,#e8edf5 25%,#d0d8e8 50%,#e8edf5 75%);background-size:200% 100%;border-radius:4px;margin-bottom:10px;animation:skeletonAnim 1.4s infinite;}
-    .skeleton-item:nth-child(2){width:70%;}
-    .skeleton-item:nth-child(3){width:85%;}
-    .skeleton-item:nth-child(4){width:60%;}
-    @keyframes skeletonAnim{0%{background-position:200% 0}100%{background-position:-200% 0}}
-    /* 无权限提示 */
-    .no-perm-tip{padding:20px 16px;text-align:center;color:#aaa;font-size:13px;}
+    .page-frame{flex:1;border:0;width:100%;background:transparent;border-top:1px solid var(--border)}
   </style>
 </head>
 <body>
 <div class="app-shell">
+  <!-- 移动端遮罩层 -->
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+  <!-- 汉堡按钮（仅 ≤979px 可见） -->
+  <button class="menu-toggle" id="menuToggle" aria-label="展开菜单">
+    <span></span><span></span><span></span>
+  </button>
   <aside class="oa-sidebar" id="sidebar">
-    <div class="brand">培训公司 OA</div>
+    <div class="brand">OA-1.0.0</div>
     <div class="user-box" id="userBox">未登录</div>
     <!-- 菜单由 JS 动态渲染 -->
     <div id="sidebarMenu">
@@ -81,11 +75,19 @@ const pageMap = {
 };
 
 let currentKey = '';
-const frame   = document.getElementById('pageFrame');
-const titleEl = document.getElementById('pageTitle');
-const userBox = document.getElementById('userBox');
+const frame    = document.getElementById('pageFrame');
+const titleEl  = document.getElementById('pageTitle');
+const userBox  = document.getElementById('userBox');
+const sidebar  = document.getElementById('sidebar');
+const overlay  = document.getElementById('sidebarOverlay');
+const toggle   = document.getElementById('menuToggle');
 
-// 切换页面
+// ── 移动端抽屉侧边栏 ─────────────────────────────────────────────────────
+const openSidebar  = () => { sidebar.classList.add('open'); overlay.classList.add('show'); toggle.classList.add('open'); };
+const closeSidebar = () => { sidebar.classList.remove('open'); overlay.classList.remove('show'); toggle.classList.remove('open'); };
+toggle.addEventListener('click', () => sidebar.classList.contains('open') ? closeSidebar() : openSidebar());
+overlay.addEventListener('click', closeSidebar);
+// 切换页面时自动关闭抽屉
 const select = (k) => {
   const file = pageMap[k];
   if (!file) return;
@@ -96,6 +98,7 @@ const select = (k) => {
   document.querySelectorAll('.menu-tree li').forEach(li =>
     li.classList.toggle('active', li.dataset.key === k)
   );
+  closeSidebar();
 };
 
 // ── 动态渲染侧边栏菜单 ────────────────────────────────────────────────────

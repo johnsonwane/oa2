@@ -1,4 +1,10 @@
 <?php
+/**
+ * 企业微信配置（敏感信息，请勿提交到代码仓库）
+ * 建议将本文件加入 .gitignore
+ */
+
+$_wecom_local = file_exists(__DIR__ . '/wecom_config.php') ? require __DIR__ . '/wecom_config.php' : [];
 
 return [
     'db' => [
@@ -10,7 +16,9 @@ return [
         'charset' => 'utf8mb4',
     ],
     'wecom' => [
-        'corp_id' => getenv('WECOM_CORP_ID') ?: '',
-        'contact_secret' => getenv('WECOM_CONTACT_SECRET') ?: '',
+        // 环境变量优先，其次本地配置文件
+        'corp_id' => getenv('WECOM_CORP_ID') ?: ($_wecom_local['corp_id'] ?? ''),
+        'contact_secret' => getenv('WECOM_CONTACT_SECRET') ?: ($_wecom_local['contact_secret'] ?? ''),
+        'agent_id' => $_wecom_local['agent_id'] ?? null,
     ],
 ];

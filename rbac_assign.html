@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>培训公司 OA - 权限配置中心</title>
+  <title>OA-1.0.0</title>
   <link rel="stylesheet" href="./assets/style.css" />
   <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
 <style>
@@ -165,7 +165,7 @@ html[data-embedded="1"] .menu-toggle,html[data-embedded="1"] .sidebar-overlay{di
 <body>
 <div id="app" class="oa-layout" :class="{'mobile': isMobile, 'sidebar-open': sidebarOpen}" v-cloak>
   <aside class="oa-sidebar" :class="{'open': sidebarOpen}">
-    <div class="brand">培训公司 OA</div>
+    <div class="brand">OA-1.0.0</div>
     <div class="user-box">{{ user.real_name || user.username }}（{{ user.role || '访客' }}）</div>
     <button v-if="isMobile && sidebarOpen" class="sidebar-close" @click="sidebarOpen=false" aria-label="收起菜单">×</button>
     <template v-for="group in groupedMenus" :key="group.parent">
