@@ -939,3 +939,69 @@ INSERT INTO oa_commission_rule (rule_name, role_type, calc_base, commission_type
 ('教练增课分成', 'coach_upgrade', 'order', 'rate', 0.0600, 0, 22, '2026-01-01', NULL, 1),
 ('班主任分成', 'headteacher', 'order', 'rate', 0.0600, 0, 30, '2026-01-01', NULL, 1)
 ON DUPLICATE KEY UPDATE rate=VALUES(rate), priority_no=VALUES(priority_no), start_date=VALUES(start_date), status=VALUES(status);
+
+-- =====================================================
+-- v3 菜单分组重整（按业务中心）
+-- =====================================================
+
+INSERT INTO oa_menu (parent_name, menu_name, menu_key, path, icon, sort_no, status) VALUES
+('运营引流中心', '作品管理', 'works', '/works', '🖼️', 101, 1),
+('运营引流中心', '渠道发布', 'channels', '/channels', '📣', 102, 1),
+('运营引流中心', '引流数据', 'traffic_data', '/traffic_data', '📊', 103, 1),
+('运营引流中心', 'ROI分析', 'roi_analysis', '/roi_analysis', '📈', 104, 1),
+
+('线索流转中心', '线索池', 'leads_pool', '/leads_pool', '🧲', 111, 1),
+('线索流转中心', '分配机制', 'leads_dispatch', '/leads_dispatch', '🧭', 112, 1),
+('线索流转中心', '线索管理', 'leads_management', '/leads_management', '🗂️', 113, 1),
+
+('客户CRM中心', '客户档案', 'customer_files', '/customer_files', '👤', 121, 1),
+('客户CRM中心', '跟进管理', 'followup_management', '/followup_management', '📝', 122, 1),
+('客户CRM中心', '客户流转', 'customer_transfer', '/customer_transfer', '🔁', 123, 1),
+
+('销售成单中心', '成单管理', 'deal_management', '/deal_management', '🧾', 131, 1),
+('销售成单中心', '状态管理', 'deal_status', '/deal_status', '🚦', 132, 1),
+('销售成单中心', '业绩统计', 'deal_stats', '/deal_stats', '📌', 133, 1),
+
+('订单中心', '订单管理', 'order_management', '/order_management', '📦', 141, 1),
+('订单中心', '多人参与', 'order_multi', '/order_multi', '👥', 142, 1),
+('订单中心', '状态流转', 'order_flow', '/order_flow', '➡️', 143, 1),
+
+('交付中心', '学员管理', 'students', '/students', '🎓', 151, 1),
+('交付中心', '进度跟踪', 'delivery_logs', '/delivery_logs', '📚', 152, 1),
+
+('二次销售中心', '复购管理', 'repurchase', '/repurchase', '♻️', 161, 1),
+('二次销售中心', '二销跟进', 'repurchase_followup', '/repurchase_followup', '📞', 162, 1),
+('二次销售中心', '二销统计', 'repurchase_stats', '/repurchase_stats', '📉', 163, 1),
+
+('财务中心', '收款', 'receipts', '/receipts', '💳', 171, 1),
+('财务中心', '退款', 'refund_center', '/refund_center', '↩️', 172, 1),
+('财务中心', '财务统计', 'finance_stats', '/finance_stats', '💹', 173, 1),
+
+('分成提成中心', '分成规则', 'commission_rules', '/commission_rules', '📐', 181, 1),
+('分成提成中心', '自动计算', 'commission_calcs', '/commission_calcs', '🧮', 182, 1),
+('分成提成中心', '提成记录', 'commission_adjustments', '/commission_adjustments', '🧾', 183, 1),
+('分成提成中心', '提成统计', 'commission_scopes', '/commission_scopes', '📊', 184, 1),
+
+('薪酬中心', '工资周期', 'payroll_periods', '/payroll_periods', '🗓️', 191, 1),
+('薪酬中心', '工资', 'payroll_slips', '/payroll_slips', '💼', 192, 1),
+('薪酬中心', '薪资', 'salary_wages', '/salary_wages', '💴', 193, 1),
+('薪酬中心', '奖金', 'salary_bonus', '/salary_bonus', '🎁', 194, 1),
+
+('成本利润中心', '单课成本', 'cost_profit', '/cost_profit', '💸', 201, 1),
+('成本利润中心', '利润分析', 'profit_analysis', '/profit_analysis', '📈', 202, 1),
+
+('经营分析中心', '经营看板', 'ops_dashboard', '/ops_dashboard', '🧭', 211, 1),
+('经营分析中心', '漏斗分析', 'ops_funnel', '/ops_funnel', '🧪', 212, 1),
+('经营分析中心', '排行分析', 'ops_rank', '/ops_rank', '🏆', 213, 1),
+
+('基础系统', '权限管理', 'rbac_permissions', '/rbac/permissions', '🔐', 221, 1),
+('基础系统', '审批', 'approval', '/approval', '✅', 222, 1),
+('基础系统', '文件', 'file_manager', '/file_manager', '📁', 223, 1),
+('基础系统', '设置', 'system_settings', '/system_settings', '⚙️', 224, 1)
+ON DUPLICATE KEY UPDATE
+  parent_name=VALUES(parent_name),
+  menu_name=VALUES(menu_name),
+  path=VALUES(path),
+  icon=VALUES(icon),
+  sort_no=VALUES(sort_no),
+  status=VALUES(status);
