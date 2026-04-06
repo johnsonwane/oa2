@@ -9,18 +9,38 @@
     /* index.html 专属布局，由 style.css 提供基础样式 */
     .content-shell{flex:1;display:flex;flex-direction:column;min-width:0}
     .page-frame{flex:1;border:0;width:100%;background:transparent;border-top:1px solid var(--border)}
+    /* 移动端：LOGO 固定在 header 左上角 */
+    @media (max-width:979px) {
+      .header-logo {
+        position: fixed;
+        left: 12px;
+        top: 10px;
+        z-index: 220;
+        height: 36px;
+        max-width: 120px;
+        object-fit: contain;
+      }
+    }
+    @media (min-width:980px) {
+      .header-logo { display: none; }
+    }
   </style>
 </head>
 <body>
 <div class="app-shell">
   <!-- 移动端遮罩层 -->
   <div class="sidebar-overlay" id="sidebarOverlay"></div>
-  <!-- 汉堡按钮（仅 ≤979px 可见） -->
+  <!-- 移动端：LOGO 悬浮左上角 -->
+  <img class="header-logo" src="./assets/LOGO.png" alt="LOGO" />
+  <!-- 汉堡按钮（仅 ≤979px 可见，移至右上角） -->
   <button class="menu-toggle" id="menuToggle" aria-label="展开菜单">
     <span></span><span></span><span></span>
   </button>
   <aside class="oa-sidebar" id="sidebar">
-    <div class="brand">OA-1.0.0</div>
+    <!-- LOGO 区：桌面端展示在侧边栏顶部 -->
+    <div class="sidebar-logo">
+      <img src="./assets/LOGO.png" alt="公司LOGO" />
+    </div>
     <div class="user-box" id="userBox">未登录</div>
     <!-- 菜单由 JS 动态渲染 -->
     <div id="sidebarMenu">
@@ -72,6 +92,38 @@ const pageMap = {
   payroll_periods:'payroll_periods.html', payroll_slips:'payroll_slips.html',
   payment_callback_logs:'payment_callback_logs.html',
   refund_requests:'refund_requests.html',
+  // ===== 新增功能 =====
+  // 运营引流中心
+  works:'works.html', channels:'channels.html',
+  traffic_data:'traffic_data.html', roi_analysis:'roi_analysis.html',
+  // 线索流转中心
+  leads_pool:'leads_pool.html', leads_dispatch:'leads_dispatch.html',
+  leads_management:'leads_management.html',
+  // 客户CRM中心
+  customer_files:'customer_files.html', followup_management:'followup_management.html',
+  customer_transfer:'customer_transfer.html',
+  // 销售成单中心
+  deal_management:'deal_management.html', deal_status:'deal_status.html',
+  deal_stats:'deal_stats.html',
+  // 订单中心
+  order_management:'order_management.html', order_multi:'order_multi.html',
+  order_flow:'order_flow.html',
+  // 交付中心
+  student_management:'student_management.html', student_progress:'student_progress.html',
+  student_exception:'student_exception.html',
+  // 二次销售中心
+  repurchase:'repurchase.html', repurchase_followup:'repurchase_followup.html',
+  repurchase_stats:'repurchase_stats.html',
+  // 财务中心
+  refund_center:'refund_center.html', finance_stats:'finance_stats.html',
+  // 成本利润中心
+  cost_profit:'cost_profit.html', profit_analysis:'profit_analysis.html',
+  // 经营分析中心
+  ops_dashboard:'ops_dashboard.html', ops_funnel:'ops_funnel.html',
+  ops_rank:'ops_rank.html',
+  // 基础系统
+  approval:'approval.html', file_manager:'file_manager.html',
+  system_settings:'system_settings.html',
 };
 
 let currentKey = '';
